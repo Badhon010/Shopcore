@@ -1,0 +1,7 @@
+{% extends "emails/base.html" %}
+{% block content %}
+<h2>Your Order Has Shipped! 🚚</h2>
+<p>Hi {{ user.first_name|default:user.email }},</p>
+<p>Great news — your order <strong>{{ order.order_number }}</strong> is on its way!</p>
+<p>We'll notify you once it's delivered.</p>
+{% endblock %}

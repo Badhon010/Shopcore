@@ -1,0 +1,272 @@
+"""Views for the accounts app."""
+from __future__ import annotations
+
+import logging
+
+from django.contrib.auth import get_user_model
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
+from drf_spectacular.utils import extend_schema, extend_schema_view
+from rest_framework import generics, permissions, status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+from apps.accounts.models import Address
+from apps.accounts.serializers import (
+    AddressSerializer,
+    ChangePasswordSerializer,
+    CustomTokenObtainPairSerializer,
+    EmailVerificationSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    UserProfileUpdateSerializer,
+    UserRegistrationSerializer,
+    UserSerializer,
+)
+from apps.accounts.services import (
+    change_password,
+    send_password_reset_email,
+    send_verification_email,
+    set_default_address,
+    verify_email,
+)
+from apps.common.permissions import IsOwner
+from apps.common.throttling import (
+    LoginRateThrottle,
+    PasswordResetRequestThrottle,
+    RegisterRateThrottle,
+)
+
+User = get_user_model()
+logger = logging.getLogger("shopcore.accounts.views")
+
+
+class RegisterView(generics.CreateAPIView):
+    """Register a new user account."""
+
+    serializer_class = UserRegistrationSerializer
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [RegisterRateThrottle]
+
+    @extend_schema(
+        summary="Register a new user",
+        responses={201: UserSerializer},
+    )
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+
+class LoginView(TokenObtainPairView):
+    """Login and receive JWT access + refresh tokens."""
+
+    serializer_class = CustomTokenObtainPairSerializer
+    throttle_classes = [LoginRateThrottle]
+
+
+class LogoutView(APIView):
+    """Blacklist the refresh token (logout)."""
+
+    @extend_schema(
+        summary="Logout (blacklist refresh token)",
+        request={"application/json": {"type": "object", "properties": {"refresh": {"type": "string"}}}},
+        responses={204: None},
+    )
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.data.get("refresh")
+        if not refresh_token:
+            return Response(
+                {"error": {"code": "MISSING_REFRESH_TOKEN", "message": "Refresh token is required.", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except Exception as exc:
+            logger.warning("Logout failed: %s", exc)
+            return Response(
+                {"error": {"code": "INVALID_TOKEN", "message": "Token is invalid or expired.", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MeView(generics.RetrieveUpdateAPIView):
+    """Retrieve or update the authenticated user's profile."""
+
+    def get_serializer_class(self):
+        if self.request.method in ("PUT", "PATCH"):
+            return UserProfileUpdateSerializer
+        return UserSerializer
+
+    def get_object(self):
+        return self.request.user
+
+    @extend_schema(summary="Get current user profile", responses={200: UserSerializer})
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(summary="Update current user profile")
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+
+
+class ChangePasswordView(APIView):
+    """Change the authenticated user's password."""
+
+    @extend_schema(summary="Change password", request=ChangePasswordSerializer, responses={204: None})
+    def post(self, request, *args, **kwargs):
+        serializer = ChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            change_password(
+                request.user,
+                serializer.validated_data["old_password"],
+                serializer.validated_data["new_password"],
+            )
+        except ValueError as exc:
+            return Response(
+                {"error": {"code": "INVALID_PASSWORD", "message": str(exc), "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PasswordResetRequestView(APIView):
+    """Request a password reset email."""
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [PasswordResetRequestThrottle]
+
+    @extend_schema(summary="Request password reset email", request=PasswordResetRequestSerializer, responses={204: None})
+    def post(self, request, *args, **kwargs):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        send_password_reset_email(serializer.validated_data["email"])
+        # Always return 204 — do not reveal whether the account exists
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PasswordResetConfirmView(APIView):
+    """Confirm a password reset."""
+
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(summary="Confirm password reset", request=PasswordResetConfirmSerializer, responses={204: None})
+    def post(self, request, *args, **kwargs):
+        from django.contrib.auth.tokens import default_token_generator
+
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            uid = force_str(urlsafe_base64_decode(serializer.validated_data["uid"]))
+            user = User.objects.get(pk=uid)
+        except (User.DoesNotExist, ValueError, TypeError):
+            return Response(
+                {"error": {"code": "INVALID_RESET_LINK", "message": "Reset link is invalid.", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not default_token_generator.check_token(user, serializer.validated_data["token"]):
+            return Response(
+                {"error": {"code": "INVALID_RESET_TOKEN", "message": "Reset token is invalid or expired.", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(serializer.validated_data["new_password"])
+        user.save(update_fields=["password"])
+
+        # Revoke all outstanding refresh tokens so a stolen token cannot be
+        # used after the user resets their password.
+        from apps.accounts.services import blacklist_all_refresh_tokens
+        blacklist_all_refresh_tokens(user)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class VerifyEmailView(APIView):
+    """Verify a user's email address."""
+
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(summary="Verify email address", request=EmailVerificationSerializer, responses={204: None})
+    def post(self, request, *args, **kwargs):
+        serializer = EmailVerificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            uid = force_str(urlsafe_base64_decode(serializer.validated_data["uid"]))
+            user = User.objects.get(pk=uid)
+        except (User.DoesNotExist, ValueError, TypeError):
+            return Response(
+                {"error": {"code": "INVALID_VERIFICATION_LINK", "message": "Verification link is invalid.", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if verify_email(user, serializer.validated_data["token"]):
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        return Response(
+            {"error": {"code": "INVALID_VERIFICATION_TOKEN", "message": "Verification token is invalid or expired.", "details": {}}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+class ResendVerificationEmailView(APIView):
+    """Resend the email verification link."""
+
+    @extend_schema(summary="Resend verification email", responses={204: None})
+    def post(self, request, *args, **kwargs):
+        send_verification_email(request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AddressListCreateView(generics.ListCreateAPIView):
+    """List or create addresses for the authenticated user."""
+
+    serializer_class = AddressSerializer
+
+    def get_queryset(self):
+        return Address.objects.filter(user=self.request.user).order_by("-is_default", "-created_at")
+
+    def perform_create(self, serializer):
+        is_default = serializer.validated_data.get("is_default", False)
+        address = serializer.save(user=self.request.user)
+        if is_default:
+            set_default_address(self.request.user, address)
+
+
+class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Retrieve, update, or delete a specific address."""
+
+    serializer_class = AddressSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
+
+    def get_queryset(self):
+        return Address.objects.filter(user=self.request.user)
+
+    def perform_update(self, serializer):
+        address = serializer.save()
+        if serializer.validated_data.get("is_default", False):
+            set_default_address(self.request.user, address)
+
+
+class SetDefaultAddressView(APIView):
+    """Set an address as the user's default."""
+
+    @extend_schema(summary="Set default address", responses={200: AddressSerializer})
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            address = Address.objects.get(pk=pk, user=request.user)
+        except Address.DoesNotExist:
+            return Response(
+                {"error": {"code": "NOT_FOUND", "message": "Address not found.", "details": {}}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        updated = set_default_address(request.user, address)
+        return Response(AddressSerializer(updated).data)

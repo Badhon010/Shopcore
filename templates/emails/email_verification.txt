@@ -1,0 +1,8 @@
+Hi {{ user.first_name|default:user.email }},
+
+Please verify your email address by visiting:
+{{ site_url }}/verify-email/?uid={{ uid }}&token={{ token }}
+
+This link expires in 24 hours.
+
+-- ShopCore Team

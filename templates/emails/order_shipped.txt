@@ -1,0 +1,7 @@
+Hi {{ user.first_name|default:user.email }},
+
+Your order {{ order.order_number }} has shipped and is on its way!
+
+We'll notify you once it's delivered.
+
+-- ShopCore Team

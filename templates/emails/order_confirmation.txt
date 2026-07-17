@@ -1,0 +1,18 @@
+Hi {{ user.first_name|default:user.email }},
+
+Your order {{ order.order_number }} has been confirmed!
+
+Items:
+{% for item in order.items.all %}
+- {{ item.quantity }}x {{ item.product_name_snapshot }}: ${{ item.line_total }}
+{% endfor %}
+
+Subtotal: ${{ order.subtotal }}
+{% if order.discount_total %}Discount: -${{ order.discount_total }}{% endif %}
+Shipping: ${{ order.shipping_cost }}
+Tax: ${{ order.tax_total }}
+Total: ${{ order.grand_total }}
+
+Shipping to: {{ order.shipping_address_snapshot.full_name }}, {{ order.shipping_address_snapshot.address_line_1 }}, {{ order.shipping_address_snapshot.city }}
+
+-- ShopCore Team

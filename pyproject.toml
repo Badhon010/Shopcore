@@ -1,0 +1,47 @@
+[tool.black]
+line-length = 100
+target-version = ["py313"]
+exclude = '''
+/(
+    migrations
+  | .git
+  | __pycache__
+  | .venv
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip = ["migrations", ".venv"]
+known_django = ["django"]
+known_drf = ["rest_framework"]
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "DJANGO", "DRF", "FIRSTPARTY", "LOCALFOLDER"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+exclude = ["migrations", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "DJ"]
+ignore = ["DJ001"]
+
+[tool.ruff.lint.per-file-ignores]
+"*/tests/*" = ["E501"]
+"*/migrations/*" = ["E501"]
+
+[tool.coverage.run]
+source = ["apps"]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/test_*.py",
+    "manage.py",
+    "config/*",
+    "scripts/*",
+]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true

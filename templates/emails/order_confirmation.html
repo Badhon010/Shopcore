@@ -1,0 +1,27 @@
+{% extends "emails/base.html" %}
+{% block content %}
+<h2>Order Confirmed!</h2>
+<p>Hi {{ user.first_name|default:user.email }},</p>
+<p>Thank you for your order. Here's your summary:</p>
+<p><strong>Order Number:</strong> {{ order.order_number }}</p>
+<table class="order-table">
+  <thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead>
+  <tbody>
+  {% for item in order.items.all %}
+  <tr>
+    <td>{{ item.product_name_snapshot }}<br><small style="color:#888">{{ item.variant_attributes_snapshot }}</small></td>
+    <td>{{ item.quantity }}</td>
+    <td>${{ item.line_total }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr><td colspan="2">Subtotal</td><td>${{ order.subtotal }}</td></tr>
+    {% if order.discount_total %}<tr><td colspan="2">Discount</td><td>-${{ order.discount_total }}</td></tr>{% endif %}
+    <tr><td colspan="2">Shipping</td><td>${{ order.shipping_cost }}</td></tr>
+    <tr><td colspan="2">Tax</td><td>${{ order.tax_total }}</td></tr>
+    <tr class="total-row"><td colspan="2">Total</td><td>${{ order.grand_total }}</td></tr>
+  </tfoot>
+</table>
+<p><strong>Shipping to:</strong><br>{{ order.shipping_address_snapshot.full_name }}<br>{{ order.shipping_address_snapshot.address_line_1 }}, {{ order.shipping_address_snapshot.city }}</p>
+{% endblock %}

@@ -1,0 +1,136 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import {
+  authService,
+  type LoginPayload,
+  type RegisterPayload,
+} from '@/services/api/auth.service'
+import {
+  setAccessToken,
+  tokenStorage,
+} from '@/services/api/axiosClient'
+import type { User } from '@/types/models'
+import { guestCartToken } from '@/services/api/cart.service'
+import { cartService } from '@/services/api/cart.service'
+
+interface AuthContextValue {
+  user: User | null
+  isAuthenticated: boolean
+  isLoading: boolean
+  login: (payload: LoginPayload) => Promise<void>
+  register: (payload: RegisterPayload) => Promise<void>
+  logout: () => Promise<void>
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null)
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const initialized = useRef(false)
+
+  // Bootstrap: attempt silent token refresh on app load
+  useEffect(() => {
+    if (initialized.current) return
+    initialized.current = true
+
+    const bootstrap = async () => {
+      const refreshToken = tokenStorage.getRefreshToken()
+      if (!refreshToken) {
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const { default: axios } = await import('axios')
+        const baseURL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+        const response = await axios.post<{ access: string }>(`${baseURL}/auth/token/refresh/`, {
+          refresh: refreshToken,
+        })
+        setAccessToken(response.data.access)
+        const me = await authService.me()
+        setUser(me)
+      } catch {
+        setAccessToken(null)
+        tokenStorage.clearRefreshToken()
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    void bootstrap()
+  }, [])
+
+  // Listen for session expiry dispatched by axios interceptor
+  useEffect(() => {
+    const handler = () => {
+      setUser(null)
+      void queryClient.clear()
+    }
+    window.addEventListener('auth:session-expired', handler)
+    return () => window.removeEventListener('auth:session-expired', handler)
+  }, [queryClient])
+
+  const login = useCallback(
+    async (payload: LoginPayload) => {
+      const data = await authService.login(payload)
+      setAccessToken(data.access)
+      tokenStorage.setRefreshToken(data.refresh)
+      setUser(data.user)
+
+      // The backend has no guest-cart merge endpoint, so the guest cart
+      // token is simply discarded — the user's server-side cart (identified
+      // by their account) takes over after login.
+      guestCartToken.clear()
+
+      await queryClient.invalidateQueries({ queryKey: ['cart'] })
+    },
+    [queryClient]
+  )
+
+  const register = useCallback(
+    async (payload: RegisterPayload) => {
+      const data = await authService.register(payload)
+      setAccessToken(data.access)
+      tokenStorage.setRefreshToken(data.refresh)
+      setUser(data.user)
+    },
+    []
+  )
+
+  const logout = useCallback(async () => {
+    try {
+      await authService.logout()
+    } catch {
+      // ignore errors — clear session anyway
+    } finally {
+      setAccessToken(null)
+      tokenStorage.clearRefreshToken()
+      setUser(null)
+      queryClient.clear()
+    }
+  }, [queryClient])
+
+  return (
+    <AuthContext.Provider
+      value={{ user, isAuthenticated: !!user, isLoading, login, register, logout }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext)
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
+  return ctx
+}
