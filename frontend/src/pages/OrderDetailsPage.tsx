@@ -101,10 +101,10 @@ export function OrderDetailsPage() {
           <div className="rounded-xl border border-border p-6">
             <h3 className="text-body-md font-semibold text-text-primary mb-3">Shipping address</h3>
             <address className="not-italic text-body-sm text-text-secondary space-y-0.5">
-              <p>{order.shipping_address.first_name} {order.shipping_address.last_name}</p>
+              <p>{order.shipping_address.full_name}</p>
               <p>{order.shipping_address.address_line_1}</p>
               {order.shipping_address.address_line_2 && <p>{order.shipping_address.address_line_2}</p>}
-              <p>{order.shipping_address.city}, {order.shipping_address.state} {order.shipping_address.postal_code}</p>
+              <p>{order.shipping_address.city}, {order.shipping_address.state_province} {order.shipping_address.postal_code}</p>
               <p>{order.shipping_address.country}</p>
             </address>
           </div>

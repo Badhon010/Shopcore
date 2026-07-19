@@ -56,7 +56,7 @@ function normalizeVariant(raw: RawCategory): ProductVariant {
 }
 
 export function normalizeProduct(raw: RawProduct): Product {
-  const variants = Array.isArray(raw.variants) ? raw.variants.map(normalizeVariant) : []
+  const variants: ProductVariant[] = Array.isArray(raw.variants) ? raw.variants.map(normalizeVariant) : []
   const defaultVariant = variants.find((v) => v.is_available) ?? variants[0]
 
   const images: ProductImage[] = Array.isArray(raw.images) && raw.images.length > 0

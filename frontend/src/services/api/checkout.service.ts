@@ -1,51 +1,70 @@
+/**
+ * Checkout service — wraps the two real backend endpoints that drive the
+ * checkout flow:
+ *
+ *   POST /orders/checkout/      → place a new order
+ *   POST /payments/initiate/    → trigger payment on a placed order
+ *
+ * There is no server-managed checkout session. Address selection and
+ * cart state are read directly from their own endpoints
+ * (GET /accounts/addresses/ and GET /cart/) and the selected address ID
+ * is carried between checkout steps via React Router navigation state.
+ */
 import { axiosClient } from './axiosClient'
 import { endpoints } from './endpoints'
-import type { CheckoutSession, Order, ShippingMethod } from '@/types/models'
-import type { Address } from '@/types/models'
+import type { Order } from '@/types/models'
 
-export interface CheckoutSessionPayload {
-  shipping_address?: Omit<Address, 'id' | 'is_default'> | { id: string }
-  billing_address?: Omit<Address, 'id' | 'is_default'> | { id: string }
-  shipping_method_id?: string
-  same_as_shipping?: boolean
-}
+// ---------------------------------------------------------------------------
+// Place order
+// ---------------------------------------------------------------------------
 
 export interface PlaceOrderPayload {
-  shipping_address: Omit<Address, 'id' | 'is_default'> | { id: string }
-  billing_address: Omit<Address, 'id' | 'is_default'> | { id: string }
-  shipping_method_id: string
-  payment_method_id?: string
-  terms_accepted: boolean
+  /** PK of a saved Address belonging to the current user. */
+  shipping_address_id: number
+  /** Defaults to shipping_address_id when omitted. */
+  billing_address_id?: number
+  coupon_code?: string
+  notes?: string
+  /** Idempotency key to prevent duplicate orders on retry. */
+  idempotency_key?: string
 }
 
-export interface PaymentIntentResponse {
-  client_secret: string
-  payment_intent_id: string
+// ---------------------------------------------------------------------------
+// Initiate payment
+// ---------------------------------------------------------------------------
+
+export interface InitiatePaymentPayload {
+  order_number: string
+  /** Payment provider enum value.  Only "MANUAL" is implemented in v1. */
+  provider?: string
 }
+
+export interface InitiatePaymentResponse {
+  payment_id: string | null
+  provider: string
+  /** Populated for providers that use client-side confirmation (e.g. Stripe). */
+  client_secret: string | null
+  /** Populated for redirect-based providers. */
+  redirect_url: string | null
+}
+
+// ---------------------------------------------------------------------------
+// Service object
+// ---------------------------------------------------------------------------
 
 export const checkoutService = {
-  getSession: ({ signal }: { signal?: AbortSignal } = {}) =>
-    axiosClient
-      .get<CheckoutSession>(endpoints.checkout.session(), { signal })
-      .then((r) => r.data),
-
-  updateSession: (payload: CheckoutSessionPayload) =>
-    axiosClient
-      .patch<CheckoutSession>(endpoints.checkout.session(), payload)
-      .then((r) => r.data),
-
-  getShippingMethods: ({ signal }: { signal?: AbortSignal } = {}) =>
-    axiosClient
-      .get<ShippingMethod[]>(endpoints.checkout.shippingMethods(), { signal })
-      .then((r) => r.data),
-
-  createPaymentIntent: () =>
-    axiosClient
-      .post<PaymentIntentResponse>(endpoints.checkout.paymentIntent())
-      .then((r) => r.data),
-
+  /** Place a new order.  Returns the created Order. */
   placeOrder: (payload: PlaceOrderPayload) =>
     axiosClient
-      .post<Order>(endpoints.checkout.placeOrder(), payload)
+      .post<Order>(endpoints.orders.checkout(), payload)
+      .then((r) => r.data),
+
+  /** Initiate payment for an already-placed order. */
+  initiatePayment: (payload: InitiatePaymentPayload) =>
+    axiosClient
+      .post<InitiatePaymentResponse>(endpoints.payments.initiate(), {
+        provider: 'MANUAL',
+        ...payload,
+      })
       .then((r) => r.data),
 }

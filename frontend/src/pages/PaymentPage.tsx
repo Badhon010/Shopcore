@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { Stepper } from '@/components/ui/Stepper'
@@ -8,10 +8,10 @@ import { Checkbox } from '@/components/ui/Checkbox'
 import { Spinner } from '@/components/feedback/Spinner'
 import { CartSummary } from '@/features/cart/components/CartSummary'
 import { CartLineItem } from '@/features/cart/components/CartLineItem'
-import { useCheckoutSession, usePlaceOrder } from '@/features/checkout/hooks/useCheckout'
+import { usePlaceOrder, useInitiatePayment } from '@/features/checkout/hooks/useCheckout'
 import { useCart } from '@/features/cart/hooks/useCart'
+import { useAddresses } from '@/features/account/hooks/useProfile'
 import { buildRoute, ROUTES } from '@/constants/routes'
-import { Link } from 'react-router-dom'
 
 const STEPS = [
   { label: 'Shipping' },
@@ -19,14 +19,35 @@ const STEPS = [
   { label: 'Review' },
 ]
 
+/**
+ * Step 2 of checkout — review order and place it.
+ *
+ * Expects `location.state.shippingAddressId` to be set by CheckoutPage.
+ * If the user lands here directly (no state), they are redirected back to
+ * the shipping step.
+ *
+ * Flow:
+ *   1. POST /orders/checkout/   → creates the order, returns order_number
+ *   2. POST /payments/initiate/ → triggers MANUAL payment (immediate)
+ *   3. Navigate to success page
+ */
 export function PaymentPage() {
   const navigate = useNavigate()
-  const { data: session, isLoading } = useCheckoutSession()
-  const { data: cart } = useCart()
+  const location = useLocation()
+  const shippingAddressId: string | undefined = location.state?.shippingAddressId
+
+  const { data: cart, isLoading: cartLoading } = useCart()
+  const { data: addresses, isLoading: addressesLoading } = useAddresses()
   const placeOrder = usePlaceOrder()
+  const initiatePayment = useInitiatePayment()
   const [termsAccepted, setTermsAccepted] = useState(false)
 
-  if (isLoading) {
+  // Guard: address must have been chosen on the previous step
+  if (!shippingAddressId) {
+    return <Navigate to={ROUTES.CHECKOUT} replace />
+  }
+
+  if (cartLoading || addressesLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <Spinner size="lg" />
@@ -34,18 +55,18 @@ export function PaymentPage() {
     )
   }
 
-  const shippingAddress = session?.shipping_address
-  const shippingMethod = session?.shipping_method
+  const shippingAddress = addresses?.find((a) => a.id === shippingAddressId)
+  const isPending = placeOrder.isPending || initiatePayment.isPending
 
   const handlePlaceOrder = async () => {
-    if (!shippingAddress || !shippingMethod) return
+    if (!termsAccepted) return
     try {
+      const addressIdInt = parseInt(shippingAddressId, 10)
       const order = await placeOrder.mutateAsync({
-        shipping_address: { id: shippingAddress.id },
-        billing_address: { id: shippingAddress.id },
-        shipping_method_id: shippingMethod.id,
-        terms_accepted: termsAccepted,
+        shipping_address_id: addressIdInt,
+        billing_address_id: addressIdInt,
       })
+      await initiatePayment.mutateAsync({ order_number: order.order_number })
       navigate(buildRoute.orderSuccess(order.order_number))
     } catch {
       navigate(ROUTES.CHECKOUT_FAILURE)
@@ -61,43 +82,51 @@ export function PaymentPage() {
         <Stepper steps={STEPS} currentStep={1} className="mb-10 max-w-xl mx-auto" />
 
         <div className="mx-auto grid max-w-4xl grid-cols-1 gap-8 lg:grid-cols-2">
-          {/* Left: Payment */}
+          {/* Left column: shipping summary + payment confirmation */}
           <div>
-            <h1 className="text-heading-lg font-semibold text-text-primary mb-6">Payment</h1>
+            <h1 className="text-heading-lg font-semibold text-text-primary mb-6">Review &amp; pay</h1>
 
-            {/* PAYMENT PROVIDER SLOT */}
-            {/* 
-              CONTRACT-ASSUMPTION: The actual payment provider (Stripe Elements, etc.)
-              is determined by the backend. This slot renders a placeholder that documents
-              where the payment widget integrates. When the real provider is known:
-              1. Install the provider SDK (e.g. @stripe/react-stripe-js)
-              2. Mount the provider's hosted element (CardElement, PaymentElement) here
-              3. On submit, call provider.confirmPayment() to get a paymentMethodId/token
-              4. Pass that token to placeOrder() above via payment_method_id
-            */}
-            <div className="rounded-xl border-2 border-dashed border-border p-8 text-center">
-              <p className="text-body-sm font-medium text-text-secondary">Payment widget integration point</p>
-              <p className="mt-1 text-caption text-text-tertiary">
-                Replace this placeholder with your payment provider&apos;s hosted element
-                (e.g., Stripe Elements, Braintree, etc.)
+            {/* Shipping address summary */}
+            {shippingAddress && (
+              <div className="mb-4 rounded-xl border border-border p-4">
+                <p className="text-caption font-medium text-text-secondary uppercase tracking-wide mb-2">
+                  Shipping to
+                </p>
+                <p className="text-body-sm font-medium text-text-primary">{shippingAddress.full_name}</p>
+                <p className="text-body-sm text-text-secondary">
+                  {shippingAddress.address_line_1}
+                  {shippingAddress.address_line_2 ? `, ${shippingAddress.address_line_2}` : ''}
+                </p>
+                <p className="text-body-sm text-text-secondary">
+                  {shippingAddress.city}, {shippingAddress.state_province} {shippingAddress.postal_code}
+                </p>
+                <p className="text-body-sm text-text-secondary">{shippingAddress.country}</p>
+              </div>
+            )}
+
+            {/* Payment method */}
+            <div className="mb-6 rounded-xl border border-border p-4">
+              <p className="text-caption font-medium text-text-secondary uppercase tracking-wide mb-2">
+                Payment method
+              </p>
+              <p className="text-body-sm text-text-primary">Cash on delivery</p>
+              <p className="text-caption text-text-tertiary mt-0.5">
+                Payment is collected upon delivery.
               </p>
             </div>
 
-            <div className="mt-6 space-y-4">
+            <div className="space-y-4">
               <Checkbox
                 id="terms"
                 checked={termsAccepted}
                 onCheckedChange={setTermsAccepted}
-                label={
-                  `I agree to the Terms of Service and Privacy Policy`
-                }
+                label="I agree to the Terms of Service and Privacy Policy"
               />
-
               <Button
                 className="w-full"
                 size="lg"
-                disabled={!termsAccepted || placeOrder.isPending}
-                isLoading={placeOrder.isPending}
+                disabled={!termsAccepted || isPending}
+                isLoading={isPending}
                 loadingText="Placing order…"
                 onClick={handlePlaceOrder}
               >
@@ -106,7 +135,7 @@ export function PaymentPage() {
             </div>
           </div>
 
-          {/* Right: Order summary */}
+          {/* Right column: order summary */}
           <div>
             <h2 className="text-heading-sm font-semibold text-text-primary mb-4">Order summary</h2>
             {cart && (

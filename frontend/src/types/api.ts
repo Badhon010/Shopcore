@@ -29,4 +29,5 @@ export interface ListParams {
   page_size?: number
   ordering?: string
   search?: string
+  [key: string]: unknown
 }

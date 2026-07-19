@@ -1,6 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400" fill="none">
+  <!-- Neutral background -->
   <rect width="400" height="400" fill="#F1F5F9"/>
-  <path d="M160 140H240C244.418 140 248 143.582 248 148V252C248 256.418 244.418 260 240 260H160C155.582 260 152 256.418 152 252V148C152 143.582 155.582 140 160 140Z" fill="#CBD5E1"/>
-  <path d="M180 180L200 200L220 180M200 200V232" stroke="#94A3B8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="200" cy="200" r="24" stroke="#94A3B8" stroke-width="4"/>
+
+  <!-- Photo-frame icon, 96 × 72 px, centred at (200, 190) -->
+  <!-- Frame border -->
+  <rect x="152" y="154" width="96" height="72" rx="6" fill="#E2E8F0" stroke="#CBD5E1" stroke-width="2"/>
+
+  <!-- Sun / circle in top-left of frame -->
+  <circle cx="171" cy="172" r="8" fill="#CBD5E1"/>
+
+  <!-- Mountain silhouette (two peaks) that fills the lower part of the frame -->
+  <path d="M158 220 L180 188 L200 210 L216 194 L242 220 Z" fill="#CBD5E1"/>
+
+  <!-- Label below the frame -->
+  <text
+    x="200" y="258"
+    text-anchor="middle"
+    font-family="Inter, system-ui, sans-serif"
+    font-size="13"
+    letter-spacing="0.4"
+    fill="#94A3B8"
+  >No image available</text>
 </svg>

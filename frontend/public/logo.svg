@@ -1,4 +1,60 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="120" height="32" viewBox="0 0 120 32" fill="none">
-  <path d="M4 28L8 4L16 20L24 4L28 28" stroke="#1D4ED8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="36" y="22" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="600" fill="#0F172A">ShopCore</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+
+    <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity=".45"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12"
+        flood-color="#1E3A8A" flood-opacity=".28"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="120" fill="url(#bg)"/>
+
+  <!-- Shopping Bag -->
+  <g filter="url(#shadow)">
+    <rect x="116" y="145" width="280" height="250" rx="48" fill="white"/>
+
+    <!-- Handle -->
+    <path
+      d="M176 165
+         C176 108 212 72 256 72
+         C300 72 336 108 336 165"
+      fill="none"
+      stroke="#2563EB"
+      stroke-width="18"
+      stroke-linecap="round"/>
+
+    <!-- Shine -->
+    <path
+      d="M140 165
+         H372
+         V220
+         C300 185 225 175 140 205Z"
+      fill="url(#shine)"/>
+
+    <!-- Stylized S -->
+    <path
+      d="
+      M316 208
+      C293 185 225 187 204 208
+      C188 224 198 246 238 254
+      L271 261
+      C314 269 329 288 320 315
+      C308 349 275 364 235 364
+      C206 364 181 354 162 337"
+      fill="none"
+      stroke="#2563EB"
+      stroke-width="22"
+      stroke-linecap="round"
+      stroke-linejoin="round"/>
+  </g>
 </svg>

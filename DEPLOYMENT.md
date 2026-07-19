@@ -5,6 +5,11 @@ This document covers deploying ShopCore in three environments:
 2. [Replit (recommended for staging/demo)](#replit-deployment)
 3. [Self-hosted production](#self-hosted-production)
 
+> **Full-stack note:** ShopCore consists of a Django API and a React/Vite SPA.
+> Both must be running for the application to work end-to-end.
+> The API serves `http://host/api/v1/` and the SPA is served separately (dev server
+> in development; static files via a CDN or reverse proxy in production).
+
 ---
 
 ## Prerequisites
@@ -49,16 +54,35 @@ python manage.py createsuperuser     # optional
 python manage.py collectstatic --noinput
 ```
 
-### 5. Run the development server
+### 5. Run the backend development server
 
 ```bash
 python manage.py runserver
 ```
 
-API available at `http://localhost:8000/api/`.  
-OpenAPI schema browser at `http://localhost:8000/api/schema/swagger-ui/`.
+API available at `http://localhost:8000/api/v1/`.  
+OpenAPI schema browser at `http://localhost:8000/api/docs/`.
 
-### 6. Run tests
+### 6. Run the frontend development server
+
+```bash
+cd frontend
+pnpm install
+pnpm dev      # SPA at http://localhost:3000  (proxies /api/ to :8000)
+```
+
+The Vite dev server is pre-configured to proxy all `/api/` requests to
+`http://localhost:8000`. Both servers must be running simultaneously for
+the full application to work.
+
+### 7. Build the frontend for production
+
+```bash
+cd frontend
+pnpm build    # outputs to frontend/dist/
+```
+
+### 8. Run tests
 
 ```bash
 pytest                  # runs against DATABASE_URL (PostgreSQL) or test_db.sqlite3
@@ -92,8 +116,9 @@ is read. Set each variable via the **Secrets** panel (padlock icon).
 
 ### Workflow configuration
 
-The Replit workflow should run:
+Create two workflows in Replit:
 
+**Backend** — runs the Django API:
 ```
 gunicorn config.wsgi:application \
   --workers 2 \
@@ -105,6 +130,15 @@ gunicorn config.wsgi:application \
   --error-logfile -
 ```
 
+**Frontend** — serves the Vite dev server (or a static build):
+```bash
+# Development preview
+cd frontend && pnpm dev --port 3000
+
+# Production build (run once, then serve dist/ with a static server)
+cd frontend && pnpm build
+```
+
 Set `DJANGO_SETTINGS_MODULE=config.settings.production` in the workflow environment
 (or as a Replit secret).
 
@@ -113,6 +147,7 @@ Set `DJANGO_SETTINGS_MODULE=config.settings.production` in the workflow environm
 ```bash
 python manage.py migrate --settings=config.settings.production
 python manage.py collectstatic --noinput --settings=config.settings.production
+cd frontend && pnpm build
 ```
 
 ---
@@ -199,22 +234,116 @@ server {
     ssl_certificate     /etc/letsencrypt/live/api.yourdomain.example.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/api.yourdomain.example.com/privkey.pem;
 
+    # Media uploads — served directly by Nginx for performance.
+    # The alias path must match MEDIA_ROOT in your environment.
+    # Only add this block when MEDIA_STORAGE=local; for S3/GCS/R2 the
+    # files are served from the cloud bucket and this block is not needed.
+    location /media/ {
+        alias /var/www/shopcore/media/;
+
+        # Security: prevent execution of uploaded files as scripts.
+        add_header Content-Disposition "attachment";
+        add_header X-Content-Type-Options "nosniff";
+
+        # Optional: cache aggressively if files are immutable (e.g. UUIDs in filenames).
+        # expires 30d;
+        # add_header Cache-Control "public, max-age=2592000, immutable";
+    }
+
+    # Static files (Django admin + WhiteNoise) — handled by the backend.
+
+    # Frontend SPA — serve the Vite build output as static files.
+    # Replace /home/shopcore/app/frontend/dist with your actual build output path.
     location / {
+        root /home/shopcore/app/frontend/dist;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API — proxy to gunicorn.
+    location /api/ {
         proxy_pass http://unix:/run/shopcore/gunicorn.sock;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
-
-    # Static files are handled by WhiteNoise — no separate location block needed.
 }
 
 server {
     listen 80;
-    server_name api.yourdomain.example.com;
+    server_name yourdomain.example.com;
     return 301 https://$host$request_uri;
 }
+```
+
+---
+
+## Media Files
+
+### Storage backends
+
+The storage backend is selected by the `MEDIA_STORAGE` environment variable.
+Only `local` is implemented. Cloud backends (`s3`, `gcs`, `r2`) are extension
+points — see `config/settings/base.py` for the commented configuration blocks.
+
+| `MEDIA_STORAGE` | Where files go | Suitable for |
+|-----------------|---------------|--------------|
+| `local` (default) | `MEDIA_ROOT` on disk | Single-instance servers with a persistent volume |
+| `s3` | AWS S3 bucket | Multi-instance / HA (requires django-storages) |
+| `gcs` | Google Cloud Storage bucket | Multi-instance / HA (requires django-storages) |
+| `r2` | Cloudflare R2 bucket | Multi-instance / HA (requires django-storages) |
+
+### Local filesystem setup (MEDIA_STORAGE=local)
+
+Create the media directory and set ownership **before** starting the application:
+
+```bash
+# Create a persistent media directory outside the project root
+sudo mkdir -p /var/www/shopcore/media
+
+# Give the application user write access
+sudo chown shopcore:shopcore /var/www/shopcore/media
+sudo chmod 750 /var/www/shopcore/media
+```
+
+Set `MEDIA_ROOT=/var/www/shopcore/media` in your environment (or `.env`).
+
+> **Important:** do not point `MEDIA_ROOT` at a directory inside the project
+> checkout. Uploads would be overwritten on the next `git pull` and could
+> accidentally be committed to version control.
+
+### Development
+
+When `DEBUG=True`, Django serves uploaded files automatically via the
+`django.views.static.serve` view (wired in `config/urls.py`).
+No additional configuration is needed for local development.
+
+### Production with Nginx (MEDIA_STORAGE=local)
+
+Configure Nginx to serve the `/media/` location directly — this avoids routing
+upload traffic through gunicorn and is significantly more efficient.
+
+```nginx
+location /media/ {
+    alias /var/www/shopcore/media/;
+
+    # Prevent the browser from executing uploaded files as scripts
+    add_header Content-Disposition "attachment";
+    add_header X-Content-Type-Options "nosniff";
+}
+```
+
+The full Nginx server block is shown in the [Reverse proxy (nginx)](#reverse-proxy-nginx)
+section below. When using a cloud backend (`s3`, `gcs`, `r2`), files are served
+from the cloud provider's URL and this `location /media/` block is not needed.
+
+### Upload size limit
+
+`MAX_UPLOAD_SIZE_MB` (default `5`) controls the maximum allowed upload size in
+megabytes. Set it in your environment to increase or decrease the limit:
+
+```bash
+MAX_UPLOAD_SIZE_MB=20   # allow up to 20 MB uploads
 ```
 
 ---

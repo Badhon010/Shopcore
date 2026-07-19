@@ -160,6 +160,56 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = env("MEDIA_URL", default="/media/")
 MEDIA_ROOT = BASE_DIR / "media"
 
+# ---------------------------------------------------------------------------
+# Media storage backend
+# ---------------------------------------------------------------------------
+# MEDIA_STORAGE selects where uploaded files are written.
+#
+# Supported now:
+#   local  — files written to MEDIA_ROOT on the local filesystem (default)
+#
+# Extension points (not yet implemented; requires django-storages):
+#   s3     — AWS S3          (storages.backends.s3boto3.S3Boto3Storage)
+#   gcs    — Google Cloud    (storages.backends.gcloud.GoogleCloudStorage)
+#   r2     — Cloudflare R2   (storages.backends.s3boto3.S3Boto3Storage + R2 endpoint)
+#
+# To add a new backend, install django-storages, uncomment the matching branch
+# below, add its required env vars to .env.example, and update DEPLOYMENT.md.
+# ---------------------------------------------------------------------------
+_media_storage = env("MEDIA_STORAGE", default="local")
+
+if _media_storage == "local":
+    DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
+
+# --- Future storage backends: uncomment and configure as needed -------------
+# elif _media_storage == "s3":
+#     DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+#     AWS_STORAGE_BUCKET_NAME = env("AWS_S3_BUCKET_NAME")
+#     AWS_S3_REGION_NAME      = env("AWS_S3_REGION_NAME", default="us-east-1")
+#     AWS_S3_CUSTOM_DOMAIN    = env("AWS_S3_CUSTOM_DOMAIN", default="")
+#     AWS_DEFAULT_ACL         = env("AWS_DEFAULT_ACL", default="private")
+#
+# elif _media_storage == "gcs":
+#     DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
+#     GS_BUCKET_NAME       = env("GCS_BUCKET_NAME")
+#     GS_DEFAULT_ACL       = env("GCS_DEFAULT_ACL", default="projectPrivate")
+#
+# elif _media_storage == "r2":
+#     DEFAULT_FILE_STORAGE    = "storages.backends.s3boto3.S3Boto3Storage"
+#     AWS_STORAGE_BUCKET_NAME = env("R2_BUCKET_NAME")
+#     AWS_S3_ENDPOINT_URL     = env("R2_ENDPOINT_URL")  # https://<account>.r2.cloudflarestorage.com
+#     AWS_S3_REGION_NAME      = "auto"
+#     AWS_DEFAULT_ACL         = env("R2_DEFAULT_ACL", default="private")
+# ---------------------------------------------------------------------------
+
+else:
+    raise ValueError(
+        f"Unsupported MEDIA_STORAGE value: {_media_storage!r}. "
+        "Valid options: 'local'. "
+        "To enable S3/GCS/R2, install django-storages and uncomment the "
+        "appropriate branch in config/settings/base.py."
+    )
+
 MAX_UPLOAD_SIZE_BYTES = env.int("MAX_UPLOAD_SIZE_MB", default=5) * 1024 * 1024
 MAX_IMAGE_DIMENSION_PX = env.int("MAX_IMAGE_DIMENSION_PX", default=4000)
 

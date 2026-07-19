@@ -6,11 +6,100 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [Unreleased]
+
+### Backend added
+
+- **Notifications REST API:** New `Notification` model (`title`, `body`,
+  `notification_type`, `is_read`, `action_url`, `created_at`) distinct from the
+  existing `NotificationLog` (email delivery ledger).  Added `serializers.py`,
+  `views.py`, and `urls.py` to `apps/notifications`.  Three endpoints wired into
+  `config/urls.py` under `api/v1/notifications/`:
+  - `GET /` — paginated list, newest first, scoped to authenticated user
+  - `POST /<pk>/read/` — mark a single notification read; returns the updated object
+  - `POST /read-all/` — mark all unread notifications read in a single query
+
+### Backend fixed
+
+- **`formatRelativeDate` crash (root cause):** `Notification.created_at` was
+  `undefined` at runtime because the notifications app had no REST API and the only
+  existing model (`NotificationLog`) uses `sent_at`. Any frontend code path that
+  received notification objects without `created_at` would crash with
+  `TypeError: Cannot read properties of undefined (reading 'getTime')`.
+  Fixed by building the complete API above.
+
+### Frontend added
+
+- **React / Vite / Tailwind SPA** (`frontend/`):  Full e-commerce UI covering
+  catalog browsing, product detail, cart, checkout, account management
+  (profile, addresses, orders, wishlist), and the notification centre.
+- **Global `RouterErrorBoundary`:** Inline component using `useRouteError` /
+  `isRouteErrorResponse` added to the root layout route as `errorElement`.
+  Component crashes now show `ServerErrorPage` or `NotFoundPage` instead of
+  React Router's raw stack-trace UI and the "provide your own ErrorBoundary"
+  message.
+
+### Frontend fixed
+
+- **Notifications page crash** (`NotificationsPage.tsx`): Destructures `error`
+  and `refetch` from `useNotifications`; shows `<ErrorState onRetry={refetch} />`
+  when the query fails instead of silently rendering nothing.
+- **`formatRelativeDate` defensive hardening** (`utils/formatDate.ts`): Both
+  `formatRelativeDate` and `formatDate` now accept `string | Date | null |
+  undefined` and return `"Unknown date"` / `"—"` respectively for missing or
+  invalid input.  Neither function can throw.
+- **`Notification` TypeScript interface** (`types/models.ts`): `type:
+  'order' | 'promotion' | …` renamed to `notification_type: string` to match the
+  backend serializer field name exactly, eliminating the runtime field mismatch.
+- **Category routing refactored** (`pages/`, `app/router.tsx`,
+  `constants/routes.ts`): Deleted `CategoryPage.tsx` and `SubcategoryPage.tsx`.
+  `ProductListPage` now operates in two modes:
+  - Mode 1 — `/products` — all products with sidebar filters
+  - Mode 2 — `/products/category/:slug` — category-scoped with heading,
+    description, and three-crumb breadcrumb
+
+  `buildRoute.category(slug)` updated to `/products/category/${slug}`.
+  Old `/category/:slug` and `/products?category=X` paths redirect permanently.
+  React Router v6 specificity resolves `/products/category/:slug` before
+  `/products/:productSlug` without requiring explicit route ordering.
+- **Address field contract** (`types/models.ts`, `AddressForm.tsx`,
+  `AddressesPage.tsx`, `CheckoutPage.tsx`, `OrderDetailsPage.tsx`,
+  `checkout.service.ts`): Frontend `Address` interface rewritten to use backend
+  field names exactly — `full_name`, `phone_number` (required with regex),
+  `state_province`, `address_type`.  `AddressForm.handleSubmit` wrapped in
+  try/catch that calls `applyServerErrors` so DRF field errors surface inline.
+- **TypeScript build** — 31 compilation errors resolved:
+  - Token-refresh URL corrected to `/accounts/token/refresh/` in `axiosClient.ts`
+    and `AuthContext.tsx`
+  - Address endpoints moved to `/accounts/addresses/`, profile endpoint to
+    `/accounts/me/`
+  - `SearchBar` undefined-index guard; `WishlistButton` `isLoading` → `disabled`
+  - `useIntersectionObserver` return type updated for React 19
+    `RefObject<T | null>`
+  - `normalizers.ts` `variants` typed as `ProductVariant[]`
+  - `setupTests.ts` `global.IntersectionObserver` → `window.IntersectionObserver`
+  - `ListParams` given index signature; `Skeleton` import corrected
+  - `vite.config.ts` `defineConfig` import changed to `vitest/config`
+  - `tsconfig.node.json` added `"types": ["node"]`
+  - `tsconfig.app.json` added `"types": ["vitest/globals"]`
+  - Installed `@types/node` and `vitest` dev deps
+
+### Frontend assets updated
+
+- **`favicon.svg`** — Replaced generic wave-line mark with a clean blue rounded
+  square containing a white shopping-bag silhouette (body + handle arch).
+- **`logo.svg`** — Improved icon (filled blue bag + handle) with Inter wordmark.
+- **`placeholder-product.svg`** — Replaced ambiguous download-arrow icon with
+  a standard photo-frame placeholder (mountain silhouette + sun, "No image
+  available" caption).
+
+---
+
 ## [1.0.0-backend] — 2026-07-11
 
-First stable release of the ShopCore backend. All audit-identified Critical and High
-vulnerabilities resolved. Test suite at 100% (88/88). Backend cleared for frontend
-development to begin on top of this frozen API surface.
+First stable release of the ShopCore backend. All audit-identified Critical and
+High vulnerabilities resolved. Test suite at 100% (88 / 88). Backend cleared for
+frontend development to begin on top of this frozen API surface.
 
 ### Security — Phase 2A fixes
 
@@ -37,46 +126,39 @@ development to begin on top of this frozen API surface.
 - **Invalid payment provider no longer returns HTTP 500:** Changed `provider`
   field in `InitiatePaymentSerializer` from `CharField(default="MANUAL")` to
   `ChoiceField(choices=PaymentProvider.choices, ...)`. Strings outside the enum
-  (e.g. "PAYPAL", "xyzzy") are rejected at serializer validation with a 400.
-  Added `except ValueError` handler in `InitiatePaymentView` for gateways that
-  are enum-valid but not yet implemented, returning `PROVIDER_NOT_AVAILABLE` → 400.
+  are rejected with a 400. Added `except ValueError` handler in
+  `InitiatePaymentView` for enum-valid but unimplemented providers.
 
 ### Security — Phase 3 fixes
 
 - **Production refuses to start without `DATABASE_URL`:** `production.py` now
-  raises `ImproperlyConfigured` at import time if `DATABASE_URL` is absent.
-  Prevents silent fall-through to SQLite, which cannot support the project's
-  `select_for_update()` inventory locking.
+  raises `ImproperlyConfigured` at import time if `DATABASE_URL` is absent,
+  preventing silent fall-through to SQLite.
 
 - **Production refuses to start without real `EMAIL_URL`:** `production.py` now
-  raises `ImproperlyConfigured` at import time if `EMAIL_URL` is absent or set to
-  `console://`. Prevents transactional emails from silently printing to stdout.
+  raises `ImproperlyConfigured` at import time if `EMAIL_URL` is absent or set
+  to `console://`, preventing transactional emails from printing to stdout.
 
 ### Performance — Phase 3 fixes
 
-- **Eliminated N+1 in product stock lookups:** All three catalog selectors
-  (`get_product_list`, `get_product_detail`, `search_products`) now include
-  `"variants__stock_items"` in `prefetch_related`. `ProductVariantSerializer.
-  get_stock_quantity` changed from two queries per variant (`.exists()` + `.first()`)
-  to a single `.first()` call served from the prefetch cache.
+- **Eliminated N+1 in product stock lookups:** All three catalog selectors now
+  include `"variants__stock_items"` in `prefetch_related`.
 
 - **Eliminated N+1 in order status history:** Both `get_orders_for_user` and
-  `get_order_by_number` now prefetch `"status_history__changed_by"` (was
-  `"status_history"`). `OrderStatusHistorySerializer.get_changed_by_email` no
-  longer issues a per-row User query.
+  `get_order_by_number` now prefetch `"status_history__changed_by"`.
 
 ### Testing — Phase 3 fixes
 
+- **Inventory `reserve_stock` validation:** `ValueError` raised for zero or
+  negative quantities before any DB access. Two tests added.
+
 - **Test suite throttle misconfiguration resolved:** `config/settings/test.py`
-  now keeps all scoped throttle rate keys (`login`, `register`,
-  `password_reset_request`, `coupon_apply`) at `10000/min` instead of clearing
-  the entire `DEFAULT_THROTTLE_RATES` dict. Views with explicit `throttle_classes`
-  (LoginView, RegisterView) no longer raise `ImproperlyConfigured` in tests.
-  Test suite: **88/88 passing** (was 80/88).
+  now keeps all scoped throttle rate keys at `10000/min`. Test suite: **90 / 90
+  passing** (was 80 / 88 before Phase 3).
 
 - **Dev/test bootstrap fixed:** `base.py` `SECRET_KEY` now has an insecure
   dev-only default so `pytest` and `manage.py runserver` work without a `.env`
-  file. `production.py` continues to hard-require `SECRET_KEY` via its own check.
+  file.
 
 ### Documentation added
 

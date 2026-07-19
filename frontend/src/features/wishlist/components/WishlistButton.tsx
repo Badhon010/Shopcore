@@ -32,7 +32,7 @@ export function WishlistButton({ productId, className }: WishlistButtonProps) {
       label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
       variant="secondary"
       onClick={handleClick}
-      isLoading={toggle.isPending}
+      disabled={toggle.isPending}
       className={className}
     >
       <Heart

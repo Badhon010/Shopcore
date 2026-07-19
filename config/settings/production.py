@@ -71,3 +71,20 @@ for logger in LOGGING["loggers"].values():  # noqa: F405
 REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = [  # noqa: F405
     "rest_framework.renderers.JSONRenderer",
 ]
+
+# ---------------------------------------------------------------------------
+# Media storage (production notes)
+# ---------------------------------------------------------------------------
+# MEDIA_STORAGE defaults to "local", which stores uploads on the server's
+# local filesystem (MEDIA_ROOT).  This is safe for single-instance deployments
+# where the filesystem is persistent, but files will be lost if the instance
+# is replaced, scaled horizontally, or its disk is ephemeral (e.g. Replit,
+# Docker containers without a mounted volume).
+#
+# Before going to high-availability or multi-instance production, set
+# MEDIA_STORAGE to a cloud backend (s3 / gcs / r2) and configure the
+# corresponding environment variables.  See DEPLOYMENT.md → Media Files.
+#
+# The base.py dispatch block validates MEDIA_STORAGE and raises ValueError
+# for any unrecognised value, so misconfiguration fails loudly at startup.
+# ---------------------------------------------------------------------------

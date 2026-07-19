@@ -23,10 +23,6 @@ export const queryKeys = {
   cart: {
     detail: () => ['cart'] as const,
   },
-  checkout: {
-    session: () => ['checkout', 'session'] as const,
-    shippingMethods: () => ['checkout', 'shipping-methods'] as const,
-  },
   orders: {
     list: (params?: ListParams & Record<string, unknown>) =>
       ['orders', params ?? {}] as const,

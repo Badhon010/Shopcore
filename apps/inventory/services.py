@@ -49,6 +49,9 @@ def reserve_stock(variant, quantity: int, reference: str = "", warehouse=None) -
     Raises:
         InsufficientStockError: If available quantity is insufficient.
     """
+    if quantity <= 0:
+        raise ValueError("Quantity must be greater than zero.")
+
     if warehouse is None:
         warehouse = _get_default_warehouse()
 

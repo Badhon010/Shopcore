@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { default: axios } = await import('axios')
         const baseURL = import.meta.env.VITE_API_BASE_URL ?? '/api'
-        const response = await axios.post<{ access: string }>(`${baseURL}/auth/token/refresh/`, {
+        const response = await axios.post<{ access: string }>(`${baseURL}/accounts/token/refresh/`, {
           refresh: refreshToken,
         })
         setAccessToken(response.data.access)

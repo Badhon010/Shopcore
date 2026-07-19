@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/Button'
 import { Pagination } from '@/components/ui/Pagination'
 import { Spinner } from '@/components/feedback/Spinner'
 import { EmptyState } from '@/components/feedback/EmptyState'
+import { ErrorState } from '@/components/feedback/ErrorState'
 import { formatRelativeDate } from '@/utils/formatDate'
 import { cn } from '@/utils/cn'
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/features/account/hooks/useProfile'
 
 export function NotificationsPage() {
   const [page, setPage] = useState(1)
-  const { data, isLoading } = useNotifications(page)
+  const { data, isLoading, error, refetch } = useNotifications(page)
   const markRead = useMarkNotificationRead()
   const markAllRead = useMarkAllNotificationsRead()
 
@@ -40,11 +41,13 @@ export function NotificationsPage() {
 
         {isLoading ? (
           <div className="flex justify-center py-12"><Spinner /></div>
+        ) : error ? (
+          <ErrorState onRetry={() => void refetch()} />
         ) : !data?.results.length ? (
           <EmptyState
             icon={<Bell className="h-8 w-8" />}
             title="No notifications"
-            description="You&apos;re all caught up!"
+            description="You're all caught up!"
           />
         ) : (
           <>
@@ -67,7 +70,9 @@ export function NotificationsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-body-sm font-medium text-text-primary">{notification.title}</p>
                     <p className="mt-0.5 text-body-sm text-text-secondary">{notification.body}</p>
-                    <p className="mt-1 text-caption text-text-tertiary">{formatRelativeDate(notification.created_at)}</p>
+                    <p className="mt-1 text-caption text-text-tertiary">
+                      {formatRelativeDate(notification.created_at)}
+                    </p>
                   </div>
                   {!notification.is_read && (
                     <Button

@@ -1,7 +1,7 @@
-// CONTRACT-ASSUMPTION: These paths are reasonable DRF defaults.
-// Before deploying against a real backend, reconcile every entry here
-// against the backend's live /api/schema/ or /api/docs/ OpenAPI output.
-// Every call site uses this object, so path changes are a single-file update.
+// All paths are relative to the axios baseURL (e.g. "/api/").
+// The Vite dev-server proxy rewrites "/api" → "/api/v1" so every path here
+// omits the "/v1" prefix — change baseURL in axiosClient.ts if the backend
+// moves to a different version.
 
 export const endpoints = {
   auth: {
@@ -35,18 +35,18 @@ export const endpoints = {
     clear: () => '/cart/clear/',
     coupon: () => '/coupons/apply/',
   },
-  checkout: {
-    session: () => '/checkout/session/',
-    shippingMethods: () => '/checkout/shipping-methods/',
-    placeOrder: () => '/checkout/place-order/',
-    paymentIntent: () => '/checkout/payment-intent/',
-  },
   orders: {
     list: () => '/orders/',
     detail: (orderNumber: string) => `/orders/${orderNumber}/`,
+    /** POST — place a new order. Accepts CheckoutPayload. */
+    checkout: () => '/orders/checkout/',
     track: () => '/orders/track/',
     cancel: (orderNumber: string) => `/orders/${orderNumber}/cancel/`,
     invoice: (orderNumber: string) => `/orders/${orderNumber}/invoice/`,
+  },
+  payments: {
+    /** POST — initiate payment for a placed order. Accepts { order_number, provider }. */
+    initiate: () => '/payments/initiate/',
   },
   wishlist: {
     list: () => '/wishlist/',
@@ -54,9 +54,9 @@ export const endpoints = {
     remove: (productId: string) => `/wishlist/remove/${productId}/`,
   },
   addresses: {
-    list: () => '/addresses/',
-    detail: (id: string) => `/addresses/${id}/`,
-    setDefault: (id: string) => `/addresses/${id}/set-default/`,
+    list: () => '/accounts/addresses/',
+    detail: (id: string) => `/accounts/addresses/${id}/`,
+    setDefault: (id: string) => `/accounts/addresses/${id}/set-default/`,
   },
   notifications: {
     list: () => '/notifications/',
@@ -65,7 +65,7 @@ export const endpoints = {
     markAllRead: () => '/notifications/read-all/',
   },
   profile: {
-    detail: () => '/profile/',
+    detail: () => '/accounts/me/',
     avatar: () => '/profile/avatar/',
   },
   contact: {

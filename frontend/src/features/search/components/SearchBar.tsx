@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import { Search, X, TrendingUp } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '@/utils/cn'
-import { ROUTES } from '@/constants/routes'
+import { ROUTES, buildRoute } from '@/constants/routes'
 import { useSearchSuggestions } from '@/features/search/hooks/useSearch'
 
 interface SearchBarProps {
@@ -55,7 +55,7 @@ export function SearchBar({
     setValue(product.name)
     onChange?.(product.name)
     setOpen(false)
-    navigate(ROUTES.product(product.slug))
+    navigate(buildRoute.product(product.slug))
   }
 
   const handleClear = () => {
@@ -76,7 +76,8 @@ export function SearchBar({
       setActiveIndex((i) => Math.max(i - 1, -1))
     } else if (e.key === 'Enter' && activeIndex >= 0) {
       e.preventDefault()
-      handleSuggestionClick(items[activeIndex])
+      const item = items[activeIndex]
+      if (item) handleSuggestionClick(item)
     } else if (e.key === 'Escape') {
       setOpen(false)
       setActiveIndex(-1)

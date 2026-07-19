@@ -73,7 +73,7 @@ async function attemptRefresh(): Promise<string | null> {
   if (!refreshToken) return null
 
   try {
-    const response = await axios.post<{ access: string }>(`${BASE_URL}/auth/token/refresh/`, {
+    const response = await axios.post<{ access: string }>(`${BASE_URL}/accounts/token/refresh/`, {
       refresh: refreshToken,
     })
     return response.data.access
@@ -161,7 +161,7 @@ export const tokenStorage = {
 
 export function applyServerErrors(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  setError: (field: string, error: { type: string; message: string }) => void,
+  setError: (field: any, error: { type: string; message: string }) => void,
   fieldErrors?: Record<string, string[]>
 ): void {
   if (!fieldErrors) return

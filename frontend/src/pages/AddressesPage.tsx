@@ -52,13 +52,13 @@ export function AddressesPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-body-sm font-semibold text-text-primary">
-                      {addr.first_name} {addr.last_name}
+                      {addr.full_name}
                       {addr.is_default && <Badge variant="accent" className="ml-2">Default</Badge>}
                     </p>
                     <address className="not-italic mt-1 text-body-sm text-text-secondary space-y-0.5">
                       <p>{addr.address_line_1}</p>
                       {addr.address_line_2 && <p>{addr.address_line_2}</p>}
-                      <p>{addr.city}, {addr.state} {addr.postal_code}</p>
+                      <p>{addr.city}, {addr.state_province} {addr.postal_code}</p>
                       <p>{addr.country}</p>
                     </address>
                   </div>

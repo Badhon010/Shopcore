@@ -6,10 +6,9 @@ import { Stepper } from '@/components/ui/Stepper'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/feedback/Spinner'
 import { AddressForm } from '@/features/account/components/AddressForm'
-import { useCheckoutSession, useUpdateCheckoutSession } from '@/features/checkout/hooks/useCheckout'
-import { useAddresses } from '@/features/account/hooks/useProfile'
+import { useAddresses, useCreateAddress } from '@/features/account/hooks/useProfile'
 import { useAuth } from '@/contexts/AuthContext'
-import { buildRoute } from '@/constants/routes'
+import { ROUTES } from '@/constants/routes'
 
 const STEPS = [
   { label: 'Shipping' },
@@ -17,13 +16,24 @@ const STEPS = [
   { label: 'Review' },
 ]
 
+/**
+ * Step 1 of checkout — collect a shipping address.
+ *
+ * The selected address ID is carried to the next step via React Router
+ * navigation state (`location.state.shippingAddressId`), so no server-side
+ * session is needed.  When the user picks a saved address we navigate
+ * immediately; when they enter a new one we create it first, then navigate.
+ */
 export function CheckoutPage() {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
-  const { data: session, isLoading } = useCheckoutSession()
-  const { data: savedAddresses } = useAddresses()
-  const updateSession = useUpdateCheckoutSession()
+  const { data: savedAddresses, isLoading } = useAddresses()
+  const createAddress = useCreateAddress()
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
+
+  const goToPayment = (addressId: string) => {
+    navigate(ROUTES.CHECKOUT_PAYMENT, { state: { shippingAddressId: addressId } })
+  }
 
   if (isLoading) {
     return (
@@ -44,6 +54,7 @@ export function CheckoutPage() {
         <div className="mx-auto max-w-lg">
           <h1 className="text-heading-lg font-semibold text-text-primary mb-6">Shipping address</h1>
 
+          {/* Saved address picker (authenticated users only) */}
           {isAuthenticated && savedAddresses && savedAddresses.length > 0 && (
             <div className="mb-6 space-y-2">
               <p className="text-body-sm font-medium text-text-primary">Saved addresses</p>
@@ -58,37 +69,34 @@ export function CheckoutPage() {
                   }`}
                 >
                   <p className="text-body-sm font-medium text-text-primary">
-                    {addr.first_name} {addr.last_name}
-                    {addr.is_default && <span className="ml-2 text-caption text-accent">(Default)</span>}
+                    {addr.full_name}
+                    {addr.is_default && (
+                      <span className="ml-2 text-caption text-accent">(Default)</span>
+                    )}
                   </p>
                   <p className="text-body-sm text-text-secondary">
-                    {addr.address_line_1}, {addr.city}, {addr.state} {addr.postal_code}
+                    {addr.address_line_1}, {addr.city}, {addr.state_province} {addr.postal_code}
                   </p>
                 </button>
               ))}
+
               {selectedAddressId && (
-                <Button
-                  className="w-full"
-                  onClick={() => {
-                    void updateSession.mutateAsync({ shipping_address: { id: selectedAddressId } }).then(() =>
-                      navigate('/checkout/payment')
-                    )
-                  }}
-                  isLoading={updateSession.isPending}
-                >
+                <Button className="w-full" onClick={() => goToPayment(selectedAddressId)}>
                   Continue with this address
                 </Button>
               )}
+
               <p className="text-center text-body-sm text-text-tertiary">— or enter a new address —</p>
             </div>
           )}
 
+          {/* New address form — creates the address then proceeds */}
           <AddressForm
             onSubmit={async (data) => {
-              await updateSession.mutateAsync({ shipping_address: data })
-              navigate('/checkout/payment')
+              const address = await createAddress.mutateAsync(data)
+              goToPayment(address.id)
             }}
-            isSubmitting={updateSession.isPending}
+            isSubmitting={createAddress.isPending}
             submitLabel="Continue to payment"
           />
         </div>

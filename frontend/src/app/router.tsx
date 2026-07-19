@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, useParams, useRouteError, isRouteErrorResponse } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { RootLayout } from '@/layouts/RootLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
@@ -6,17 +6,16 @@ import { AccountLayout } from '@/layouts/AccountLayout'
 import { CheckoutLayout } from '@/layouts/CheckoutLayout'
 import { ProtectedRoute } from '@/routes/ProtectedRoute'
 import { PublicOnlyRoute } from '@/routes/PublicOnlyRoute'
-import { Skeleton } from '@/components/feedback/Skeleton'
 import { Spinner } from '@/components/feedback/Spinner'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ServerErrorPage } from '@/pages/ServerErrorPage'
 import { MaintenancePage } from '@/pages/MaintenancePage'
 import { OfflinePage } from '@/pages/OfflinePage'
+import { buildRoute } from '@/constants/routes'
 
 // Page-level lazy imports
 const HomePage = lazy(() => import('@/pages/HomePage').then((m) => ({ default: m.HomePage })))
 const LandingPage = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })))
-const CategoryPage = lazy(() => import('@/pages/CategoryPage').then((m) => ({ default: m.CategoryPage })))
 const SearchResultsPage = lazy(() => import('@/pages/SearchResultsPage').then((m) => ({ default: m.SearchResultsPage })))
 const ProductListPage = lazy(() => import('@/pages/ProductListPage').then((m) => ({ default: m.ProductListPage })))
 const ProductDetailsPage = lazy(() => import('@/pages/ProductDetailsPage').then((m) => ({ default: m.ProductDetailsPage })))
@@ -64,19 +63,65 @@ function withSuspense(Component: React.ComponentType) {
   )
 }
 
+/**
+ * Rendered by React Router when a route component throws an unhandled error
+ * or a loader/action rejects. Replaces the raw React Router stack-trace UI.
+ */
+function RouterErrorBoundary() {
+  const error = useRouteError()
+
+  if (isRouteErrorResponse(error)) {
+    if (error.status === 404) return <NotFoundPage />
+    return <ServerErrorPage />
+  }
+
+  console.error('[RouterErrorBoundary]', error)
+  return <ServerErrorPage />
+}
+
+/**
+ * Redirects legacy /category/:categorySlug URLs to the canonical
+ * /products/category/:slug URL, preserving browser history correctly.
+ */
+function CategoryRedirect() {
+  const { categorySlug = '' } = useParams<{ categorySlug: string }>()
+  return <Navigate to={buildRoute.category(categorySlug)} replace />
+}
+
+/**
+ * Redirects legacy /category/:categorySlug/:subcategorySlug URLs to the
+ * parent category page (subcategories are not a separate route in v2).
+ */
+function SubcategoryRedirect() {
+  const { categorySlug = '' } = useParams<{ categorySlug: string; subcategorySlug: string }>()
+  return <Navigate to={buildRoute.category(categorySlug)} replace />
+}
+
 export const router = createBrowserRouter([
   // Public routes under RootLayout
   {
     element: <RootLayout />,
+    errorElement: <RouterErrorBoundary />,
     children: [
       { path: '/', element: withSuspense(HomePage) },
       { path: '/home', element: <Navigate to="/" replace /> },
       { path: '/lp/:campaignSlug', element: withSuspense(LandingPage) },
-      { path: '/category/:categorySlug', element: withSuspense(CategoryPage) },
-      { path: '/category/:categorySlug/:subcategorySlug', element: withSuspense(CategoryPage) },
+
+      // ── Legacy /category/* routes — permanent redirects to canonical URLs ──
+      { path: '/category/:categorySlug', element: <CategoryRedirect /> },
+      { path: '/category/:categorySlug/:subcategorySlug', element: <SubcategoryRedirect /> },
+
       { path: '/search', element: withSuspense(SearchResultsPage) },
+
+      // ── Product listing — single page, two modes ──────────────────────────
+      // /products               → all products (Mode 1)
+      // /products/category/:slug → filtered by category (Mode 2)
+      // NOTE: /products/category/:slug must come before /products/:productSlug
+      // so the literal "category" segment is matched first.
       { path: '/products', element: withSuspense(ProductListPage) },
+      { path: '/products/category/:slug', element: withSuspense(ProductListPage) },
       { path: '/products/:productSlug', element: withSuspense(ProductDetailsPage) },
+
       { path: '/cart', element: withSuspense(CartPage) },
       { path: '/track-order', element: withSuspense(TrackOrderPage) },
       { path: '/about', element: withSuspense(AboutPage) },
@@ -139,10 +184,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/checkout', element: withSuspense(CheckoutPage) },
       { path: '/checkout/payment', element: withSuspense(PaymentPage) },
-      {
-        path: '/checkout/success/:orderNumber',
-        element: withSuspense(OrderSuccessPage),
-      },
+      { path: '/checkout/success/:orderNumber', element: withSuspense(OrderSuccessPage) },
       { path: '/checkout/failure', element: withSuspense(OrderFailurePage) },
     ],
   },

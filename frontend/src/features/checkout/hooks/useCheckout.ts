@@ -1,36 +1,15 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   checkoutService,
-  type CheckoutSessionPayload,
   type PlaceOrderPayload,
+  type InitiatePaymentPayload,
 } from '@/services/api/checkout.service'
 import { queryKeys } from '@/services/queryKeys'
 
-export function useCheckoutSession() {
-  return useQuery({
-    queryKey: queryKeys.checkout.session(),
-    queryFn: ({ signal }) => checkoutService.getSession({ signal }),
-    staleTime: 0,
-  })
-}
-
-export function useUpdateCheckoutSession() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (payload: CheckoutSessionPayload) => checkoutService.updateSession(payload),
-    onSuccess: (data) => {
-      queryClient.setQueryData(queryKeys.checkout.session(), data)
-    },
-  })
-}
-
-export function useShippingMethods() {
-  return useQuery({
-    queryKey: queryKeys.checkout.shippingMethods(),
-    queryFn: ({ signal }) => checkoutService.getShippingMethods({ signal }),
-  })
-}
-
+/**
+ * Place a new order via POST /orders/checkout/.
+ * Invalidates the cart cache on success so item counts update immediately.
+ */
 export function usePlaceOrder() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -41,8 +20,12 @@ export function usePlaceOrder() {
   })
 }
 
-export function usePaymentIntent() {
+/**
+ * Initiate payment for a placed order via POST /payments/initiate/.
+ * In v1 only the MANUAL provider is supported (cash-on-delivery / immediate).
+ */
+export function useInitiatePayment() {
   return useMutation({
-    mutationFn: () => checkoutService.createPaymentIntent(),
+    mutationFn: (payload: InitiatePaymentPayload) => checkoutService.initiatePayment(payload),
   })
 }

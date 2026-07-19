@@ -1,25 +1,27 @@
 # ShopCore
 
-A production-hardened Django REST API for e-commerce backends.
+A full-stack e-commerce platform: production-hardened **Django REST API** backend
+paired with a **React / Vite / Tailwind** frontend.
 
-ShopCore provides all the backend primitives needed to build a modern online store:
-product catalog with full-text search, cart, checkout with idempotency, inventory
-management with race-condition-proof stock reservation, order lifecycle management,
-JWT authentication with device logout on password change, coupons, wishlists, and
-product reviews.
+The backend provides every primitive needed for a modern online store: product
+catalog with full-text search, cart, idempotent checkout, race-condition-proof
+inventory reservation, order lifecycle management, JWT auth with full device
+logout, coupons, wishlists, product reviews, and an in-app notification centre.
+
+The frontend is a single-page application with full TypeScript type safety,
+React Query data-fetching, a custom design system, and route-level code-splitting.
 
 ---
 
 ## Status
 
-**v1.0.0-backend** — frozen for frontend development.
-
 | Check | Status |
 |-------|--------|
-| Test suite | ✅ 88/88 passing |
+| Backend test suite | ✅ 90 / 90 passing |
 | `manage.py check` | ✅ 0 issues |
+| TypeScript build (`tsc -b`) | ✅ 0 errors |
+| Vite production build | ✅ 2 206 modules |
 | Critical vulnerabilities | ✅ 0 |
-| High vulnerabilities | ✅ 0 |
 | Pending migrations | ✅ None |
 
 ---
@@ -27,51 +29,47 @@ product reviews.
 ## Quick Start
 
 ```bash
-# 1. Install dependencies
+# ── Backend ────────────────────────────────────────────────────
 pip install -r requirements.txt
-
-# 2. Configure environment
-cp .env.example .env
-# Edit .env — set DATABASE_URL to your local PostgreSQL instance
-
-# 3. Run migrations
+cp .env.example .env          # set DATABASE_URL at minimum
 python manage.py migrate
+python manage.py runserver    # API at http://localhost:8000/api/v1/
 
-# 4. Start the development server
-python manage.py runserver
-
-# 5. Run tests
-pytest
+# ── Frontend ───────────────────────────────────────────────────
+cd frontend
+pnpm install
+pnpm dev                      # UI at http://localhost:3000
 ```
 
-API root: `http://localhost:8000/api/`  
-Interactive API docs: `http://localhost:8000/api/schema/swagger-ui/`  
-OpenAPI schema JSON: `http://localhost:8000/api/schema/`
+- Interactive API docs: `http://localhost:8000/api/docs/`
+- OpenAPI schema JSON: `http://localhost:8000/api/schema/`
+- Run backend tests: `pytest`
+- Run frontend type-check: `cd frontend && pnpm tsc -b --noEmit`
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        REST Clients                          │
-│                (Browser / Mobile / Admin UI)                 │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ HTTPS  JWT Bearer
-┌───────────────────────────▼─────────────────────────────────┐
-│                    Django / DRF API                          │
-│  accounts · catalog · cart · orders · inventory · payments  │
-│        coupons · reviews · wishlist · notifications         │
-└──────────┬──────────────────────────────┬───────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                React / Vite / Tailwind SPA                       │
+│   catalog · cart · checkout · account · notifications · reviews  │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │ HTTPS  JWT Bearer  /api/v1/
+┌───────────────────────────▼─────────────────────────────────────┐
+│                    Django / DRF API                              │
+│  accounts · catalog · cart · orders · inventory · payments      │
+│        coupons · reviews · wishlist · notifications             │
+└──────────┬──────────────────────────────┬───────────────────────┘
            │ SQL (psycopg3)               │ Cache (django-redis)
-┌──────────▼──────────┐        ┌──────────▼──────────────────┐
-│    PostgreSQL 14+   │        │         Redis 6+             │
-│  primary datastore  │        │  category tree · sessions    │
-└─────────────────────┘        └─────────────────────────────┘
+┌──────────▼──────────┐        ┌──────────▼──────────────────────┐
+│    PostgreSQL 14+   │        │         Redis 6+                 │
+│  primary datastore  │        │  category tree · sessions        │
+└─────────────────────┘        └─────────────────────────────────┘
 ```
 
-See `docs/ARCHITECTURE.md` for the full diagram and `docs/ER_DIAGRAM.md` for the
-database schema.
+See `docs/ARCHITECTURE.md` for the full diagram and `docs/ER_DIAGRAM.md` for
+the database schema.
 
 ---
 
@@ -89,13 +87,13 @@ shopcore/
 │   ├── coupons/        # Discount codes with per-user redemption limits
 │   ├── reviews/        # Product reviews and ratings
 │   ├── wishlist/       # Wishlist with move-to-cart
-│   ├── notifications/  # Transactional email (welcome, order, password reset)
+│   ├── notifications/  # In-app notification centre + transactional email log
 │   └── common/         # Shared mixins (TimeStampedModel, SoftDeleteModel)
 ├── config/
 │   ├── settings/
 │   │   ├── base.py        # Shared settings
 │   │   ├── production.py  # Production overrides + startup guards
-│   │   └── test.py        # Test overrides
+│   │   └── test.py        # Test overrides (throttle rates, test DB)
 │   ├── urls.py
 │   └── wsgi.py
 ├── docs/
@@ -103,6 +101,18 @@ shopcore/
 │   ├── ARCHITECTURE.md
 │   ├── ER_DIAGRAM.md
 │   └── PRODUCTION_READINESS_AUDIT_*.md
+├── frontend/
+│   ├── src/
+│   │   ├── app/            # Router, providers, App root
+│   │   ├── pages/          # Route-level page components
+│   │   ├── features/       # Feature-scoped components & hooks
+│   │   ├── components/     # Shared UI primitives
+│   │   ├── services/       # Axios client, API service modules
+│   │   ├── types/          # TypeScript models and API types
+│   │   └── utils/          # Formatting, validation helpers
+│   ├── public/             # favicon.svg, logo.svg, placeholder-product.svg
+│   ├── vite.config.ts
+│   └── tsconfig.app.json
 ├── .env.example
 ├── CHANGELOG.md
 ├── DEPLOYMENT.md
@@ -134,6 +144,17 @@ out immediately.
 `deleted_at` rather than removing the row, preserving referential integrity for
 historical orders.
 
+### Canonical URL routing (frontend)
+Category browsing uses a single URL structure: `/products/category/:slug`.
+Old `/category/:slug` paths are redirected permanently. A single
+`ProductListPage` handles both the all-products and category-filtered views.
+
+### Defensive data layer (frontend)
+All date-formatting utilities (`formatRelativeDate`, `formatDate`) accept
+`string | Date | null | undefined` and never throw. React Router routes have
+an `errorElement` so component crashes show a friendly error page rather than
+a raw stack trace.
+
 ---
 
 ## API Summary
@@ -142,15 +163,16 @@ Full documentation is in `docs/API.md`. Key endpoint groups:
 
 | Prefix | Description | Auth |
 |--------|-------------|------|
-| `/api/accounts/` | Register, login, logout, profile, password, addresses | Mixed |
-| `/api/catalog/` | Products, categories, brands, search | Public |
-| `/api/cart/` | Cart management | Required |
-| `/api/orders/` | Checkout, order history, cancellation | Required |
-| `/api/inventory/` | Stock management | Staff only |
-| `/api/payments/` | Initiate payment, webhooks | Mixed |
-| `/api/coupons/` | Apply discount codes | Required |
-| `/api/reviews/` | Product reviews | Mixed |
-| `/api/wishlist/` | Wishlist management | Required |
+| `/api/v1/accounts/` | Register, login, logout, profile, password, addresses | Mixed |
+| `/api/v1/catalog/` | Products, categories, brands, full-text search | Public |
+| `/api/v1/cart/` | Cart management, coupon application | Required |
+| `/api/v1/orders/` | Checkout, order history, cancellation | Required |
+| `/api/v1/inventory/` | Stock management | Staff only |
+| `/api/v1/payments/` | Initiate payment, webhooks | Mixed |
+| `/api/v1/coupons/` | Apply discount codes | Required |
+| `/api/v1/reviews/` | Product reviews and ratings | Mixed |
+| `/api/v1/wishlist/` | Wishlist management | Required |
+| `/api/v1/notifications/` | In-app notification centre, mark read | Required |
 
 ---
 
@@ -161,29 +183,29 @@ See `DEPLOYMENT.md` for complete instructions. The short version:
 ```bash
 export DJANGO_SETTINGS_MODULE=config.settings.production
 
-# Required environment variables (startup fails without these):
-# SECRET_KEY, DATABASE_URL, EMAIL_URL
-
+# Backend (required env: SECRET_KEY, DATABASE_URL, EMAIL_URL)
 gunicorn config.wsgi:application \
   --workers 4 --threads 2 \
   --worker-class gthread \
   --timeout 30 \
   --bind 0.0.0.0:8000
+
+# Frontend — build once, serve with any static host
+cd frontend && pnpm build   # outputs to frontend/dist/
 ```
 
 ---
 
-## Known Limitations (v1.0.0-backend)
+## Known Limitations
 
-See `docs/PRODUCTION_READINESS_AUDIT_4.md` for the full list. Short version:
-
-- Email is sent synchronously — Celery integration is a `TODO` in the code
-- No dedicated `/health/` endpoint
-- Remaining N+1 patterns in `ProductListSerializer` and the category tree
-- Product reviews have no purchase verification gate
+- Email is sent synchronously in the request thread — Celery integration is a
+  `TODO` in the code. SMTP latency directly impacts response time under load.
+- No dedicated `/health/` endpoint (see `DEPLOYMENT.md` for a workaround).
+- Remaining N+1 patterns in `ProductListSerializer` and the category tree.
+- Product reviews have no purchase-verification gate.
 
 These are tracked Medium/Low items and do not affect correctness of the core
-order and inventory flows.
+order and inventory flows. See `docs/PRODUCTION_READINESS_AUDIT_4.md`.
 
 ---
 

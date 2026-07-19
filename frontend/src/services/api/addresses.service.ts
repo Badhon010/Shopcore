@@ -2,7 +2,8 @@ import { axiosClient } from './axiosClient'
 import { endpoints } from './endpoints'
 import type { Address } from '@/types/models'
 
-export type AddressPayload = Omit<Address, 'id'>
+// Omit server-generated read-only fields; the rest maps 1-to-1 to the serializer.
+export type AddressPayload = Omit<Address, 'id' | 'created_at' | 'updated_at'>
 
 export const addressesService = {
   getAddresses: ({ signal }: { signal?: AbortSignal } = {}) =>

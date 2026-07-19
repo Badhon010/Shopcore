@@ -18,6 +18,16 @@ class TestReserveStock:
         assert stock.quantity_reserved == 3
         assert stock.quantity_available == 7
 
+    def test_reserve_stock_rejects_zero_quantity(self):
+        stock = StockItemFactory(quantity_on_hand=10, quantity_reserved=0)
+        with pytest.raises(ValueError, match="Quantity must be greater than zero."):
+            reserve_stock(stock.variant, 0, warehouse=stock.warehouse)
+
+    def test_reserve_stock_rejects_negative_quantity(self):
+        stock = StockItemFactory(quantity_on_hand=10, quantity_reserved=0)
+        with pytest.raises(ValueError, match="Quantity must be greater than zero."):
+            reserve_stock(stock.variant, -1, warehouse=stock.warehouse)
+
     def test_reserve_stock_insufficient(self):
         stock = StockItemFactory(quantity_on_hand=2, quantity_reserved=0)
         with pytest.raises(InsufficientStockError) as exc_info:

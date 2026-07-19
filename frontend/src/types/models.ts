@@ -121,17 +121,22 @@ export interface Coupon {
 
 export interface Address {
   id: string
-  first_name: string
-  last_name: string
-  company?: string
+  /** Combined full name — maps to the serializer's `full_name` field. */
+  full_name: string
+  /** E.164-ish phone number, e.g. "+12025551234" — required by the backend. */
+  phone_number: string
   address_line_1: string
   address_line_2?: string
   city: string
-  state: string
+  /** Maps to the serializer's `state_province` field. */
+  state_province: string
   postal_code: string
+  /** ISO 3166-1 alpha-2, e.g. "US". */
   country: string
-  phone?: string
+  address_type: 'SHIPPING' | 'BILLING' | 'BOTH'
   is_default: boolean
+  created_at: string
+  updated_at: string
 }
 
 export type OrderStatus =
@@ -206,27 +211,10 @@ export interface Notification {
   id: string
   title: string
   body: string
-  type: 'order' | 'promotion' | 'system' | 'review'
+  /** Matches the backend serializer field: "order" | "promotion" | "system" | "review" */
+  notification_type: string
   is_read: boolean
   action_url?: string
   created_at: string
 }
 
-export interface ShippingMethod {
-  id: string
-  name: string
-  description?: string
-  price: string
-  estimated_days: string
-}
-
-export interface CheckoutSession {
-  id: string
-  cart: Cart
-  shipping_address?: Address
-  billing_address?: Address
-  shipping_method?: ShippingMethod
-  available_shipping_methods: ShippingMethod[]
-  payment_intent_client_secret?: string
-  total: string
-}
