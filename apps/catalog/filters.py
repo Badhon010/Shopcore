@@ -33,9 +33,15 @@ class ProductFilterSet(django_filters.FilterSet):
         fields = ["category", "brand", "brands", "price_min", "price_max", "is_featured", "in_stock", "min_rating"]
 
     def filter_category(self, queryset, name, value):
-        """Expand category filter to include all descendant categories."""
+        """Expand category filter to include all descendant categories.
+
+        prefetch_related up to 3 levels so get_descendants() walks the
+        already-loaded tree instead of issuing one query per node.
+        """
         try:
-            category = Category.objects.get(slug=value, is_active=True)
+            category = Category.objects.prefetch_related(
+                "children__children__children"
+            ).get(slug=value, is_active=True)
             descendant_ids = category.get_descendants()
             return queryset.filter(category_id__in=descendant_ids)
         except Category.DoesNotExist:

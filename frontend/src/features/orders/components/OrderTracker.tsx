@@ -3,27 +3,23 @@ import { cn } from '@/utils/cn'
 import { formatDate } from '@/utils/formatDate'
 import type { Order, OrderStatus } from '@/types/models'
 
+// Steps that represent the happy-path progression — matches backend OrderStatus values.
 const STATUS_STEPS: OrderStatus[] = [
-  'pending',
-  'confirmed',
-  'processing',
-  'packed',
-  'shipped',
-  'out_for_delivery',
-  'delivered',
+  'PENDING_PAYMENT',
+  'PAID',
+  'PROCESSING',
+  'SHIPPED',
+  'DELIVERED',
 ]
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
-  pending: 'Order Placed',
-  confirmed: 'Confirmed',
-  processing: 'Processing',
-  packed: 'Packed',
-  shipped: 'Shipped',
-  out_for_delivery: 'Out for Delivery',
-  delivered: 'Delivered',
-  cancelled: 'Cancelled',
-  returned: 'Returned',
-  refunded: 'Refunded',
+  PENDING_PAYMENT: 'Order Placed',
+  PAID: 'Payment Confirmed',
+  PROCESSING: 'Processing',
+  SHIPPED: 'Shipped',
+  DELIVERED: 'Delivered',
+  CANCELLED: 'Cancelled',
+  REFUNDED: 'Refunded',
 }
 
 interface OrderTrackerProps {
@@ -31,16 +27,16 @@ interface OrderTrackerProps {
 }
 
 export function OrderTracker({ order }: OrderTrackerProps) {
-  if (order.status === 'cancelled' || order.status === 'returned' || order.status === 'refunded') {
+  if (order.status === 'CANCELLED' || order.status === 'REFUNDED') {
+    // Find the history entry that transitioned INTO this terminal status
+    const terminalEntry = order.status_history.find((h) => h.to_status === order.status)
     return (
       <div className="rounded-lg bg-danger-subtle border border-danger/20 p-4">
         <p className="text-body-sm font-semibold text-danger">
           Order {STATUS_LABELS[order.status]}
         </p>
-        {order.status_history.find((h) => h.status === order.status)?.note && (
-          <p className="mt-1 text-body-sm text-text-secondary">
-            {order.status_history.find((h) => h.status === order.status)?.note}
-          </p>
+        {terminalEntry?.note && (
+          <p className="mt-1 text-body-sm text-text-secondary">{terminalEntry.note}</p>
         )}
       </div>
     )
@@ -50,19 +46,19 @@ export function OrderTracker({ order }: OrderTrackerProps) {
 
   return (
     <div className="overflow-x-auto">
-      <nav aria-label="Order status" className="min-w-[600px]">
+      <nav aria-label="Order status" className="min-w-[500px]">
         <ol className="flex items-start justify-between">
           {STATUS_STEPS.map((step, index) => {
             const isCompleted = index < currentStepIndex
             const isCurrent = index === currentStepIndex
-            const historyEntry = order.status_history.find((h) => h.status === step)
+            // Find history entry where the order transitioned INTO this step
+            const historyEntry = order.status_history.find((h) => h.to_status === step)
 
             return (
               <li
                 key={step}
                 className={cn(
-                  'flex flex-1 flex-col items-center',
-                  index < STATUS_STEPS.length - 1 && 'relative'
+                  'flex flex-1 flex-col items-center relative'
                 )}
               >
                 {/* Connector line */}
@@ -107,7 +103,7 @@ export function OrderTracker({ order }: OrderTrackerProps) {
                   </p>
                   {historyEntry && (
                     <p className="text-caption text-text-tertiary">
-                      {formatDate(historyEntry.timestamp, { month: 'short', day: 'numeric' })}
+                      {formatDate(historyEntry.created_at, { month: 'short', day: 'numeric' })}
                     </p>
                   )}
                 </div>

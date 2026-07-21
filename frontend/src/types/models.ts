@@ -10,13 +10,21 @@ export interface User {
   is_email_verified: boolean
 }
 
+/** Lightweight parent reference returned by CategoryDetailSerializer. */
+export interface CategoryRef {
+  id: string
+  name: string
+  slug: string
+}
+
 export interface Category {
   id: string
   name: string
   slug: string
   description?: string
   image?: string
-  parent?: string | null
+  /** Full parent object when fetched from detail endpoint; null for root categories. */
+  parent?: CategoryRef | null
   children?: Category[]
   product_count?: number
 }
@@ -139,53 +147,75 @@ export interface Address {
   updated_at: string
 }
 
+// OrderStatus values mirror the backend OrderStatus.TextChoices (ALL_CAPS).
 export type OrderStatus =
-  | 'pending'
-  | 'confirmed'
-  | 'processing'
-  | 'packed'
-  | 'shipped'
-  | 'out_for_delivery'
-  | 'delivered'
-  | 'cancelled'
-  | 'returned'
-  | 'refunded'
+  | 'PENDING_PAYMENT'
+  | 'PAID'
+  | 'PROCESSING'
+  | 'SHIPPED'
+  | 'DELIVERED'
+  | 'CANCELLED'
+  | 'REFUNDED'
 
-export interface OrderItem {
-  id: string
-  product: Product
-  variant?: ProductVariant
-  quantity: number
-  unit_price: string
-  total_price: string
+/**
+ * Address frozen at order-creation time (source of truth even if the user
+ * later edits or deletes the saved address). Matches _serialize_address() in
+ * apps/orders/services.py.
+ */
+export interface OrderAddressSnapshot {
+  full_name: string
+  phone_number: string
+  address_line_1: string
+  address_line_2?: string
+  city: string
+  state_province: string
+  postal_code: string
+  country: string
 }
 
+/**
+ * Order line item — all data is frozen at order-creation time (snapshots).
+ * There is no live Product/Variant object; use the snapshot fields for display.
+ */
+export interface OrderItem {
+  id: string
+  product_name_snapshot: string
+  variant_attributes_snapshot: Record<string, string>
+  unit_price_snapshot: string
+  quantity: number
+  line_total: string
+  image_url: string | null
+}
+
+/** One entry in the order status audit trail (OrderStatusHistory model). */
 export interface OrderStatusEvent {
-  status: OrderStatus
-  timestamp: string
-  note?: string
+  id: string
+  from_status: string
+  to_status: OrderStatus
+  changed_by_email: string | null
+  note: string
+  created_at: string
 }
 
 export interface Order {
   id: string
   order_number: string
   status: OrderStatus
+  payment_status: string
   items: OrderItem[]
-  shipping_address: Address
-  billing_address: Address
+  /** Address snapshot — use this for display; the FK may have been deleted. */
+  shipping_address_snapshot: OrderAddressSnapshot
+  billing_address_snapshot: OrderAddressSnapshot
   subtotal: string
-  discount?: string
-  coupon?: Coupon
+  discount_total: string
   shipping_cost: string
-  tax?: string
-  total: string
-  payment_method?: string
-  tracking_number?: string
-  estimated_delivery?: string
+  tax_total: string
+  grand_total: string
+  coupon_code_snapshot: string
+  notes: string
+  /** ISO datetime string — when the order was placed (auto_now_add). */
+  placed_at: string
   status_history: OrderStatusEvent[]
-  created_at: string
-  updated_at: string
-  invoice_url?: string
   can_cancel: boolean
 }
 

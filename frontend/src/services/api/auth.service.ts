@@ -1,4 +1,4 @@
-import { axiosClient } from './axiosClient'
+import { axiosClient, tokenStorage } from './axiosClient'
 import { endpoints } from './endpoints'
 import type { User } from '@/types/models'
 
@@ -55,7 +55,12 @@ export const authService = {
   register: (payload: RegisterPayload) =>
     axiosClient.post<LoginResponse>(endpoints.auth.register(), payload).then((r) => r.data),
 
-  logout: () => axiosClient.post(endpoints.auth.logout()).then((r) => r.data),
+  logout: () => {
+    // LogoutView requires the refresh token in the body to blacklist it.
+    // Without it the backend returns 400 and the token is never revoked.
+    const refresh = tokenStorage.getRefreshToken()
+    return axiosClient.post(endpoints.auth.logout(), { refresh }).then((r) => r.data)
+  },
 
   me: ({ signal }: { signal?: AbortSignal } = {}) =>
     axiosClient.get<User>(endpoints.auth.me(), { signal }).then((r) => r.data),

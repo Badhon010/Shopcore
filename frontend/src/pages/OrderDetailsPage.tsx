@@ -8,7 +8,6 @@ import { Modal } from '@/components/ui/Modal'
 import { Spinner } from '@/components/feedback/Spinner'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { OrderTracker } from '@/features/orders/components/OrderTracker'
-import { CartLineItem } from '@/features/cart/components/CartLineItem'
 import { useOrder, useCancelOrder } from '@/features/orders/hooks/useOrders'
 import { formatCurrency } from '@/utils/formatCurrency'
 import { formatDate } from '@/utils/formatDate'
@@ -23,6 +22,8 @@ export function OrderDetailsPage() {
 
   if (isLoading) return <div className="flex justify-center py-12"><Spinner /></div>
   if (error || !order) return <ErrorState onRetry={refetch} />
+
+  const snap = order.shipping_address_snapshot
 
   return (
     <>
@@ -40,7 +41,7 @@ export function OrderDetailsPage() {
         <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="text-heading-lg font-semibold text-text-primary">Order #{order.order_number}</h1>
-            <p className="text-body-sm text-text-secondary">Placed on {formatDate(order.created_at)}</p>
+            <p className="text-body-sm text-text-secondary">Placed on {formatDate(order.placed_at)}</p>
           </div>
           <div className="flex gap-2 no-print">
             <Button variant="secondary" size="sm" onClick={() => window.print()}>
@@ -63,33 +64,49 @@ export function OrderDetailsPage() {
         {/* Items */}
         <div className="rounded-xl border border-border divide-y divide-border mb-6">
           {order.items.map((item: OrderItem) => {
-            // Map OrderItem to CartItem shape for CartLineItem
-            const cartItem = {
-              id: item.id,
-              product: item.product,
-              variant: item.variant,
-              quantity: item.quantity,
-              unit_price: item.unit_price,
-              total_price: item.total_price,
-            }
+            const attrs = Object.entries(item.variant_attributes_snapshot ?? {})
             return (
-              <div key={item.id} className="px-6">
-                <CartLineItem item={cartItem} compact />
+              <div key={item.id} className="flex items-center gap-4 px-6 py-4">
+                <div className="h-14 w-14 shrink-0 rounded-lg border border-border bg-bg-subtle overflow-hidden">
+                  {item.image_url && (
+                    <img src={item.image_url} alt={item.product_name_snapshot} className="h-full w-full object-cover" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-body-sm font-medium text-text-primary truncate">
+                    {item.product_name_snapshot}
+                  </p>
+                  {attrs.length > 0 && (
+                    <p className="text-caption text-text-tertiary">
+                      {attrs.map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                    </p>
+                  )}
+                  <p className="text-caption text-text-secondary">
+                    Qty {item.quantity} × {formatCurrency(item.unit_price_snapshot)}
+                  </p>
+                </div>
+                <p className="text-body-sm font-semibold text-text-primary shrink-0">
+                  {formatCurrency(item.line_total)}
+                </p>
               </div>
             )
           })}
         </div>
 
-        {/* Order summary */}
+        {/* Order summary + Shipping address */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <div className="rounded-xl border border-border p-6 space-y-2">
             <h3 className="text-body-md font-semibold text-text-primary mb-3">Order summary</h3>
             {[
               { label: 'Subtotal', value: formatCurrency(order.subtotal) },
-              ...(order.discount ? [{ label: 'Discount', value: `-${formatCurrency(order.discount)}` }] : []),
+              ...(order.discount_total && order.discount_total !== '0.00'
+                ? [{ label: 'Discount', value: `-${formatCurrency(order.discount_total)}` }]
+                : []),
               { label: 'Shipping', value: formatCurrency(order.shipping_cost) },
-              ...(order.tax ? [{ label: 'Tax', value: formatCurrency(order.tax) }] : []),
-              { label: 'Total', value: formatCurrency(order.total), bold: true },
+              ...(order.tax_total && order.tax_total !== '0.00'
+                ? [{ label: 'Tax', value: formatCurrency(order.tax_total) }]
+                : []),
+              { label: 'Total', value: formatCurrency(order.grand_total), bold: true },
             ].map(({ label, value, bold }) => (
               <div key={label} className="flex justify-between text-body-sm">
                 <span className={bold ? 'font-semibold text-text-primary' : 'text-text-secondary'}>{label}</span>
@@ -101,11 +118,11 @@ export function OrderDetailsPage() {
           <div className="rounded-xl border border-border p-6">
             <h3 className="text-body-md font-semibold text-text-primary mb-3">Shipping address</h3>
             <address className="not-italic text-body-sm text-text-secondary space-y-0.5">
-              <p>{order.shipping_address.full_name}</p>
-              <p>{order.shipping_address.address_line_1}</p>
-              {order.shipping_address.address_line_2 && <p>{order.shipping_address.address_line_2}</p>}
-              <p>{order.shipping_address.city}, {order.shipping_address.state_province} {order.shipping_address.postal_code}</p>
-              <p>{order.shipping_address.country}</p>
+              <p>{snap.full_name}</p>
+              <p>{snap.address_line_1}</p>
+              {snap.address_line_2 && <p>{snap.address_line_2}</p>}
+              <p>{snap.city}, {snap.state_province} {snap.postal_code}</p>
+              <p>{snap.country}</p>
             </address>
           </div>
         </div>

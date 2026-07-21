@@ -3,7 +3,6 @@ export const ROUTES = {
   LANDING: '/lp/:campaignSlug',
   SEARCH: '/search',
   PRODUCTS: '/products',
-  PRODUCTS_CATEGORY: '/products/category/:slug',
   PRODUCT_DETAILS: '/products/:productSlug',
   ABOUT: '/about',
   CONTACT: '/contact',
@@ -40,8 +39,8 @@ export const ROUTES = {
 } as const
 
 export const buildRoute = {
-  /** Canonical category URL: /products/category/:slug */
-  category: (slug: string) => `/products/category/${slug}`,
+  /** Canonical category URL: /products?category=<slug> */
+  category: (slug: string) => `/products?category=${encodeURIComponent(slug)}`,
   product: (slug: string) => `/products/${slug}`,
   orderSuccess: (orderNumber: string) => `/checkout/success/${orderNumber}`,
   orderDetails: (orderNumber: string) => `/account/orders/${orderNumber}`,

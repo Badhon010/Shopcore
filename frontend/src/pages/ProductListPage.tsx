@@ -1,24 +1,27 @@
 /**
  * ProductListPage — the single canonical product listing page.
  *
- * Operates in two modes depending on the matched route:
- *   Mode 1  /products                     — all products, no category filter
- *   Mode 2  /products/category/:slug      — products filtered to one category
+ * The URL is the ONLY source of filter state — no duplicate local state:
  *
- * Backward compatibility
- *   /products?category=<slug>  →  <Navigate to="/products/category/<slug>" replace />
- *   Old /category/:slug links  →  handled by redirect routes in router.tsx
+ *   /products                               → all products, no filters
+ *   /products?category=phones               → category filter
+ *   /products?category=phones&brands=sony   → category + brand
+ *   /products?price_min=10&price_max=200    → price range
+ *   /products?in_stock=true&min_rating=4    → stock + rating
+ *   /products?ordering=-average_rating      → sort
+ *   /products?page=2                        → pagination
+ *
+ * All combinations compose freely. Browser Back/Forward restores exact state.
+ * Legacy /products/category/:slug paths redirect here (see router.tsx).
  */
-import { useParams, useSearchParams, useNavigate, Navigate } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { SlidersHorizontal, LayoutGrid, LayoutList } from 'lucide-react'
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { ProductGrid } from '@/features/catalog/components/ProductGrid'
 import {
   ProductFilters,
-  DEFAULT_FILTERS,
-  makeDefaultFilters,
   type FilterState,
 } from '@/features/catalog/components/ProductFilters'
 import { SortDropdown } from '@/features/catalog/components/SortDropdown'
@@ -36,64 +39,65 @@ import { cn } from '@/utils/cn'
 import { ROUTES, buildRoute } from '@/constants/routes'
 
 export function ProductListPage() {
-  // Mode 2: category slug from URL params (undefined when on /products)
-  const { slug } = useParams<{ slug?: string }>()
-
   const [searchParams, setSearchParams] = useSearchParams()
-  const navigate = useNavigate()
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const isMobile = !useMediaQuery('(min-width: 1024px)')
 
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS)
-  const initialized = useRef(false)
+  // ── All filter state derived from URL — single source of truth ────────────
 
-  // Re-initialise price range whenever the category changes
-  useEffect(() => {
-    initialized.current = false
-  }, [slug])
+  const category    = searchParams.get('category')    ?? undefined
+  const page        = parseInt(searchParams.get('page') ?? '1', 10)
+  const ordering    = searchParams.get('ordering')    ?? ''
+  const inStockOnly = searchParams.get('in_stock')    === 'true'
+  const minRating   = parseInt(searchParams.get('min_rating') ?? '0', 10)
+  const brandsParam = searchParams.get('brands')      ?? undefined
 
-  const { minPrice, maxPrice, isLoading: priceLoading, isReady } = usePriceRange({
-    category: slug,
-  })
+  const priceMinParam = searchParams.get('price_min') !== null
+    ? parseFloat(searchParams.get('price_min')!)
+    : undefined
+  const priceMaxParam = searchParams.get('price_max') !== null
+    ? parseFloat(searchParams.get('price_max')!)
+    : undefined
 
-  useEffect(() => {
-    if (isReady && !initialized.current) {
-      initialized.current = true
-      setFilters(makeDefaultFilters(minPrice, maxPrice))
-    }
-  }, [isReady, minPrice, maxPrice])
+  // ── API data ──────────────────────────────────────────────────────────────
 
-  // Fetch category metadata (name, description) when in category mode
-  const { data: category, isLoading: catLoading } = useCategory(slug ?? '')
+  // Price range bounds — used for slider UI only, not the filter itself.
+  // Filter values come from the URL params above.
+  const { minPrice, maxPrice, isLoading: priceLoading } = usePriceRange({ category })
 
-  const page = parseInt(searchParams.get('page') ?? '1', 10)
-  const ordering = searchParams.get('ordering') ?? ''
-  const brandsParam = filters.brands.length > 0 ? filters.brands.join(',') : undefined
+  // Category metadata for heading / breadcrumbs (only when in category mode)
+  const { data: categoryData, isLoading: catLoading } = useCategory(category ?? '')
 
-  const { data, isLoading, error, refetch } = useProducts({
+  // Product list — query key contains every filter so any change fires exactly
+  // one new request; placeholderData keeps the grid populated during transitions
+  // instead of flashing an empty loading state.
+  const { data, isLoading, isPlaceholderData, error, refetch } = useProducts({
     page,
     page_size: APP_CONFIG.pagination.defaultPageSize,
-    ordering: ordering || undefined,
-    in_stock: filters.inStockOnly || undefined,
-    price_min: isReady && filters.priceRange[0] > minPrice ? filters.priceRange[0] : undefined,
-    price_max: isReady && filters.priceRange[1] < maxPrice ? filters.priceRange[1] : undefined,
-    category: slug,
-    brands: brandsParam,
-    min_rating: filters.minRating > 0 ? filters.minRating : undefined,
+    ordering:  ordering   || undefined,
+    in_stock:  inStockOnly || undefined,
+    price_min: priceMinParam,
+    price_max: priceMaxParam,
+    category,
+    brands:    brandsParam,
+    min_rating: minRating > 0 ? minRating : undefined,
   })
 
   const totalCount = data?.count ?? 0
   const totalPages = Math.ceil(totalCount / APP_CONFIG.pagination.defaultPageSize)
-  const pageSize = APP_CONFIG.pagination.defaultPageSize
-  const startItem = totalCount > 0 ? (page - 1) * pageSize + 1 : 0
-  const endItem = Math.min(page * pageSize, totalCount)
+  const pageSize   = APP_CONFIG.pagination.defaultPageSize
+  const startItem  = totalCount > 0 ? (page - 1) * pageSize + 1 : 0
+  const endItem    = Math.min(page * pageSize, totalCount)
 
-  // ── Backward compat: /products?category=X → /products/category/X ──────────
-  // All hooks are called above — safe to return Navigate after them.
-  const legacyCategoryParam = searchParams.get('category')
-  if (legacyCategoryParam) {
-    return <Navigate to={buildRoute.category(legacyCategoryParam)} replace />
+  // ── FilterState object passed to ProductFilters (derived, never stored) ───
+
+  const filters: FilterState = {
+    priceRange:  [priceMinParam ?? minPrice, priceMaxParam ?? maxPrice],
+    inStockOnly,
+    minRating,
+    ordering,
+    brands: brandsParam ? brandsParam.split(',').filter(Boolean) : [],
   }
 
   // ── Event handlers ────────────────────────────────────────────────────────
@@ -112,39 +116,83 @@ export function ProductListPage() {
   }
 
   /**
-   * Category selection from the sidebar filter panel.
-   * Navigates to the canonical URL instead of mutating search params so the
-   * URL always reflects the chosen category and the browser history is correct.
+   * Category selection — updates ?category= and resets price bounds params
+   * because the price range is category-specific; keeping stale price params
+   * from a different category's bounds would produce incorrect filtering.
    */
   const handleCategorySelect = (selectedSlug: string | undefined) => {
-    if (selectedSlug) {
-      navigate(buildRoute.category(selectedSlug))
-    } else {
-      navigate(ROUTES.PRODUCTS)
-    }
+    setSearchParams((prev) => {
+      if (selectedSlug) {
+        prev.set('category', selectedSlug)
+      } else {
+        prev.delete('category')
+      }
+      prev.delete('price_min')
+      prev.delete('price_max')
+      prev.set('page', '1')
+      return prev
+    })
   }
 
+  /**
+   * Generic filter change — writes every filter field to the URL in one
+   * atomic setSearchParams call. This is the canonical way to update filters;
+   * it ensures the URL always reflects the complete filter state so that
+   * browser Back/Forward and page refresh restore it exactly.
+   */
+  const handleFiltersChange = (f: FilterState) => {
+    setSearchParams((prev) => {
+      f.inStockOnly ? prev.set('in_stock', 'true') : prev.delete('in_stock')
+      f.minRating > 0 ? prev.set('min_rating', String(f.minRating)) : prev.delete('min_rating')
+      f.brands.length > 0 ? prev.set('brands', f.brands.join(',')) : prev.delete('brands')
+
+      // Only write price params when they deviate from the full range.
+      // This keeps URLs clean for unfiltered price ranges and avoids
+      // unnecessarily locking in prices that match the default bounds.
+      f.priceRange[0] > minPrice
+        ? prev.set('price_min', String(f.priceRange[0]))
+        : prev.delete('price_min')
+      f.priceRange[1] < maxPrice
+        ? prev.set('price_max', String(f.priceRange[1]))
+        : prev.delete('price_max')
+
+      prev.set('page', '1')
+      return prev
+    })
+  }
+
+  /** Reset all non-category filters — category is cleared via the category tree. */
   const handleClear = () => {
-    setFilters(makeDefaultFilters(minPrice, maxPrice))
-    setSearchParams((prev) => { prev.set('page', '1'); return prev })
+    setSearchParams((prev) => {
+      prev.delete('in_stock')
+      prev.delete('min_rating')
+      prev.delete('brands')
+      prev.delete('price_min')
+      prev.delete('price_max')
+      prev.set('page', '1')
+      return prev
+    })
   }
 
   // ── SEO ───────────────────────────────────────────────────────────────────
 
-  const categoryName = category?.name
-  const pageTitle = slug
+  const categoryName = categoryData?.name
+  const pageTitle = category
     ? `${categoryName ?? 'Category'} — ShopCore`
     : 'Shop — ShopCore'
-  const pageDesc = slug
-    ? (category?.description ?? `Browse ${categoryName ?? 'category'} products.`)
+  const pageDesc = category
+    ? (categoryData?.description ?? `Browse ${categoryName ?? 'category'} products.`)
     : 'Browse our complete collection of premium products.'
 
   // ── Breadcrumbs ───────────────────────────────────────────────────────────
 
-  const breadcrumbs = slug
+  const breadcrumbs = category
     ? [
         { label: 'Home', href: ROUTES.HOME },
         { label: 'Shop', href: ROUTES.PRODUCTS },
+        ...(categoryData?.parent?.name
+          ? [{ label: categoryData.parent.name, href: buildRoute.category(categoryData.parent.slug) }]
+          : []),
         { label: categoryName ?? '…' },
       ]
     : [
@@ -157,15 +205,12 @@ export function ProductListPage() {
   const filterPanel = (
     <ProductFilters
       filters={filters}
-      onFiltersChange={(f) => {
-        setFilters(f)
-        setSearchParams((prev) => { prev.set('page', '1'); return prev })
-      }}
+      onFiltersChange={(f) => handleFiltersChange(f)}
       onClear={handleClear}
       minPrice={minPrice}
       maxPrice={maxPrice}
       priceLoading={priceLoading}
-      selectedCategory={slug}
+      selectedCategory={category}
       onCategorySelect={handleCategorySelect}
     />
   )
@@ -180,15 +225,15 @@ export function ProductListPage() {
       <PageContainer className="py-6">
         {/* ── Page heading ─────────────────────────────────────────────── */}
         <div className="mb-4">
-          {slug ? (
+          {category ? (
             <>
               {catLoading ? (
                 <Skeleton className="h-8 w-48 mb-1" />
               ) : (
                 <h1 className="text-2xl font-bold text-text-primary">{categoryName}</h1>
               )}
-              {category?.description && (
-                <p className="mt-1 text-body-md text-text-secondary">{category.description}</p>
+              {categoryData?.description && (
+                <p className="mt-1 text-body-md text-text-secondary">{categoryData.description}</p>
               )}
             </>
           ) : (
@@ -200,7 +245,7 @@ export function ProductListPage() {
         {/* ── Toolbar ──────────────────────────────────────────────────── */}
         <div className="mb-5 flex items-center justify-between gap-3">
           <span className="text-[13px] text-text-secondary whitespace-nowrap">
-            {isLoading
+            {isLoading && !isPlaceholderData
               ? 'Loading…'
               : totalCount > 0
               ? `Showing ${startItem}–${endItem} of ${totalCount} results`
@@ -257,14 +302,14 @@ export function ProductListPage() {
             </aside>
           )}
 
-          <div className="flex-1 min-w-0">
+          <div className={cn('flex-1 min-w-0 transition-opacity duration-150', isPlaceholderData && 'opacity-60')}>
             {error ? (
               <ErrorState onRetry={refetch} />
             ) : (
               <>
                 <ProductGrid
                   products={data?.results ?? []}
-                  isLoading={isLoading}
+                  isLoading={isLoading && !isPlaceholderData}
                   onClearFilters={handleClear}
                   viewMode={viewMode}
                 />

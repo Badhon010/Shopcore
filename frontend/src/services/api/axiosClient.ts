@@ -7,7 +7,9 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 // Access token stored in memory only — never localStorage — to reduce XSS surface.
 let accessToken: string | null = null
-let refreshPromise: Promise<string | null> | null = null
+// Shared refresh promise — deduplicates concurrent 401 retries so only one
+// POST /token/refresh/ fires regardless of how many requests fail simultaneously.
+let refreshPromise: Promise<string> | null = null
 
 export function setAccessToken(token: string | null) {
   accessToken = token
@@ -40,45 +42,96 @@ axiosClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
 
-      // Deduplicate concurrent refreshes
+      // Create the shared refresh promise only once; all concurrent 401s await it.
       if (!refreshPromise) {
-        refreshPromise = attemptRefresh().finally(() => {
-          refreshPromise = null
-        })
+        refreshPromise = attemptRefresh()
+          .catch((refreshErr) => {
+            // Only a definitive auth failure (RefreshTokenExpiredError) clears the
+            // session. Network errors / 5xx do NOT log the user out — the refresh
+            // token is still valid; the request just fails for this attempt.
+            if (refreshErr instanceof RefreshTokenExpiredError) {
+              setAccessToken(null)
+              tokenStorage.clearRefreshToken()
+              window.dispatchEvent(new CustomEvent('auth:session-expired'))
+            }
+            // Re-throw so every awaiting caller also sees the rejection.
+            throw refreshErr
+          })
+          .finally(() => {
+            refreshPromise = null
+          })
       }
 
-      const newToken = await refreshPromise
-      if (newToken) {
+      try {
+        const newToken = await refreshPromise
         setAccessToken(newToken)
         if (originalRequest.headers) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           ;(originalRequest.headers as Record<string, string>).Authorization = `Bearer ${newToken}`
         }
         return axiosClient(originalRequest)
+      } catch {
+        // Use the original 401 error for the normalised message, not the
+        // refresh error (which may be a network error with status 0).
+        return Promise.reject(normalizeError(error))
       }
-
-      // Refresh failed — clear session and redirect
-      setAccessToken(null)
-      tokenStorage.clearRefreshToken()
-      window.dispatchEvent(new CustomEvent('auth:session-expired'))
-      return Promise.reject(normalizeError(error))
     }
 
     return Promise.reject(normalizeError(error))
   }
 )
 
-async function attemptRefresh(): Promise<string | null> {
+/**
+ * Thrown when the refresh token is definitively invalid or revoked.
+ * Distinguished from transient network errors so that only a genuine
+ * auth failure clears the stored session.
+ */
+class RefreshTokenExpiredError extends Error {
+  readonly name = 'RefreshTokenExpiredError'
+  constructor() {
+    super('Refresh token is invalid or has been revoked')
+  }
+}
+
+/**
+ * Attempt a silent token refresh.
+ *
+ * Returns the new access token on success.
+ * Throws RefreshTokenExpiredError when the backend definitively rejects the
+ * token (401 / 400) — this is the only case that should trigger logout.
+ * Throws the raw AxiosError for network/5xx errors so callers can decide
+ * whether to clear the session (they should NOT for transient errors).
+ *
+ * IMPORTANT: ROTATE_REFRESH_TOKENS=True means every successful refresh call
+ * returns a NEW refresh token (the old one is blacklisted). The new token
+ * must be persisted immediately or the next refresh will fail with 401.
+ */
+async function attemptRefresh(): Promise<string> {
   const refreshToken = tokenStorage.getRefreshToken()
-  if (!refreshToken) return null
+  if (!refreshToken) throw new RefreshTokenExpiredError()
 
   try {
-    const response = await axios.post<{ access: string }>(`${BASE_URL}/accounts/token/refresh/`, {
-      refresh: refreshToken,
-    })
+    const response = await axios.post<{ access: string; refresh?: string }>(
+      `${BASE_URL}/accounts/token/refresh/`,
+      { refresh: refreshToken }
+    )
+    // Persist the rotated refresh token immediately.
+    // Failing to do this is the #1 cause of "logged out on F5":
+    // the old token gets blacklisted, the new one is silently dropped,
+    // and the next refresh call sends a revoked token → 401 → logout.
+    if (response.data.refresh) {
+      tokenStorage.setRefreshToken(response.data.refresh)
+    }
     return response.data.access
-  } catch {
-    return null
+  } catch (err) {
+    const status = (err as AxiosError)?.response?.status
+    if (status === 401 || status === 400) {
+      // Definitive failure — token is blacklisted or malformed.
+      throw new RefreshTokenExpiredError()
+    }
+    // Network error, timeout, 5xx — re-throw as-is so the interceptor can
+    // distinguish it from RefreshTokenExpiredError and NOT clear the session.
+    throw err
   }
 }
 

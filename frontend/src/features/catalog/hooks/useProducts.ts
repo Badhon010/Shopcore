@@ -3,6 +3,7 @@ import {
   useInfiniteQuery,
   useMutation,
   useQueryClient,
+  keepPreviousData,
 } from '@tanstack/react-query'
 import { catalogService, type ProductListParams, type ReviewPayload } from '@/services/api/catalog.service'
 import { queryKeys } from '@/services/queryKeys'
@@ -28,6 +29,13 @@ export function useProducts(params: ProductListParams = {}) {
   return useQuery({
     queryKey: queryKeys.catalog.products(params),
     queryFn: ({ signal }) => catalogService.getProducts(params, { signal }),
+    // Show previous page's data while the new query loads so filter changes
+    // feel instant instead of flashing an empty grid (the "frozen" appearance).
+    placeholderData: keepPreviousData,
+    // 1-minute stale window avoids spurious re-fetches on focus/remount while
+    // still keeping data reasonably fresh. Explicit invalidations (checkout,
+    // cart changes) override this.
+    staleTime: 60_000,
   })
 }
 

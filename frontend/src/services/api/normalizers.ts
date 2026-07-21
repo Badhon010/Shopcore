@@ -17,13 +17,20 @@ type RawWishlistItem = any
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 export function normalizeCategory(raw: RawCategory): Category {
+  // `parent` from CategoryDetailSerializer is a full object {id, name, slug, …}.
+  // Preserve name + slug so consumers (e.g. breadcrumbs) don't need a second fetch.
+  const parent = raw.parent
+    ? typeof raw.parent === 'object'
+      ? { id: String(raw.parent.id), name: raw.parent.name ?? '', slug: raw.parent.slug ?? '' }
+      : { id: String(raw.parent), name: '', slug: '' }
+    : null
   return {
     id: String(raw.id),
     name: raw.name,
     slug: raw.slug,
     description: raw.description ?? undefined,
     image: raw.image ?? undefined,
-    parent: raw.parent ? String(raw.parent.id ?? raw.parent) : null,
+    parent,
     children: Array.isArray(raw.children) ? raw.children.map(normalizeCategory) : undefined,
     product_count: raw.product_count,
   }

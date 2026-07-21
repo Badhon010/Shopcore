@@ -25,16 +25,24 @@ def _is_postgres() -> bool:
 
 
 def get_category_tree() -> list[dict]:
-    """Return the full category tree, cached for 5 minutes.
+    """Return the full category tree with descendant product counts, cached 5 min.
 
-    Returns:
-        List of top-level category dicts with nested children.
+    One extra query fetches direct product counts for every active category;
+    the recursive serialize() then rolls them up so parent nodes show totals.
     """
     cached = cache.get(CATEGORY_TREE_CACHE_KEY)
     if cached is not None:
         return cached
 
     from apps.catalog.models import Category
+    from django.db.models import Count, Q
+
+    # Single bulk query — direct (non-recursive) product counts per category.
+    counts: dict[int, int] = dict(
+        Category.objects.filter(is_active=True)
+        .annotate(cnt=Count("products", filter=Q(products__is_active=True)))
+        .values_list("pk", "cnt")
+    )
 
     root_categories = (
         Category.objects.filter(parent__isnull=True)
@@ -43,13 +51,19 @@ def get_category_tree() -> list[dict]:
     )
 
     def serialize(cat) -> dict:
+        # .all() uses the prefetch cache — no extra queries per node.
+        children = [serialize(c) for c in cat.children.all()]
+        direct = counts.get(cat.pk, 0)
+        # Roll up descendant counts so a parent shows the sum of its subtree.
+        total = direct + sum(c["product_count"] for c in children)
         return {
             "id": cat.pk,
             "name": cat.name,
             "slug": cat.slug,
             "description": cat.description,
             "display_order": cat.display_order,
-            "children": [serialize(c) for c in cat.children.filter(is_active=True)],
+            "product_count": total,
+            "children": children,
         }
 
     tree = [serialize(cat) for cat in root_categories]

@@ -81,7 +81,7 @@ function RouterErrorBoundary() {
 
 /**
  * Redirects legacy /category/:categorySlug URLs to the canonical
- * /products/category/:slug URL, preserving browser history correctly.
+ * /products?category=<slug> query-param URL.
  */
 function CategoryRedirect() {
   const { categorySlug = '' } = useParams<{ categorySlug: string }>()
@@ -90,11 +90,20 @@ function CategoryRedirect() {
 
 /**
  * Redirects legacy /category/:categorySlug/:subcategorySlug URLs to the
- * parent category page (subcategories are not a separate route in v2).
+ * parent category page (subcategories are not a separate route).
  */
 function SubcategoryRedirect() {
   const { categorySlug = '' } = useParams<{ categorySlug: string; subcategorySlug: string }>()
   return <Navigate to={buildRoute.category(categorySlug)} replace />
+}
+
+/**
+ * Redirects old path-based /products/category/:slug URLs to the canonical
+ * query-param form /products?category=<slug>.
+ */
+function ProductCategoryRedirect() {
+  const { slug = '' } = useParams<{ slug: string }>()
+  return <Navigate to={buildRoute.category(slug)} replace />
 }
 
 export const router = createBrowserRouter([
@@ -113,13 +122,12 @@ export const router = createBrowserRouter([
 
       { path: '/search', element: withSuspense(SearchResultsPage) },
 
-      // ── Product listing — single page, two modes ──────────────────────────
-      // /products               → all products (Mode 1)
-      // /products/category/:slug → filtered by category (Mode 2)
-      // NOTE: /products/category/:slug must come before /products/:productSlug
-      // so the literal "category" segment is matched first.
+      // ── Product listing — single canonical route ──────────────────────────
+      // /products                   → all products
+      // /products?category=<slug>   → filtered by category (and descendants)
+      // Old /products/category/:slug paths are 301-redirected to query-param form.
       { path: '/products', element: withSuspense(ProductListPage) },
-      { path: '/products/category/:slug', element: withSuspense(ProductListPage) },
+      { path: '/products/category/:slug', element: <ProductCategoryRedirect /> },
       { path: '/products/:productSlug', element: withSuspense(ProductDetailsPage) },
 
       { path: '/cart', element: withSuspense(CartPage) },

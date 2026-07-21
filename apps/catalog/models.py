@@ -62,9 +62,14 @@ class Category(SoftDeleteModel):
         return self.name
 
     def get_descendants(self) -> list[int]:
-        """Return all descendant category IDs (for filtering by category tree)."""
+        """Return all descendant category IDs (for filtering by category tree).
+
+        Uses .all() so Django can serve results from the prefetch cache
+        (set up in filter_category / get_category_tree) instead of issuing
+        a new query per node.  The default manager already filters is_active.
+        """
         ids = [self.pk]
-        for child in self.children.filter(is_active=True):
+        for child in self.children.all():
             ids.extend(child.get_descendants())
         return ids
 

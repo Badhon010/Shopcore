@@ -3,6 +3,7 @@ import { ChevronUp, ChevronDown, Star, Search, Tag } from 'lucide-react'
 import { Slider } from '@/components/ui/Slider'
 import { cn } from '@/utils/cn'
 import { useCategoryTree, useBrands } from '@/features/catalog/hooks/useProducts'
+import type { Category } from '@/types/models'
 
 /* ── Types ──────────────────────────────────────────────────── */
 
@@ -35,6 +36,147 @@ export const DEFAULT_FILTERS: FilterState = {
 
 export function makeDefaultFilters(minPrice: number, maxPrice: number): FilterState {
   return { ...DEFAULT_FILTERS, priceRange: [minPrice, maxPrice] }
+}
+
+/* ── Category tree ──────────────────────────────────────────── */
+
+function CategoryTree({
+  tree,
+  selectedCategory,
+  onCategorySelect,
+}: {
+  tree: Category[]
+  selectedCategory?: string
+  onCategorySelect: (slug: string | undefined) => void
+}) {
+  // Compute which parents should start expanded (parent of selected child)
+  const getInitialExpanded = () => {
+    const set = new Set<string>()
+    tree.forEach((cat) => {
+      if (cat.children?.some((c) => c.slug === selectedCategory)) set.add(cat.slug)
+    })
+    return set
+  }
+  const [expandedSlugs, setExpandedSlugs] = useState<Set<string>>(getInitialExpanded)
+
+  // Auto-expand parent when selectedCategory changes to a child slug
+  useEffect(() => {
+    tree.forEach((cat) => {
+      if (cat.children?.some((c) => c.slug === selectedCategory)) {
+        setExpandedSlugs((prev) => (prev.has(cat.slug) ? prev : new Set([...prev, cat.slug])))
+      }
+    })
+  }, [selectedCategory, tree])
+
+  const toggleExpand = (slug: string) => {
+    setExpandedSlugs((prev) => {
+      const next = new Set(prev)
+      if (next.has(slug)) next.delete(slug)
+      else next.add(slug)
+      return next
+    })
+  }
+
+  return (
+    <ul className="space-y-0.5">
+      {/* All Products shortcut */}
+      <li>
+        <button
+          type="button"
+          onClick={() => onCategorySelect(undefined)}
+          className={cn(
+            'flex w-full items-center rounded-lg px-3 py-2 text-left text-[13px] transition-all duration-100',
+            !selectedCategory
+              ? 'bg-accent text-white font-medium'
+              : 'text-text-secondary hover:bg-bg-subtle hover:text-text-primary'
+          )}
+        >
+          All Products
+        </button>
+      </li>
+
+      {tree.map((cat) => {
+        const isActive = selectedCategory === cat.slug
+        const hasChildren = (cat.children?.length ?? 0) > 0
+        const isParentOfActive = hasChildren && cat.children!.some((c) => c.slug === selectedCategory)
+        const isExpanded = expandedSlugs.has(cat.slug) || isParentOfActive
+
+        return (
+          <li key={cat.slug}>
+            {/* Root category row */}
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => onCategorySelect(isActive ? undefined : cat.slug)}
+                className={cn(
+                  'flex flex-1 items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] transition-all duration-100',
+                  isActive || isParentOfActive
+                    ? 'bg-accent text-white font-medium'
+                    : 'text-text-secondary hover:bg-bg-subtle hover:text-text-primary'
+                )}
+              >
+                <span>{cat.name}</span>
+                {cat.product_count !== undefined && (
+                  <span
+                    className={cn(
+                      'ml-1 text-[11px]',
+                      isActive || isParentOfActive ? 'text-white/70' : 'text-text-tertiary'
+                    )}
+                  >
+                    {cat.product_count}
+                  </span>
+                )}
+              </button>
+
+              {/* Expand/collapse toggle (only when there are children) */}
+              {hasChildren && (
+                <button
+                  type="button"
+                  onClick={() => toggleExpand(cat.slug)}
+                  aria-label={isExpanded ? 'Collapse subcategories' : 'Expand subcategories'}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-tertiary transition-colors hover:bg-bg-subtle hover:text-text-primary"
+                >
+                  {isExpanded
+                    ? <ChevronUp className="h-3 w-3" />
+                    : <ChevronDown className="h-3 w-3" />}
+                </button>
+              )}
+            </div>
+
+            {/* Children */}
+            {hasChildren && isExpanded && (
+              <ul className="ml-3 mt-0.5 space-y-0.5 border-l border-border pl-2">
+                {cat.children!.map((child) => {
+                  const childActive = selectedCategory === child.slug
+                  return (
+                    <li key={child.slug}>
+                      <button
+                        type="button"
+                        onClick={() => onCategorySelect(childActive ? undefined : child.slug)}
+                        className={cn(
+                          'flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left text-[13px] transition-all duration-100',
+                          childActive
+                            ? 'bg-accent/10 text-accent font-medium'
+                            : 'text-text-secondary hover:bg-bg-subtle hover:text-text-primary'
+                        )}
+                      >
+                        <span>{child.name}</span>
+                        {child.product_count !== undefined && (
+                          <span className={cn('ml-1 text-[11px]', childActive ? 'text-accent/60' : 'text-text-tertiary')}>
+                            {child.product_count}
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
 }
 
 /* ── Collapsible section ────────────────────────────────────── */
@@ -140,34 +282,11 @@ export function ProductFilters({
         {/* ── Categories ── */}
         {onCategorySelect && (
           <Section title="Categories">
-            <ul className="space-y-0.5">
-              {(categoryTree ?? []).map((cat) => {
-                const isActive = selectedCategory === cat.slug
-                return (
-                  <li key={cat.slug}>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onCategorySelect(isActive ? undefined : cat.slug)
-                      }
-                      className={cn(
-                        'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] transition-all duration-100',
-                        isActive
-                          ? 'bg-accent text-white font-medium'
-                          : 'text-text-secondary hover:bg-bg-subtle hover:text-text-primary'
-                      )}
-                    >
-                      <span>{cat.name}</span>
-                      {cat.product_count !== undefined && (
-                        <span className={cn('text-[11px]', isActive ? 'text-white/70' : 'text-text-tertiary')}>
-                          {cat.product_count}
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
+            <CategoryTree
+              tree={categoryTree ?? []}
+              selectedCategory={selectedCategory}
+              onCategorySelect={onCategorySelect}
+            />
           </Section>
         )}
 

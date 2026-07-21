@@ -1,6 +1,7 @@
 import { axiosClient } from './axiosClient'
 import { endpoints } from './endpoints'
 import type { Address } from '@/types/models'
+import type { PaginatedResponse } from '@/types/api'
 
 // Omit server-generated read-only fields; the rest maps 1-to-1 to the serializer.
 export type AddressPayload = Omit<Address, 'id' | 'created_at' | 'updated_at'>
@@ -8,8 +9,10 @@ export type AddressPayload = Omit<Address, 'id' | 'created_at' | 'updated_at'>
 export const addressesService = {
   getAddresses: ({ signal }: { signal?: AbortSignal } = {}) =>
     axiosClient
-      .get<Address[]>(endpoints.addresses.list(), { signal })
-      .then((r) => r.data),
+      .get<PaginatedResponse<Address>>(endpoints.addresses.list(), { signal })
+      // The backend uses global StandardResultsSetPagination, so the response is
+      // always a paginated envelope. Unwrap results so callers receive Address[].
+      .then((r) => r.data.results),
 
   createAddress: (payload: AddressPayload) =>
     axiosClient

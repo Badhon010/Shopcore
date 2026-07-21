@@ -53,15 +53,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { default: axios } = await import('axios')
         const baseURL = import.meta.env.VITE_API_BASE_URL ?? '/api'
-        const response = await axios.post<{ access: string }>(`${baseURL}/accounts/token/refresh/`, {
-          refresh: refreshToken,
-        })
+        // Type as { access, refresh? } — ROTATE_REFRESH_TOKENS=True means every
+        // successful refresh call issues a new refresh token and blacklists the
+        // old one. Persist the new token immediately or the next refresh will
+        // send a revoked token and log the user out.
+        const response = await axios.post<{ access: string; refresh?: string }>(
+          `${baseURL}/accounts/token/refresh/`,
+          { refresh: refreshToken }
+        )
+        if (response.data.refresh) {
+          tokenStorage.setRefreshToken(response.data.refresh)
+        }
         setAccessToken(response.data.access)
         const me = await authService.me()
         setUser(me)
-      } catch {
+      } catch (err) {
         setAccessToken(null)
-        tokenStorage.clearRefreshToken()
+        // Only destroy the stored refresh token when the backend definitively
+        // rejects it (401 / 400 = blacklisted / malformed).
+        // On network errors (no response) keep the token so that the next page
+        // load can recover once connectivity is restored.
+        const status = (err as { response?: { status?: number } })?.response?.status
+        if (status === 401 || status === 400) {
+          tokenStorage.clearRefreshToken()
+        }
       } finally {
         setIsLoading(false)
       }

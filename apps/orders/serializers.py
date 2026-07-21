@@ -4,12 +4,24 @@ from apps.orders.models import Order, OrderItem, OrderStatusHistory
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = OrderItem
         fields = [
             "id", "product_name_snapshot", "variant_attributes_snapshot",
-            "unit_price_snapshot", "quantity", "line_total",
+            "unit_price_snapshot", "quantity", "line_total", "image_url",
         ]
+
+    def get_image_url(self, obj) -> str | None:
+        img = (
+            obj.variant.product.images.filter(is_primary=True).first()
+            or obj.variant.product.images.first()
+        )
+        if img and img.image:
+            request = self.context.get('request')
+            return request.build_absolute_uri(img.image.url) if request else img.image.url
+        return None
 
 
 class OrderStatusHistorySerializer(serializers.ModelSerializer):
@@ -26,6 +38,7 @@ class OrderStatusHistorySerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     status_history = OrderStatusHistorySerializer(many=True, read_only=True)
+    can_cancel = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -34,9 +47,13 @@ class OrderSerializer(serializers.ModelSerializer):
             "shipping_address_snapshot", "billing_address_snapshot",
             "subtotal", "discount_total", "shipping_cost", "tax_total", "grand_total",
             "coupon_code_snapshot", "notes", "placed_at",
-            "items", "status_history",
+            "items", "status_history", "can_cancel",
         ]
         read_only_fields = [f.name for f in Order._meta.fields]
+
+    def get_can_cancel(self, obj) -> bool:
+        from apps.orders.constants import ALLOWED_TRANSITIONS, OrderStatus
+        return OrderStatus.CANCELLED in ALLOWED_TRANSITIONS.get(obj.status, [])
 
 
 class CheckoutSerializer(serializers.Serializer):
