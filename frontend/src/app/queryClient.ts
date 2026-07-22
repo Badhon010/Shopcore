@@ -13,7 +13,9 @@ export const queryClient = new QueryClient({
         }
         return failureCount < 2
       },
-      refetchOnWindowFocus: false,
+      // Re-fetch stale queries when the user focuses the tab so the page
+      // self-updates without requiring a manual browser refresh.
+      refetchOnWindowFocus: true,
     },
     mutations: {
       retry: false,

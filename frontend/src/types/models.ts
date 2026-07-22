@@ -4,7 +4,7 @@ export interface User {
   first_name: string
   last_name: string
   full_name: string
-  phone?: string
+  phone_number?: string
   avatar?: string
   date_joined: string
   is_email_verified: boolean

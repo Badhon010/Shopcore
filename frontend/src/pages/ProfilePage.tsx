@@ -13,7 +13,7 @@ import type { ApiError } from '@/types/api'
 const profileSchema = z.object({
   first_name: z.string().min(1, 'Required'),
   last_name: z.string().min(1, 'Required'),
-  phone: z.string().optional(),
+  phone_number: z.string().optional(),
 })
 type ProfileFormData = z.infer<typeof profileSchema>
 
@@ -26,7 +26,7 @@ export function ProfilePage() {
     values: profile ? {
       first_name: profile.first_name,
       last_name: profile.last_name,
-      phone: profile.phone ?? '',
+      phone_number: profile.phone_number ?? '',
     } : undefined,
   })
 
@@ -59,8 +59,8 @@ export function ProfilePage() {
           <FormField label="Email" helperText="To change your email, contact support.">
             {(id) => <Input id={id} type="email" value={profile?.email ?? ''} disabled />}
           </FormField>
-          <FormField label="Phone" error={form.formState.errors.phone?.message}>
-            {(id) => <Input id={id} type="tel" {...form.register('phone')} />}
+          <FormField label="Phone" error={form.formState.errors.phone_number?.message}>
+            {(id) => <Input id={id} type="tel" {...form.register('phone_number')} />}
           </FormField>
           <Button type="submit" isLoading={update.isPending}>Save changes</Button>
         </form>

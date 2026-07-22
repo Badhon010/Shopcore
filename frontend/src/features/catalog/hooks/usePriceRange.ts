@@ -1,20 +1,37 @@
-import { useProducts } from './useProducts'
-import type { ProductListParams } from '@/services/api/catalog.service'
+import { useQuery } from '@tanstack/react-query'
+import { catalogService, type ProductListParams } from '@/services/api/catalog.service'
 
 type PriceContext = Pick<ProductListParams, 'category' | 'subcategory' | 'q'>
 
 /**
- * Fetches the actual min and max prices for the current context (category, search, etc.)
- * by making two lightweight queries — one sorted ascending, one descending — each page_size=1.
+ * Fetches price bounds (slider min/max) for the current category/context.
+ *
+ * Uses two lightweight page_size=1 queries — one sorted ascending for the
+ * floor, one descending for the ceiling.
+ *
+ * These queries use staleTime: Infinity because price bounds for a given
+ * category change only when products are added or repriced, which is rare.
+ * Using Infinity avoids the previous behaviour where two extra full product-
+ * list round-trips fired every 60 seconds alongside the main products query.
+ * The gcTime (5 min default) still evicts the cache after the component
+ * unmounts, so a browser refresh always gets fresh bounds.
  */
 export function usePriceRange(context: PriceContext = {}) {
-  const baseParams: ProductListParams = {
-    ...context,
-    page_size: 1,
-  }
+  const baseParams: ProductListParams = { ...context, page_size: 1 }
 
-  const minQ = useProducts({ ...baseParams, ordering: 'base_price' })
-  const maxQ = useProducts({ ...baseParams, ordering: '-base_price' })
+  const minQ = useQuery({
+    queryKey: ['catalog', 'priceRange', 'min', context],
+    queryFn: ({ signal }) =>
+      catalogService.getProducts({ ...baseParams, ordering: 'base_price' }, { signal }),
+    staleTime: Infinity, // price bounds rarely change — never re-fetch while mounted
+  })
+
+  const maxQ = useQuery({
+    queryKey: ['catalog', 'priceRange', 'max', context],
+    queryFn: ({ signal }) =>
+      catalogService.getProducts({ ...baseParams, ordering: '-base_price' }, { signal }),
+    staleTime: Infinity,
+  })
 
   const rawMin = minQ.data?.results[0]?.price
   const rawMax = maxQ.data?.results[0]?.price

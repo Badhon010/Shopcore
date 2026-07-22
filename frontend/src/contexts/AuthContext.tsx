@@ -14,9 +14,11 @@ import {
   type RegisterPayload,
 } from '@/services/api/auth.service'
 import {
+  axiosClient,
   setAccessToken,
   tokenStorage,
 } from '@/services/api/axiosClient'
+import { endpoints } from '@/services/api/endpoints'
 import type { User } from '@/types/models'
 import { guestCartToken } from '@/services/api/cart.service'
 import { cartService } from '@/services/api/cart.service'
@@ -123,15 +125,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const logout = useCallback(async () => {
-    try {
-      await authService.logout()
-    } catch {
-      // ignore errors — clear session anyway
-    } finally {
-      setAccessToken(null)
-      tokenStorage.clearRefreshToken()
-      setUser(null)
-      queryClient.clear()
+    // Read the refresh token BEFORE clearing it — authService.logout() needs
+    // to send it to the backend to blacklist it.
+    const refresh = tokenStorage.getRefreshToken()
+
+    // Clear local state immediately so the UI responds without waiting for the network.
+    setAccessToken(null)
+    tokenStorage.clearRefreshToken()
+    setUser(null)
+    // Remove only auth-scoped cache entries; keep public catalog data so
+    // pages don't have to re-fetch after the user logs out.
+    queryClient.removeQueries({ queryKey: ['profile'] })
+    queryClient.removeQueries({ queryKey: ['auth'] })
+    queryClient.removeQueries({ queryKey: ['orders'] })
+    queryClient.removeQueries({ queryKey: ['addresses'] })
+    queryClient.removeQueries({ queryKey: ['notifications'] })
+    queryClient.removeQueries({ queryKey: ['wishlist'] })
+    queryClient.removeQueries({ queryKey: ['cart'] })
+    // Fire-and-forget: blacklist the refresh token on the backend.
+    if (refresh) {
+      axiosClient.post(endpoints.auth.logout(), { refresh }).catch(() => undefined)
     }
   }, [queryClient])
 

@@ -226,9 +226,15 @@ export function ProductFilters({
   const { data: brands } = useBrands()
   const [brandSearch, setBrandSearch] = useState('')
 
-  // Local price state for smooth dragging — only commits to parent on pointer-up
+  // Local price state for smooth dragging — only commits to parent on pointer-up.
+  // Use primitive values as effect deps — filters.priceRange is a new array ref on
+  // every parent render, so depending on the array itself causes an infinite loop.
   const [localPrice, setLocalPrice] = useState<[number, number]>(filters.priceRange)
-  useEffect(() => { setLocalPrice(filters.priceRange) }, [filters.priceRange])
+  const priceRangeMin = filters.priceRange[0]
+  const priceRangeMax = filters.priceRange[1]
+  useEffect(() => {
+    setLocalPrice([priceRangeMin, priceRangeMax])
+  }, [priceRangeMin, priceRangeMax])
 
   const hasActiveFilters =
     filters.inStockOnly ||

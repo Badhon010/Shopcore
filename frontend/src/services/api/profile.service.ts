@@ -2,7 +2,7 @@ import { axiosClient } from './axiosClient'
 import { endpoints } from './endpoints'
 import type { User } from '@/types/models'
 
-export type ProfilePayload = Partial<Pick<User, 'first_name' | 'last_name' | 'phone'>>
+export type ProfilePayload = Partial<Pick<User, 'first_name' | 'last_name' | 'phone_number'>>
 
 export const profileService = {
   getProfile: ({ signal }: { signal?: AbortSignal } = {}) =>
