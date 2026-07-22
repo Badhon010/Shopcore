@@ -66,7 +66,7 @@ export function Navbar() {
   return (
     <>
       {/* Utility bar */}
-      <div className="hidden bg-text-primary text-text-inverse sm:block">
+      <div className="hidden bg-primary text-primary-foreground sm:block">
         <div className="container-page flex h-9 items-center justify-between text-caption">
           <div className="flex items-center gap-1.5">
             <Truck className="h-3.5 w-3.5" aria-hidden />
@@ -98,7 +98,7 @@ export function Navbar() {
 
           {/* Search bar */}
           <form onSubmit={handleSearchSubmit} className="hidden flex-1 md:block md:max-w-[480px]">
-            <div className="relative flex h-10 rounded-sm border border-border bg-bg-subtle transition-colors focus-within:border-text-primary focus-within:bg-bg focus-within:shadow-focus-ring">
+            <div className="relative flex h-10 rounded-sm border border-border bg-bg-subtle transition-colors focus-within:border-primary focus-within:bg-bg focus-within:shadow-focus-ring">
               <input
                 type="search"
                 value={searchValue}
@@ -110,7 +110,7 @@ export function Navbar() {
               <button
                 type="submit"
                 aria-label="Search"
-                className="flex h-full w-10 shrink-0 items-center justify-center rounded-r-sm bg-text-primary text-text-inverse transition-colors hover:bg-text-primary/85 outline-none"
+                className="flex h-full w-10 shrink-0 items-center justify-center rounded-r-sm bg-primary text-primary-foreground transition-colors hover:bg-primary-hover outline-none"
               >
                 <Search className="h-4 w-4" />
               </button>
@@ -142,7 +142,7 @@ export function Navbar() {
                 {wishlistCount > 0 && (
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-text-primary px-1 text-[10px] font-bold leading-none text-text-inverse"
+                    className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground"
                   >
                     {wishlistCount > 9 ? '9+' : wishlistCount}
                   </span>
@@ -163,7 +163,7 @@ export function Navbar() {
               {cartItemCount > 0 && (
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-text-primary px-1 text-[10px] font-bold leading-none text-text-inverse"
+                  className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground"
                 >
                   {cartItemCount > 9 ? '9+' : cartItemCount}
                 </span>
@@ -204,7 +204,7 @@ export function Navbar() {
               <DropdownMenu.Trigger asChild>
                 <button
                   type="button"
-                  className="flex items-center gap-1.5 rounded-md bg-text-primary px-3 py-1.5 text-body-sm font-medium text-text-inverse transition-colors hover:bg-text-primary/85 focus-visible:outline-none focus-visible:shadow-focus-ring"
+                  className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-body-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:shadow-focus-ring"
                 >
                   <Menu className="h-3.5 w-3.5" aria-hidden />
                   All Categories
@@ -449,7 +449,7 @@ function MobileNav({
     <div className="fixed inset-0 z-50 md:hidden">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-overlay/40 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
         aria-hidden
       />
@@ -471,7 +471,7 @@ function MobileNav({
             <button
               type="button"
               onClick={() => setIsCategoriesOpen((v) => !v)}
-              className="flex w-full items-center justify-between rounded-lg bg-text-primary px-3 py-2.5 text-left text-body-sm font-medium text-text-inverse transition-colors hover:bg-text-primary/85"
+              className="flex w-full items-center justify-between rounded-lg bg-primary px-3 py-2.5 text-left text-body-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
               aria-expanded={isCategoriesOpen}
             >
               <span className="flex items-center gap-2">

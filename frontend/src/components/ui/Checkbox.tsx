@@ -28,7 +28,7 @@ export function Checkbox({ id, checked, onCheckedChange, label, disabled, classN
         )}
       >
         <RadixCheckbox.Indicator>
-          <Check className="h-3 w-3 text-white" />
+          <Check className="h-3 w-3 text-primary-foreground" />
         </RadixCheckbox.Indicator>
       </RadixCheckbox.Root>
       {label && (

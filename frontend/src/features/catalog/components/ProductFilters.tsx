@@ -87,7 +87,7 @@ function CategoryTree({
           className={cn(
             'flex w-full items-center rounded-lg px-3 py-2 text-left text-[13px] transition-all duration-100',
             !selectedCategory
-              ? 'bg-accent text-white font-medium'
+              ? 'bg-accent text-accent-foreground font-medium'
               : 'text-text-secondary hover:bg-bg-subtle hover:text-text-primary'
           )}
         >
@@ -111,7 +111,7 @@ function CategoryTree({
                 className={cn(
                   'flex flex-1 items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] transition-all duration-100',
                   isActive || isParentOfActive
-                    ? 'bg-accent text-white font-medium'
+                    ? 'bg-accent text-accent-foreground font-medium'
                     : 'text-text-secondary hover:bg-bg-subtle hover:text-text-primary'
                 )}
               >
@@ -120,7 +120,7 @@ function CategoryTree({
                   <span
                     className={cn(
                       'ml-1 text-[11px]',
-                      isActive || isParentOfActive ? 'text-white/70' : 'text-text-tertiary'
+                      isActive || isParentOfActive ? 'text-accent-foreground/70' : 'text-text-tertiary'
                     )}
                   >
                     {cat.product_count}
@@ -263,7 +263,7 @@ export function ProductFilters({
           <Tag className="h-3.5 w-3.5 text-text-tertiary" />
           <span className="text-[13px] font-semibold text-text-primary">Filters</span>
           {hasActiveFilters && (
-            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white">
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
               {(filters.brands.length > 0 ? 1 : 0) +
                 (filters.minRating > 0 ? 1 : 0) +
                 (filters.inStockOnly ? 1 : 0) +
@@ -445,7 +445,7 @@ export function ProductFilters({
             >
               <span
                 className={cn(
-                  'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out',
+                  'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-primary-foreground shadow-sm ring-0 transition duration-200 ease-in-out',
                   filters.inStockOnly ? 'translate-x-4' : 'translate-x-0'
                 )}
               />

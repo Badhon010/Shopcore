@@ -20,7 +20,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           'focus-visible:outline-none focus-visible:shadow-focus-ring focus-visible:border-accent',
           'disabled:cursor-not-allowed disabled:opacity-50',
           error
-            ? 'border-danger focus-visible:border-danger focus-visible:shadow-[0_0_0_3px_hsl(var(--color-danger)/0.25)]'
+            ? 'border-danger focus-visible:border-danger focus-visible:shadow-[0_0_0_3px_hsl(var(--danger)/0.25)]'
             : 'border-border',
           className
         )}

@@ -23,7 +23,7 @@ export function Drawer({ open, onClose, title, children, side = 'right', classNa
   return (
     <Dialog.Root open={open} onOpenChange={(v) => !v && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-[state=open]:animate-fade-in" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-overlay/50 backdrop-blur-sm data-[state=open]:animate-fade-in" />
         <Dialog.Content
           className={cn(
             'fixed z-50 bg-surface shadow-2xl focus:outline-none',

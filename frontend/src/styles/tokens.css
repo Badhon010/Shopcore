@@ -1,0 +1,357 @@
+/* ============================================================
+   SHOPCORE DESIGN TOKENS
+   ============================================================
+   Single source of truth for the entire design system.
+
+   HOW TO REBRAND IN < 5 MINUTES
+   ──────────────────────────────
+   1. Change the --primary / --primary-hover / --primary-foreground
+      values in :root (light) and .dark (dark) below.
+   2. Everything — buttons, links, inputs, badges, borders, focus
+      rings, loading states — updates automatically.
+
+   HOW TO ADD A NEW BRAND THEME
+   ──────────────────────────────
+   1. Add a [data-brand="mybrand"] block at the bottom.
+   2. Override only the tokens that differ from the default.
+   3. Add .dark[data-brand="mybrand"] for its dark variant.
+   4. In ThemeContext, add the brand name to the Brand type union.
+
+   NAMING CONVENTION
+   ──────────────────
+   --primary          Main brand / CTA color
+   --secondary        Secondary interactive surface
+   --accent           Highlight / tertiary action
+   --background       Page background
+   --surface          Card / panel surface
+   --surface-elevated Elevated card (modals, dropdowns)
+   --text-primary     Main body text
+   --text-secondary   Supporting text
+   --text-muted       Placeholder / disabled label text
+   --text-inverse     Text on dark/accent backgrounds
+   --border           Default divider / input border
+   --border-strong    Emphasized border
+   --success/warning/danger/info  Semantic status colors
+   --overlay          Backdrop (always with opacity modifier)
+   ============================================================ */
+
+/* ── Light mode (default) ─────────────────────────────────── */
+/*                                                             */
+/*  60 / 30 / 10 Rule                                         */
+/*  ─────────────────                                         */
+/*  60%  Neutral surfaces  →  --background / --surface /      */
+/*                             --text-* / --border            */
+/*  30%  Primary branding  →  --primary  (indigo)             */
+/*                             buttons, nav, active states,   */
+/*                             links, focus rings             */
+/*  10%  Accent / CTA      →  --accent   (amber)              */
+/*                             badges, promo banners, tags,   */
+/*                             "Sale" labels, highlights      */
+/*                                                             */
+:root,
+[data-theme="light"] {
+
+  /* ── Primary / Brand (30%) ────────────────────────────────── */
+  --primary:            222 84% 56%;   /* Royal Blue */
+  --primary-hover:      222 84% 50%;   
+  --primary-active:     222 84% 44%;   
+  --primary-light:      221 100% 96%;  
+  --primary-foreground: 0 0% 100%;
+
+  /* ── Secondary ────────────────────────────────────────────── */
+  --secondary:            210 20% 96%;
+  --secondary-hover:      214 20% 91%;
+  --secondary-foreground: 222 47% 11%;
+
+  /* ── Accent (10%) ─────────────────────────────────────────── */
+  --accent:            24 96% 54%;    /* Orange */
+  --accent-hover:      24 96% 48%;    
+  --accent-subtle:     24 100% 95%;   
+  --accent-foreground: 0 0% 100%;    
+
+  /* ── Backgrounds (60%) ────────────────────────────────────── */
+  --background:        210 40% 99%;
+  --background-subtle: 210 40% 97%;
+  --surface:           0 0% 100%;
+  --surface-elevated:  0 0% 100%;
+
+  /* ── Text ─────────────────────────────────────────────────── */
+  --text-primary:    222 47% 11%; 
+  --text-secondary:  215 20% 35%;
+  --text-muted:      215 16% 47%;
+  --text-inverse:    0 0% 100%;
+  --text-on-primary: 0 0% 100%;
+
+  /* ── Borders ──────────────────────────────────────────────── */
+  --border:        220 13% 91%;
+  --border-light:  220 13% 95%;
+  --border-strong: 220 13% 84%;
+
+  /* ── Status: Success ──────────────────────────────────────── */
+  --success:            152 60% 36%;
+  --success-subtle:     152 50% 95%;
+  --success-foreground: 0 0% 100%;
+
+  /* ── Status: Warning ──────────────────────────────────────── */
+  --warning:            38 92% 50%;
+  --warning-subtle:     38 92% 95%;
+  --warning-foreground: 222 20% 12%;
+
+  /* ── Status: Danger ───────────────────────────────────────── */
+  --danger:            0 72% 51%;
+  --danger-subtle:     0 100% 97%;
+  --danger-foreground: 0 0% 100%;
+
+  /* ── Status: Info ─────────────────────────────────────────── */
+  --info:            217 91% 60%;
+  --info-subtle:     217 91% 95%;
+  --info-foreground: 0 0% 100%;
+
+  /* ── Special States ───────────────────────────────────────── */
+  --overlay:             0 0% 0%;
+  --disabled:            220 13% 91%;
+  --disabled-foreground: 222 8% 56%;
+  --focus:               0 0% 9%;
+  --skeleton:            220 13% 91%;
+  --selection:           0 0% 9%;
+
+  /* ── Radius ───────────────────────────────────────────────── */
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   20px;
+  --radius-xl:   24px;
+  --radius-2xl:  28px;
+  --radius-full: 9999px;
+
+  /* ── Shadows ──────────────────────────────────────────────── */
+  --shadow-xs:         0 1px 2px rgba(15,23,42,.04);
+  --shadow-sm:         0 4px 10px rgba(15,23,42,.06);
+  --shadow-md:         0 10px 30px rgba(15,23,42,.10);
+  --shadow-lg:         0 24px 60px rgba(15,23,42,.14);
+  --shadow-focus-ring: 0 0 0 4px hsl(var(--primary)/0.22);
+
+  /* ── Motion ───────────────────────────────────────────────── */
+  --duration-fast:    120ms;
+  --duration-base:    200ms;
+  --duration-slow:    320ms;
+  --ease-standard:    cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasized:  cubic-bezier(0.2, 0, 0, 1);
+
+  /* ── Typography Scale ─────────────────────────────────────── */
+  /* (Sizes live in tailwind.config.ts as fontSize tokens;       */
+  /*  these control weight and spacing system-wide.)             */
+  --font-weight-regular:  400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  /* ── Spacing Scale ────────────────────────────────────────── */
+  /* Maps to Tailwind's default spacing scale (×4px).            */
+  /* Referenced here for documentation; use Tailwind classes.   */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+}
+
+/* ── Dark mode ────────────────────────────────────────────── */
+.dark,
+[data-theme="dark"] {
+
+  /* ── Primary ──────────────────────────────────────────────── */
+  --primary:            221 91% 67%;
+  --primary-hover:      221 91% 72%;
+  --primary-active:     221 91% 61%;
+  --primary-light:      222 40% 20%;
+  --primary-foreground: 0 0% 100%;
+
+  /* ── Secondary ────────────────────────────────────────────── */
+  --secondary:            222 20% 18%;
+  --secondary-hover:      222 20% 24%;
+  --secondary-foreground: 0 0% 96%;
+
+  /* ── Accent ───────────────────────────────────────────────── */
+  --accent:            24 95% 60%;
+  --accent-hover:      24 95% 55%;
+  --accent-subtle:     24 45% 20%;
+  --accent-foreground: 0 0% 100%;
+
+  /* ── Backgrounds ──────────────────────────────────────────── */
+  --background:        222 47% 7%;
+  --background-subtle: 222 40% 10%;
+  --surface:           222 35% 12%;
+  --surface-elevated:  222 30% 16%;
+
+  /* ── Text ─────────────────────────────────────────────────── */
+  --text-primary:    210 40% 98%;
+  --text-secondary:  215 20% 74%;
+  --text-muted:      215 16% 60%;
+  --text-inverse:    222 47% 10%;
+  --text-on-primary: 0 0% 100%;
+
+  /* ── Borders ──────────────────────────────────────────────── */
+  --border:        222 15% 22%;
+  --border-light:  222 15% 18%;
+  --border-strong: 222 15% 30%;
+
+  /* ── Status: Success ──────────────────────────────────────── */
+  --success:            152 50% 46%;
+  --success-subtle:     152 50% 18%;
+  --success-foreground: 0 0% 100%;
+
+  /* ── Status: Warning ──────────────────────────────────────── */
+  --warning:            38 92% 58%;
+  --warning-subtle:     38 50% 18%;
+  --warning-foreground: 222 20% 12%;
+
+  /* ── Status: Danger ───────────────────────────────────────── */
+  --danger:            0 72% 62%;
+  --danger-subtle:     0 50% 20%;
+  --danger-foreground: 0 0% 100%;
+
+  /* ── Status: Info ─────────────────────────────────────────── */
+  --info:            217 91% 65%;
+  --info-subtle:     217 50% 20%;
+  --info-foreground: 0 0% 100%;
+
+  /* ── Special States ───────────────────────────────────────── */
+  --overlay:             0 0% 0%;
+  --disabled:            222 15% 22%;
+  --disabled-foreground: 220 8% 55%;
+  --focus:               0 0% 92%;
+  --skeleton:            222 15% 22%;
+  --selection:           0 0% 92%;
+
+  /* ── Shadows (dark-mode adjusted) ────────────────────────── */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3),  inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4),  inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6),inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+
+/* ============================================================
+   BRAND THEMES
+   Each brand overrides only the primary palette tokens.
+   Dark mode stacking: .dark[data-brand="x"] combines both.
+   ============================================================ */
+
+/* ── Brand: ShopCore (indigo + amber — the default) ──────────
+   60%  neutrals (bg/surface/text/border — inherited from :root)
+   30%  indigo primary (buttons, nav, active, focus rings)
+   10%  amber accent  (badges, tags, sale labels, highlights)
+   ─────────────────────────────────────────────────────────── */
+[data-brand="shopcore"] {
+  --primary:            245 70% 56%;
+  --primary-hover:      245 70% 48%;
+  --primary-active:     245 70% 42%;
+  --primary-light:      245 80% 95%;
+  --primary-foreground: 0 0% 100%;
+  --accent:             35 95% 52%;
+  --accent-hover:       35 95% 44%;
+  --accent-subtle:      35 100% 94%;
+  --accent-foreground:  20 40% 12%;
+  --shadow-focus-ring:  0 0 0 3px hsl(245 70% 56% / 0.35);
+}
+.dark[data-brand="shopcore"],
+[data-theme="dark"][data-brand="shopcore"] {
+  --primary:            245 75% 68%;
+  --primary-hover:      245 75% 74%;
+  --primary-active:     245 75% 62%;
+  --primary-light:      245 50% 22%;
+  --primary-foreground: 0 0% 100%;
+  --accent:             38 90% 58%;
+  --accent-hover:       38 90% 50%;
+  --accent-subtle:      35 70% 20%;
+  --accent-foreground:  20 40% 12%;
+  --shadow-focus-ring:  0 0 0 3px hsl(245 75% 68% / 0.35);
+}
+
+/* ── Brand: Green (emerald) ───────────────────────────────── */
+[data-brand="green"] {
+  --primary:            152 60% 36%;
+  --primary-hover:      152 60% 30%;
+  --primary-active:     152 60% 24%;
+  --primary-light:      152 50% 95%;
+  --primary-foreground: 0 0% 100%;
+  --accent:             152 60% 36%;
+  --accent-hover:       152 60% 30%;
+  --accent-subtle:      152 50% 95%;
+  --accent-foreground:  0 0% 100%;
+  --shadow-focus-ring:  0 0 0 3px hsl(152 60% 36% / 0.35);
+}
+.dark[data-brand="green"],
+[data-theme="dark"][data-brand="green"] {
+  --primary:            152 50% 50%;
+  --primary-hover:      152 50% 58%;
+  --primary-active:     152 50% 44%;
+  --primary-light:      152 50% 18%;
+  --primary-foreground: 0 0% 100%;
+  --accent:             152 50% 50%;
+  --accent-hover:       152 50% 58%;
+  --accent-subtle:      152 50% 18%;
+  --accent-foreground:  0 0% 100%;
+  --shadow-focus-ring:  0 0 0 3px hsl(152 50% 50% / 0.35);
+}
+
+/* ── Brand: Purple (violet) ───────────────────────────────── */
+[data-brand="purple"] {
+  --primary:            267 84% 60%;
+  --primary-hover:      267 84% 52%;
+  --primary-active:     267 84% 46%;
+  --primary-light:      267 84% 95%;
+  --primary-foreground: 0 0% 100%;
+  --accent:             267 84% 60%;
+  --accent-hover:       267 84% 52%;
+  --accent-subtle:      267 84% 95%;
+  --accent-foreground:  0 0% 100%;
+  --shadow-focus-ring:  0 0 0 3px hsl(267 84% 60% / 0.35);
+}
+.dark[data-brand="purple"],
+[data-theme="dark"][data-brand="purple"] {
+  --primary:            267 84% 70%;
+  --primary-hover:      267 84% 76%;
+  --primary-active:     267 84% 64%;
+  --primary-light:      267 50% 20%;
+  --primary-foreground: 0 0% 100%;
+  --accent:             267 84% 70%;
+  --accent-hover:       267 84% 76%;
+  --accent-subtle:      267 50% 20%;
+  --accent-foreground:  0 0% 100%;
+  --shadow-focus-ring:  0 0 0 3px hsl(267 84% 70% / 0.35);
+}
+
+/* ── Brand: Pink (rose) ───────────────────────────────────── */
+[data-brand="pink"] {
+  --primary:            330 81% 60%;
+  --primary-hover:      330 81% 52%;
+  --primary-active:     330 81% 46%;
+  --primary-light:      330 81% 95%;
+  --primary-foreground: 0 0% 100%;
+  --accent:             330 81% 60%;
+  --accent-hover:       330 81% 52%;
+  --accent-subtle:      330 81% 95%;
+  --accent-foreground:  0 0% 100%;
+  --shadow-focus-ring:  0 0 0 3px hsl(330 81% 60% / 0.35);
+}
+.dark[data-brand="pink"],
+[data-theme="dark"][data-brand="pink"] {
+  --primary:            330 81% 68%;
+  --primary-hover:      330 81% 74%;
+  --primary-active:     330 81% 62%;
+  --primary-light:      330 50% 20%;
+  --primary-foreground: 0 0% 100%;
+  --accent:             330 81% 68%;
+  --accent-hover:       330 81% 74%;
+  --accent-subtle:      330 50% 20%;
+  --accent-foreground:  0 0% 100%;
+  --shadow-focus-ring:  0 0 0 3px hsl(330 81% 68% / 0.35);
+}

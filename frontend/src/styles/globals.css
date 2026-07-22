@@ -1,77 +1,16 @@
+/* Import the centralized design token file first */
+@import './tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --color-bg: 0 0% 100%;
-    --color-bg-subtle: 210 20% 98%;
-    --color-surface: 0 0% 100%;
-    --color-surface-raised: 0 0% 100%;
-    --color-border: 220 13% 91%;
-    --color-border-strong: 220 13% 84%;
-    --color-text-primary: 222 20% 12%;
-    --color-text-secondary: 222 10% 40%;
-    --color-text-tertiary: 222 8% 56%;
-    --color-text-inverse: 0 0% 100%;
-    --color-accent: 0 0% 9%;
-    --color-accent-hover: 0 0% 20%;
-    --color-accent-subtle: 0 0% 94%;
-    --color-success: 152 60% 36%;
-    --color-warning: 38 92% 50%;
-    --color-danger: 0 72% 51%;
-    --color-danger-subtle: 0 100% 97%;
-
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 20px;
-    --radius-xl: 24px;
-    --radius-2xl: 28px;
-    --radius-full: 9999px;
-
-    --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-    --shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.06);
-    --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
-    --shadow-lg: 0 16px 40px rgba(15, 23, 42, 0.12);
-    --shadow-focus-ring: 0 0 0 3px hsl(var(--color-accent) / 0.35);
-
-    --duration-fast: 120ms;
-    --duration-base: 200ms;
-    --duration-slow: 320ms;
-    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
-    --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
-  }
-
-  .dark {
-    --color-bg: 222 24% 8%;
-    --color-bg-subtle: 222 22% 11%;
-    --color-surface: 222 20% 13%;
-    --color-surface-raised: 222 18% 16%;
-    --color-border: 222 15% 22%;
-    --color-border-strong: 222 15% 30%;
-    --color-text-primary: 0 0% 96%;
-    --color-text-secondary: 220 10% 72%;
-    --color-text-tertiary: 220 8% 55%;
-    --color-text-inverse: 222 20% 12%;
-    --color-accent: 0 0% 92%;
-    --color-accent-hover: 0 0% 100%;
-    --color-accent-subtle: 0 0% 22%;
-    --color-success: 152 50% 46%;
-    --color-warning: 38 92% 58%;
-    --color-danger: 0 72% 62%;
-    --color-danger-subtle: 0 50% 20%;
-
-    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  }
-
   *,
   *::before,
   *::after {
     box-sizing: border-box;
-    border-color: hsl(var(--color-border));
+    border-color: hsl(var(--border));
   }
 
   html {
@@ -85,8 +24,8 @@
   }
 
   body {
-    background-color: hsl(var(--color-bg));
-    color: hsl(var(--color-text-primary));
+    background-color: hsl(var(--background));
+    color: hsl(var(--text-primary));
     font-family: 'InterVariable', 'Inter', system-ui, sans-serif;
     font-size: 1rem;
     line-height: 1.6;
@@ -95,7 +34,7 @@
   }
 
   ::selection {
-    background-color: hsl(var(--color-accent) / 0.2);
+    background-color: hsl(var(--primary) / 0.2);
   }
 
   :focus-visible {
@@ -122,9 +61,9 @@
   .skeleton-shimmer {
     background: linear-gradient(
       90deg,
-      hsl(var(--color-border) / 0.4) 25%,
-      hsl(var(--color-border) / 0.8) 50%,
-      hsl(var(--color-border) / 0.4) 75%
+      hsl(var(--skeleton) / 0.4) 25%,
+      hsl(var(--skeleton) / 0.8) 50%,
+      hsl(var(--skeleton) / 0.4) 75%
     );
     background-size: 200% 100%;
     animation: shimmer 2s linear infinite;

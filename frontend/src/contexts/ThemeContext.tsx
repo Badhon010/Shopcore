@@ -1,15 +1,20 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { APP_CONFIG } from '@/constants/config'
 
-type ThemeMode = 'light' | 'dark' | 'system'
+export type ThemeMode = 'light' | 'dark' | 'system'
+export type Brand = 'shopcore' | 'green' | 'purple' | 'pink'
 
 interface ThemeContextValue {
   theme: ThemeMode
   resolvedTheme: 'light' | 'dark'
   setTheme: (theme: ThemeMode) => void
+  brand: Brand
+  setBrand: (brand: Brand) => void
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
+
+const BRAND_STORAGE_KEY = 'shopcore-brand'
 
 function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -31,6 +36,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return 'system'
   })
 
+  const [brand, setBrandState] = useState<Brand>(() => {
+    try {
+      const stored = localStorage.getItem(BRAND_STORAGE_KEY)
+      if (stored === 'shopcore' || stored === 'green' || stored === 'purple' || stored === 'pink') {
+        return stored
+      }
+    } catch {
+      // ignore
+    }
+    return 'shopcore'
+  })
+
   const resolvedTheme = resolveTheme(theme)
 
   const applyTheme = useCallback((mode: ThemeMode) => {
@@ -42,9 +59,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const applyBrand = useCallback((b: Brand) => {
+    document.documentElement.setAttribute('data-brand', b)
+  }, [])
+
   useEffect(() => {
     applyTheme(theme)
   }, [theme, applyTheme])
+
+  useEffect(() => {
+    applyBrand(brand)
+  }, [brand, applyBrand])
 
   // Listen for system preference changes
   useEffect(() => {
@@ -64,8 +89,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const setBrand = useCallback((newBrand: Brand) => {
+    setBrandState(newBrand)
+    try {
+      localStorage.setItem(BRAND_STORAGE_KEY, newBrand)
+    } catch {
+      // ignore
+    }
+  }, [])
+
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme, brand, setBrand }}>
       {children}
     </ThemeContext.Provider>
   )

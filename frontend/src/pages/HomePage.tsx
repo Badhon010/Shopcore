@@ -215,7 +215,7 @@ export function HomePage() {
               className={cn(
                 'h-2 w-2 rounded-full border transition-colors',
                 i === activeSlide
-                  ? 'border-text-primary bg-text-primary'
+                  ? 'border-primary bg-primary'
                   : 'border-border bg-transparent'
               )}
             />
@@ -297,7 +297,7 @@ export function HomePage() {
                   className={cn(
                     'rounded-full px-3.5 py-1.5 text-body-sm font-medium transition-colors',
                     activeTab === tab
-                      ? 'bg-text-primary text-text-inverse'
+                      ? 'bg-primary text-primary-foreground'
                       : 'text-text-secondary hover:text-text-primary'
                   )}
                 >

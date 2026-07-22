@@ -28,7 +28,7 @@ export function Switch({ checked, onCheckedChange, label, id, disabled, classNam
       >
         <RadixSwitch.Thumb
           className={cn(
-            'pointer-events-none block h-5 w-5 rounded-full bg-white shadow-sm',
+            'pointer-events-none block h-5 w-5 rounded-full bg-primary-foreground shadow-sm',
             'transition-transform duration-200',
             checked ? 'translate-x-5' : 'translate-x-0'
           )}

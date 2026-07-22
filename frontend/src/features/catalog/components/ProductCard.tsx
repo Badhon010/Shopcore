@@ -86,14 +86,14 @@ export function ProductCard({ product, priority = false, viewMode = 'grid' }: Pr
       className={cn(
         'flex items-center justify-center gap-2 rounded-lg text-[13px] font-semibold',
         'transition-all duration-150 active:scale-[0.98]',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
         viewMode === 'list'
           ? 'shrink-0 px-5 py-2.5'
           : 'w-full py-2.5',
         addedToCart
-          ? 'bg-success text-white'
+          ? 'bg-success text-success-foreground'
           : canAddToCart
-          ? 'bg-text-primary text-white hover:bg-text-primary/85'
+          ? 'bg-primary text-primary-foreground hover:bg-primary-hover'
           : 'cursor-not-allowed bg-bg-subtle text-text-tertiary',
         addToCart.isPending && 'opacity-70 pointer-events-none',
       )}
@@ -116,9 +116,9 @@ export function ProductCard({ product, priority = false, viewMode = 'grid' }: Pr
       disabled={toggleWishlist.isPending}
       className={cn(
         'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-        'bg-white shadow-sm border border-border/60',
+        'bg-surface shadow-sm border border-border/60',
         'transition-all duration-150 hover:scale-110 hover:shadow-md',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
         toggleWishlist.isPending && 'pointer-events-none opacity-50'
       )}
     >
@@ -165,17 +165,17 @@ export function ProductCard({ product, priority = false, viewMode = 'grid' }: Pr
             {/* Badges */}
             <div className="absolute left-2 top-2 flex flex-col gap-1">
               {isDiscounted && discountPercent && (
-                <span className="rounded-md bg-danger px-2 py-0.5 text-[11px] font-bold text-white leading-tight">
+                <span className="rounded-md bg-accent text-accent-foreground px-2 py-0.5 text-[11px] font-bold leading-tight">
                   -{discountPercent}%
                 </span>
               )}
               {isNew && !isDiscounted && (
-                <span className="rounded-md bg-emerald-500 px-2 py-0.5 text-[11px] font-bold text-white leading-tight">
+                <span className="rounded-md bg-success text-success-foreground px-2 py-0.5 text-[11px] font-bold leading-tight">
                   New
                 </span>
               )}
               {isOutOfStock && (
-                <span className="rounded-md bg-black/60 px-2 py-0.5 text-[11px] text-white/90 leading-tight">
+                <span className="rounded-md bg-overlay/60 px-2 py-0.5 text-[11px] text-primary-foreground/90 leading-tight">
                   Sold out
                 </span>
               )}
@@ -273,17 +273,17 @@ export function ProductCard({ product, priority = false, viewMode = 'grid' }: Pr
         {/* Badges */}
         <div className="absolute left-2.5 top-2.5 flex flex-col gap-1">
           {isDiscounted && discountPercent && (
-            <span className="rounded-md bg-danger px-2 py-0.5 text-[11px] font-bold text-white leading-tight">
+            <span className="rounded-md bg-accent text-accent-foreground px-2 py-0.5 text-[11px] font-bold leading-tight">
               -{discountPercent}%
             </span>
           )}
           {isNew && !isDiscounted && (
-            <span className="rounded-md bg-emerald-500 px-2 py-0.5 text-[11px] font-bold text-white leading-tight">
+            <span className="rounded-md bg-success text-success-foreground px-2 py-0.5 text-[11px] font-bold leading-tight">
               New
             </span>
           )}
           {isOutOfStock && (
-            <span className="rounded-md bg-black/60 px-2 py-0.5 text-[11px] text-white/90 leading-tight">
+            <span className="rounded-md bg-overlay/60 px-2 py-0.5 text-[11px] text-primary-foreground/90 leading-tight">
               Sold out
             </span>
           )}
@@ -298,7 +298,7 @@ export function ProductCard({ product, priority = false, viewMode = 'grid' }: Pr
             disabled={toggleWishlist.isPending}
             className={cn(
               'absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full',
-              'bg-white shadow-sm border border-border/60',
+              'bg-surface shadow-sm border border-border/60',
               'transition-all duration-150 hover:scale-110 hover:shadow-md',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
               toggleWishlist.isPending && 'pointer-events-none opacity-50'
