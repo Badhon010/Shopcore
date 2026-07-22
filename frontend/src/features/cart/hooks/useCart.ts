@@ -2,14 +2,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cartService, type AddToCartPayload, type UpdateCartItemPayload } from '@/services/api/cart.service'
 import { queryKeys } from '@/services/queryKeys'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuthEnabled } from '@/hooks/useAuthEnabled'
 import type { Cart } from '@/types/models'
 
 export function useCart() {
+  const enabled = useAuthEnabled()
   return useQuery({
     queryKey: queryKeys.cart.detail(),
     queryFn: ({ signal }) => cartService.getCart({ signal }),
     staleTime: 0,
     retry: false,
+    enabled,
   })
 }
 

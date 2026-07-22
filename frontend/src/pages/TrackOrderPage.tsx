@@ -56,7 +56,7 @@ export function TrackOrderPage() {
             )}
             <FormField label="Order number" required error={form.formState.errors.order_number?.message}>
               {(id) => (
-                <Input id={id} placeholder="e.g. MRD-123456" {...form.register('order_number')} error={!!form.formState.errors.order_number} />
+                <Input id={id} placeholder="e.g. ORD-123456" {...form.register('order_number')} error={!!form.formState.errors.order_number} />
               )}
             </FormField>
             <FormField label="Email address" required error={form.formState.errors.email?.message}>

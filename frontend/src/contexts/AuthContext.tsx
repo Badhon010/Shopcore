@@ -91,7 +91,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handler = () => {
       setUser(null)
-      void queryClient.clear()
+      // Remove only auth-scoped cache entries — do NOT call queryClient.clear()
+      // here. clear() wipes the entire cache including public catalog data
+      // (products, categories, brands), which makes the shop page go blank.
+      // The same targeted-removal pattern used in logout() is correct here too.
+      queryClient.removeQueries({ queryKey: ['profile'] })
+      queryClient.removeQueries({ queryKey: ['auth'] })
+      queryClient.removeQueries({ queryKey: ['orders'] })
+      queryClient.removeQueries({ queryKey: ['addresses'] })
+      queryClient.removeQueries({ queryKey: ['notifications'] })
+      queryClient.removeQueries({ queryKey: ['wishlist'] })
+      queryClient.removeQueries({ queryKey: ['cart'] })
     }
     window.addEventListener('auth:session-expired', handler)
     return () => window.removeEventListener('auth:session-expired', handler)

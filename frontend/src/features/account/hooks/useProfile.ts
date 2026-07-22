@@ -4,12 +4,15 @@ import { addressesService, type AddressPayload } from '@/services/api/addresses.
 import { queryKeys } from '@/services/queryKeys'
 import { useToast } from '@/contexts/ToastContext'
 import { notificationsService } from '@/services/api/notifications.service'
+import { useAuthEnabled } from '@/hooks/useAuthEnabled'
 
 export function useProfile() {
+  const enabled = useAuthEnabled()
   return useQuery({
     queryKey: queryKeys.profile.detail(),
     queryFn: ({ signal }) => profileService.getProfile({ signal }),
     staleTime: 0,
+    enabled,
   })
 }
 
@@ -31,9 +34,11 @@ export function useUpdateProfile() {
 }
 
 export function useAddresses() {
+  const enabled = useAuthEnabled()
   return useQuery({
     queryKey: queryKeys.addresses.list(),
     queryFn: ({ signal }) => addressesService.getAddresses({ signal }),
+    enabled,
   })
 }
 
@@ -75,10 +80,12 @@ export function useDeleteAddress() {
 }
 
 export function useNotifications(page = 1) {
+  const enabled = useAuthEnabled()
   return useQuery({
     queryKey: queryKeys.notifications.list({ page }),
     queryFn: ({ signal }) => notificationsService.getNotifications({ page }, { signal }),
     staleTime: 0,
+    enabled,
   })
 }
 

@@ -1,16 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { wishlistService } from '@/services/api/wishlist.service'
 import { queryKeys } from '@/services/queryKeys'
-import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuthEnabled } from '@/hooks/useAuthEnabled'
 import type { WishlistItem } from '@/types/models'
 
 export function useWishlist() {
-  const { isAuthenticated } = useAuth()
+  const enabled = useAuthEnabled()
   return useQuery({
     queryKey: queryKeys.wishlist.list(),
     queryFn: ({ signal }) => wishlistService.getWishlist({ signal }),
-    enabled: isAuthenticated,
+    enabled,
     staleTime: 30 * 1000,
   })
 }
