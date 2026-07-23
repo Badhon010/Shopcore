@@ -42,6 +42,7 @@ function getPasswordStrength(pw: string): number {
 
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const navigate = useNavigate()
   const register = useRegister()
 
@@ -85,6 +86,7 @@ export function RegisterForm() {
             <Input
               id={id}
               autoComplete="given-name"
+              placeholder="Jane"
               error={!!form.formState.errors.first_name}
               errorId={errorId}
               {...form.register('first_name')}
@@ -96,6 +98,7 @@ export function RegisterForm() {
             <Input
               id={id}
               autoComplete="family-name"
+              placeholder="Smith"
               error={!!form.formState.errors.last_name}
               errorId={errorId}
               {...form.register('last_name')}
@@ -137,7 +140,6 @@ export function RegisterForm() {
                 size="sm"
                 className="absolute right-1 top-1"
                 onClick={() => setShowPassword((v) => !v)}
-                tabIndex={-1}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </IconButton>
@@ -155,14 +157,27 @@ export function RegisterForm() {
 
       <FormField label="Confirm password" required error={form.formState.errors.password_confirm?.message}>
         {(id, errorId) => (
-          <Input
-            id={id}
-            type="password"
-            autoComplete="new-password"
-            error={!!form.formState.errors.password_confirm}
-            errorId={errorId}
-            {...form.register('password_confirm')}
-          />
+          <div className="relative">
+            <Input
+              id={id}
+              type={showConfirmPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              placeholder="Re-enter your password"
+              error={!!form.formState.errors.password_confirm}
+              errorId={errorId}
+              className="pr-10"
+              {...form.register('password_confirm')}
+            />
+            <IconButton
+              type="button"
+              label={showConfirmPassword ? 'Hide password' : 'Show password'}
+              size="sm"
+              className="absolute right-1 top-1"
+              onClick={() => setShowConfirmPassword((v) => !v)}
+            >
+              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </IconButton>
+          </div>
         )}
       </FormField>
 

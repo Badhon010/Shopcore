@@ -355,3 +355,85 @@
   --accent-foreground:  0 0% 100%;
   --shadow-focus-ring:  0 0 0 3px hsl(330 81% 68% / 0.35);
 }
+
+/* ============================================================
+   BRAND OVERRIDE: Blush — Soft Pink / Elegant / Premium
+   Paste at the END of your stylesheet so it wins the cascade.
+   ============================================================ */
+:root,
+[data-theme="light"] {
+  /* ── Primary (Soft Pink) ──────────────────────────────────── */
+  --primary:            340 65% 72%;
+  --primary-hover:      340 65% 64%;
+  --primary-active:     340 65% 56%;
+  --primary-light:      340 70% 96%;
+  --primary-foreground: 0 0% 100%;
+
+  /* ── Secondary (Light Pink) ───────────────────────────────── */
+  --secondary:            340 45% 95%;
+  --secondary-hover:      340 45% 90%;
+  --secondary-foreground: 340 20% 25%;
+
+  /* ── Accent (a slightly deeper rose for highlights) ───────── */
+  --accent:            340 70% 60%;
+  --accent-hover:      340 70% 52%;
+  --accent-subtle:     340 70% 95%;
+  --accent-foreground: 0 0% 100%;
+
+  /* ── Backgrounds (White / Neutral) ────────────────────────── */
+  --background:        0 0% 100%;
+  --background-subtle: 340 30% 98%;
+  --surface:           0 0% 100%;
+  --surface-elevated:  0 0% 100%;
+
+  /* ── Text (Dark Charcoal) ─────────────────────────────────── */
+  --text-primary:    0 0% 18%;
+  --text-secondary:  0 0% 32%;
+  --text-muted:      0 0% 46%;
+  --text-inverse:    0 0% 100%;
+  --text-on-primary: 0 0% 100%;
+
+  /* ── Borders ──────────────────────────────────────────────── */
+  --border:        340 30% 90%;
+  --border-light:  340 30% 94%;
+  --border-strong: 340 25% 82%;
+
+  --focus:              340 65% 72%;
+  --selection:          340 65% 72%;
+  --shadow-focus-ring:  0 0 0 4px hsl(340 65% 72% / 0.25);
+}
+
+.dark,
+[data-theme="dark"] {
+  --primary:            340 70% 76%;
+  --primary-hover:      340 70% 82%;
+  --primary-active:     340 70% 68%;
+  --primary-light:      340 30% 22%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary:            340 20% 18%;
+  --secondary-hover:      340 20% 24%;
+  --secondary-foreground: 0 0% 96%;
+
+  --accent:            340 70% 66%;
+  --accent-hover:      340 70% 58%;
+  --accent-subtle:     340 40% 22%;
+  --accent-foreground: 0 0% 100%;
+
+  --background:        0 0% 8%;
+  --background-subtle: 340 15% 11%;
+  --surface:           0 0% 12%;
+  --surface-elevated:  0 0% 16%;
+
+  --text-primary:    0 0% 95%;
+  --text-secondary:  0 0% 78%;
+  --text-muted:      0 0% 62%;
+
+  --border:        340 15% 22%;
+  --border-light:  340 15% 18%;
+  --border-strong: 340 15% 30%;
+
+  --focus:              340 70% 76%;
+  --selection:          340 70% 76%;
+  --shadow-focus-ring:  0 0 0 4px hsl(340 70% 76% / 0.3);
+}

@@ -37,7 +37,7 @@ export function Accordion({ items, type = 'single', className }: AccordionProps)
               <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
             </RadixAccordion.Trigger>
           </RadixAccordion.Header>
-          <RadixAccordion.Content className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+          <RadixAccordion.Content className="overflow-hidden data-[state=open]:overflow-visible data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
             <div className="pb-4 text-body-sm text-text-secondary">{item.content}</div>
           </RadixAccordion.Content>
         </RadixAccordion.Item>

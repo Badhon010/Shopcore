@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Helmet } from 'react-helmet-async'
+import { PackageSearch } from 'lucide-react'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/Input'
@@ -41,36 +42,65 @@ export function TrackOrderPage() {
         <title>Track Your Order — ShopCore</title>
         <meta name="description" content="Track the status of your ShopCore order." />
       </Helmet>
+
+      {/* Page header */}
+      <div className="bg-background-subtle border-b border-border">
+        <PageContainer className="py-10 md:py-14">
+          <div className="flex items-center gap-4">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary-light">
+              <PackageSearch className="h-6 w-6 text-primary" />
+            </span>
+            <div>
+              <span className="text-overline font-semibold uppercase tracking-widest text-primary">
+                Orders
+              </span>
+              <h1 className="text-heading-xl font-bold text-text-primary">Track your order</h1>
+            </div>
+          </div>
+          <p className="mt-3 text-body-md text-text-secondary max-w-lg">
+            Enter your order number and email address to see the latest status and estimated delivery.
+          </p>
+        </PageContainer>
+      </div>
+
       <PageContainer className="py-12">
         <div className="mx-auto max-w-xl">
-          <h1 className="text-heading-xl font-semibold text-text-primary">Track your order</h1>
-          <p className="mt-2 text-body-md text-text-secondary">
-            Enter your order number and email address to see the latest status.
-          </p>
-
-          <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="mt-8 space-y-4">
-            {form.formState.errors.root && (
-              <div role="alert" className="rounded-lg bg-danger-subtle border border-danger/20 p-3 text-body-sm text-danger">
-                {form.formState.errors.root.message}
-              </div>
-            )}
-            <FormField label="Order number" required error={form.formState.errors.order_number?.message}>
-              {(id) => (
-                <Input id={id} placeholder="e.g. ORD-123456" {...form.register('order_number')} error={!!form.formState.errors.order_number} />
+          <div className="rounded-xl bg-surface border border-border shadow-sm p-8">
+            <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="space-y-5">
+              {form.formState.errors.root && (
+                <div role="alert" className="rounded-lg bg-danger-subtle border border-danger/20 p-3 text-body-sm text-danger">
+                  {form.formState.errors.root.message}
+                </div>
               )}
-            </FormField>
-            <FormField label="Email address" required error={form.formState.errors.email?.message}>
-              {(id) => (
-                <Input id={id} type="email" placeholder="you@example.com" {...form.register('email')} error={!!form.formState.errors.email} />
-              )}
-            </FormField>
-            <Button type="submit" className="w-full" isLoading={track.isPending}>
-              Track order
-            </Button>
-          </form>
+              <FormField label="Order number" required error={form.formState.errors.order_number?.message}>
+                {(id) => (
+                  <Input
+                    id={id}
+                    placeholder="e.g. ORD-123456"
+                    {...form.register('order_number')}
+                    error={!!form.formState.errors.order_number}
+                  />
+                )}
+              </FormField>
+              <FormField label="Email address" required error={form.formState.errors.email?.message}>
+                {(id) => (
+                  <Input
+                    id={id}
+                    type="email"
+                    placeholder="you@example.com"
+                    {...form.register('email')}
+                    error={!!form.formState.errors.email}
+                  />
+                )}
+              </FormField>
+              <Button type="submit" className="w-full" size="lg" isLoading={track.isPending} loadingText="Looking up order…">
+                Track order
+              </Button>
+            </form>
+          </div>
 
           {order && (
-            <div className="mt-10">
+            <div className="mt-8 rounded-xl bg-surface border border-border shadow-xs p-6">
               <h2 className="text-heading-sm font-semibold text-text-primary mb-4">
                 Order #{order.order_number}
               </h2>

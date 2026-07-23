@@ -72,7 +72,7 @@ export function Navbar() {
             <Truck className="h-3.5 w-3.5" aria-hidden />
             <span>Free shipping on orders over $100</span>
           </div>
-          <div className="flex items-center gap-1.5 text-warning">
+          <div className="flex items-center gap-1.5" style={{ color: 'hsl(var(--accent))' }}>
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
             <span>Premium quality products</span>
           </div>
@@ -307,11 +307,11 @@ function ThemeToggle({
       <DropdownMenu.Trigger asChild>
         <IconButton label="Toggle theme" className="text-text-secondary hover:text-text-primary">
           {theme === 'dark' ? (
-            <Moon className="h-4.5 w-4.5" />
+            <Moon className="h-[18px] w-[18px]" />
           ) : theme === 'light' ? (
-            <Sun className="h-4.5 w-4.5" />
+            <Sun className="h-[18px] w-[18px]" />
           ) : (
-            <Monitor className="h-4.5 w-4.5" />
+            <Monitor className="h-[18px] w-[18px]" />
           )}
         </IconButton>
       </DropdownMenu.Trigger>
@@ -461,7 +461,7 @@ function MobileNav({
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <span className="text-body-md font-semibold text-text-primary">Menu</span>
           <IconButton label="Close menu" size="sm" onClick={onClose}>
-            <X className="h-4.5 w-4.5" />
+            <X className="h-[18px] w-[18px]" />
           </IconButton>
         </div>
 

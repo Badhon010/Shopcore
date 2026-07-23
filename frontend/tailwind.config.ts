@@ -47,6 +47,14 @@ const config: Config = {
         'accent-subtle':  'hsl(var(--primary-light) / <alpha-value>)',
         'accent-foreground': 'hsl(var(--primary-foreground) / <alpha-value>)',
 
+        // ── True accent (orange/amber from --accent token) ───────
+        // Use these for sale badges, promo banners, tags, highlights.
+        // The `accent` aliases above stay blue for backward compat.
+        'tw-accent':            'hsl(var(--accent) / <alpha-value>)',
+        'tw-accent-hover':      'hsl(var(--accent-hover) / <alpha-value>)',
+        'tw-accent-subtle':     'hsl(var(--accent-subtle) / <alpha-value>)',
+        'tw-accent-foreground': 'hsl(var(--accent-foreground) / <alpha-value>)',
+
         // ── Secondary ────────────────────────────────────────────
         secondary:            'hsl(var(--secondary) / <alpha-value>)',
         'secondary-hover':    'hsl(var(--secondary-hover) / <alpha-value>)',
@@ -178,6 +186,14 @@ const config: Config = {
           from: { transform: 'translateY(-100%)' },
           to:   { transform: 'translateY(0)' },
         },
+        'accordion-down': {
+          from: { height: '0', opacity: '0' },
+          to:   { height: 'var(--radix-accordion-content-height)', opacity: '1' },
+        },
+        'accordion-up': {
+          from: { height: 'var(--radix-accordion-content-height)', opacity: '1' },
+          to:   { height: '0', opacity: '0' },
+        },
       },
 
       // ── Animation Presets ─────────────────────────────────────
@@ -189,7 +205,9 @@ const config: Config = {
         'slide-in-right': 'slide-in-right var(--duration-slow) cubic-bezier(0.2, 0, 0, 1)',
         'slide-in-left':  'slide-in-left  var(--duration-slow) cubic-bezier(0.2, 0, 0, 1)',
         'slide-in-bottom':'slide-in-bottom var(--duration-slow) cubic-bezier(0.2, 0, 0, 1)',
-        'slide-in-top':   'slide-in-top   var(--duration-slow) cubic-bezier(0.2, 0, 0, 1)',
+        'slide-in-top':      'slide-in-top   var(--duration-slow) cubic-bezier(0.2, 0, 0, 1)',
+        'accordion-down':    'accordion-down 200ms cubic-bezier(0.2, 0, 0, 1)',
+        'accordion-up':      'accordion-up   200ms cubic-bezier(0.2, 0, 0, 1)',
       },
     },
   },

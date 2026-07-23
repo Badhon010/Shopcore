@@ -53,7 +53,7 @@ const HERO_SLIDES = [
   {
     eyebrow: 'Exclusive Collection',
     heading: 'Discover premium products, every day',
-    subtext: "Shop the latest tech, curated with care. Quality you can trust, prices you'll love.",
+    subtext: 'Artisan goods, ethically made. From independent makers who care about their craft as much as you do.',
   },
   {
     eyebrow: 'New Season',
@@ -145,11 +145,11 @@ export function HomePage() {
         </div>
 
         <PageContainer className="relative flex min-h-[420px] flex-col justify-center py-16 md:min-h-[600px]">
-          <div className="max-w-xl">
+          <div className="max-w-xl" aria-live="polite" aria-atomic="true">
             <motion.p
               key={`eyebrow-${activeSlide}`}
               {...fadeUp(reducedMotion)}
-              className="text-caption font-semibold uppercase tracking-widest text-accent"
+              className="text-caption font-semibold uppercase tracking-widest text-tw-accent"
             >
               {currentSlide.eyebrow}
             </motion.p>
@@ -213,10 +213,10 @@ export function HomePage() {
               aria-label={`Go to slide ${i + 1}`}
               onClick={() => setActiveSlide(i)}
               className={cn(
-                'h-2 w-2 rounded-full border transition-colors',
+                'h-2.5 w-2.5 rounded-full border transition-colors',
                 i === activeSlide
-                  ? 'border-primary bg-primary'
-                  : 'border-border bg-transparent'
+                  ? 'border-white bg-white'
+                  : 'border-white/50 bg-white/30'
               )}
             />
           ))}
@@ -315,7 +315,17 @@ export function HomePage() {
           <div className="mt-8">
             {featuredError ? (
               <ErrorState onRetry={refetch} />
-            ) : featuredProducts.length === 0 && !featuredLoading ? null : (
+            ) : featuredProducts.length === 0 && !featuredLoading ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-surface py-16 text-center">
+                <p className="text-body-md text-text-secondary">No featured products yet.</p>
+                <Link
+                  to={ROUTES.PRODUCTS}
+                  className="flex items-center gap-1 text-body-sm font-medium text-accent hover:underline focus-visible:outline-none"
+                >
+                  Browse all products <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            ) : (
               <ProductGrid
                 products={featuredProducts}
                 isLoading={featuredLoading}

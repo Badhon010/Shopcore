@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import { Button } from '@/components/ui/Button'
 import { ROUTES } from '@/constants/routes'
 
 export function NotFoundPage() {
@@ -15,12 +16,9 @@ export function NotFoundPage() {
         <p className="mt-2 max-w-sm text-body-md text-text-secondary">
           The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </p>
-        <Link
-          to={ROUTES.HOME}
-          className="mt-8 rounded-lg bg-accent px-6 py-3 text-body-md font-medium text-text-inverse transition-colors hover:bg-accent-hover focus-visible:outline-none focus-visible:shadow-focus-ring"
-        >
-          Go home
-        </Link>
+        <Button asChild size="lg" className="mt-8">
+          <Link to={ROUTES.HOME}>Go home</Link>
+        </Button>
       </div>
     </>
   )

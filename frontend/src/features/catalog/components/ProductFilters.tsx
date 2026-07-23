@@ -300,10 +300,10 @@ export function ProductFilters({
         <Section title="Price Range">
           {priceLoading || maxPrice === 0 ? (
             <div className="space-y-3">
-              <div className="h-1.5 w-full rounded-full bg-border animate-pulse" />
+              <div className="h-1.5 w-full rounded-full skeleton-shimmer" />
               <div className="flex justify-between">
-                <div className="h-3 w-10 rounded bg-border animate-pulse" />
-                <div className="h-3 w-10 rounded bg-border animate-pulse" />
+                <div className="h-3 w-10 rounded skeleton-shimmer" />
+                <div className="h-3 w-10 rounded skeleton-shimmer" />
               </div>
             </div>
           ) : (
@@ -382,7 +382,10 @@ export function ProductFilters({
               )
             })}
             {filteredBrands.length === 0 && (
-              <li className="px-3 py-2 text-[13px] text-text-tertiary">No brands found</li>
+              <li className="flex flex-col items-center gap-1.5 px-3 py-5 text-center">
+                <Search className="h-4 w-4 text-text-muted" aria-hidden />
+                <span className="text-caption text-text-tertiary">No brands found</span>
+              </li>
             )}
           </ul>
         </Section>

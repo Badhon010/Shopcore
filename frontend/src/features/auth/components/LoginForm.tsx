@@ -93,7 +93,6 @@ export function LoginForm() {
               size="sm"
               className="absolute right-1 top-1"
               onClick={() => setShowPassword((v) => !v)}
-              tabIndex={-1}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </IconButton>

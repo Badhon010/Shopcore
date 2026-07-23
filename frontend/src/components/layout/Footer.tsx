@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Instagram, Twitter, Facebook } from 'lucide-react'
+import { Instagram, Twitter, Facebook, ArrowRight } from 'lucide-react'
 import { APP_CONFIG } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
 
@@ -21,10 +22,56 @@ const legalLinks = [
   { label: 'Privacy Policy', href: ROUTES.PRIVACY },
 ]
 
+const PAYMENT_METHODS = ['Visa', 'Mastercard', 'PayPal', 'Apple Pay']
+
 export function Footer() {
+  const [email, setEmail] = useState('')
+  const [subscribed, setSubscribed] = useState(false)
+
+  const handleSubscribe = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (email.trim()) {
+      setSubscribed(true)
+      setEmail('')
+    }
+  }
+
   return (
     <footer className="border-t border-border bg-bg-subtle" aria-label="Site footer">
       <div className="container-page py-12 md:py-16">
+
+        {/* Newsletter strip */}
+        <div className="mb-12 flex flex-col gap-4 rounded-xl border border-border bg-surface px-6 py-6 shadow-xs sm:flex-row sm:items-center sm:justify-between md:px-8">
+          <div>
+            <p className="text-heading-sm font-semibold text-text-primary">Stay in the loop</p>
+            <p className="mt-1 text-body-sm text-text-secondary">
+              New arrivals, exclusive offers, and maker stories — straight to your inbox.
+            </p>
+          </div>
+          {subscribed ? (
+            <p className="shrink-0 text-body-sm font-medium text-success">
+              ✓ You're subscribed!
+            </p>
+          ) : (
+            <form onSubmit={handleSubscribe} className="flex w-full max-w-sm gap-2 shrink-0">
+              <input
+                type="email"
+                required
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-body-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:shadow-focus-ring"
+              />
+              <button
+                type="submit"
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-body-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:shadow-focus-ring"
+              >
+                Subscribe <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </form>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4 lg:grid-cols-5">
           {/* Brand */}
           <div className="col-span-2 lg:col-span-2">
@@ -34,34 +81,23 @@ export function Footer() {
             <p className="mt-3 max-w-xs text-body-sm text-text-secondary">
               Premium quality goods, thoughtfully curated for the modern life.
             </p>
-            <div className="mt-4 flex gap-3">
-              <a
-                href={APP_CONFIG.socials.instagram}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="rounded-md p-1.5 text-text-tertiary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:shadow-focus-ring"
-              >
-                <Instagram className="h-4 w-4" />
-              </a>
-              <a
-                href={APP_CONFIG.socials.twitter}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Twitter"
-                className="rounded-md p-1.5 text-text-tertiary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:shadow-focus-ring"
-              >
-                <Twitter className="h-4 w-4" />
-              </a>
-              <a
-                href={APP_CONFIG.socials.facebook}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-                className="rounded-md p-1.5 text-text-tertiary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:shadow-focus-ring"
-              >
-                <Facebook className="h-4 w-4" />
-              </a>
+            <div className="mt-4 flex gap-2">
+              {[
+                { href: APP_CONFIG.socials.instagram, Icon: Instagram, label: 'Instagram' },
+                { href: APP_CONFIG.socials.twitter, Icon: Twitter, label: 'Twitter' },
+                { href: APP_CONFIG.socials.facebook, Icon: Facebook, label: 'Facebook' },
+              ].map(({ href, Icon, label }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border text-text-tertiary transition-colors hover:border-border-strong hover:bg-secondary hover:text-text-primary focus-visible:outline-none focus-visible:shadow-focus-ring"
+                >
+                  <Icon className="h-4 w-4" />
+                </a>
+              ))}
             </div>
           </div>
 
@@ -127,14 +163,15 @@ export function Footer() {
           <p className="text-caption text-text-tertiary">
             © {new Date().getFullYear()} ShopCore. All rights reserved.
           </p>
-          <div className="flex items-center gap-2 text-caption text-text-tertiary">
-            <span>Visa</span>
-            <span>·</span>
-            <span>Mastercard</span>
-            <span>·</span>
-            <span>PayPal</span>
-            <span>·</span>
-            <span>Apple Pay</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {PAYMENT_METHODS.map((method) => (
+              <span
+                key={method}
+                className="rounded border border-border bg-surface px-2 py-0.5 text-caption font-medium text-text-muted"
+              >
+                {method}
+              </span>
+            ))}
           </div>
         </div>
       </div>

@@ -193,7 +193,7 @@ export function ProductListPage() {
         ...(categoryData?.parent?.name
           ? [{ label: categoryData.parent.name, href: buildRoute.category(categoryData.parent.slug) }]
           : []),
-        { label: categoryName ?? '…' },
+        ...(categoryName ? [{ label: categoryName }] : []),
       ]
     : [
         { label: 'Home', href: ROUTES.HOME },
@@ -245,10 +245,8 @@ export function ProductListPage() {
         {/* ── Toolbar ──────────────────────────────────────────────────── */}
         <div className="mb-5 flex items-center justify-between gap-3">
           <span className="text-[13px] text-text-secondary whitespace-nowrap">
-            {isLoading && !isPlaceholderData
-              ? 'Loading…'
-              : totalCount > 0
-              ? `Showing ${startItem}–${endItem} of ${totalCount} results`
+            {!isLoading || isPlaceholderData
+              ? (totalCount > 0 ? `Showing ${startItem}–${endItem} of ${totalCount} results` : '')
               : ''}
           </span>
 
