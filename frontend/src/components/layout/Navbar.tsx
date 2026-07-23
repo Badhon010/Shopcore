@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, useRef, type FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   ShoppingBag,
@@ -416,9 +416,18 @@ function MobileNav({
 }) {
   const navigate = useNavigate()
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(true)
+  const [mobileSearch, setMobileSearch] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const go = (href: string) => {
     navigate(href)
+    onClose()
+  }
+
+  const handleMobileSearch = (e: FormEvent) => {
+    e.preventDefault()
+    const q = mobileSearch.trim()
+    navigate(q ? `${ROUTES.SEARCH}?q=${encodeURIComponent(q)}` : ROUTES.SEARCH)
     onClose()
   }
 
@@ -466,6 +475,28 @@ function MobileNav({
         </div>
 
         <div className="overflow-y-auto h-[calc(100%-65px)] p-4">
+          {/* Inline search */}
+          <form onSubmit={handleMobileSearch} className="mb-4">
+            <div className="relative flex h-10 rounded-md border border-border bg-bg-subtle transition-colors focus-within:border-primary focus-within:bg-bg focus-within:shadow-focus-ring">
+              <input
+                ref={searchInputRef}
+                type="search"
+                value={mobileSearch}
+                onChange={(e) => setMobileSearch(e.target.value)}
+                placeholder="Search products, brands…"
+                aria-label="Search products"
+                className="h-full w-full appearance-none rounded-l-md bg-transparent pl-3.5 pr-1 text-body-sm text-text-primary placeholder:text-text-tertiary outline-none [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
+              />
+              <button
+                type="submit"
+                aria-label="Search"
+                className="flex h-full w-10 shrink-0 items-center justify-center rounded-r-md bg-primary text-primary-foreground transition-colors hover:bg-primary-hover outline-none"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+            </div>
+          </form>
+
           {/* Categories */}
           <div className="mb-4">
             <button

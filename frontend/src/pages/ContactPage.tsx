@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Helmet } from 'react-helmet-async'
-import { Mail, Phone, MapPin, Twitter, Instagram, Facebook, CheckCircle2, Send } from 'lucide-react'
+import { Mail, Phone, MapPin, Twitter, Instagram, Facebook, CheckCircle2, Send, AlertCircle } from 'lucide-react'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/Input'
@@ -11,12 +11,14 @@ import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
 import { emailSchema } from '@/utils/validators'
 import { APP_CONFIG } from '@/constants/config'
+import { contactService } from '@/services/api/contact.service'
+import type { ApiError } from '@/types/api'
 
 const schema = z.object({
-  name: z.string().min(1, 'Name is required'),
+  name: z.string().min(1, 'Name is required').max(200, 'Name is too long'),
   email: emailSchema,
-  subject: z.string().min(1, 'Subject is required'),
-  message: z.string().min(10, 'Please provide a bit more detail (at least 10 characters)'),
+  subject: z.string().min(1, 'Subject is required').max(200, 'Subject is too long'),
+  message: z.string().min(10, 'Please provide a bit more detail (at least 10 characters)').max(5000, 'Message is too long'),
 })
 type FormData = z.infer<typeof schema>
 
@@ -55,6 +57,7 @@ const SOCIALS = [
 
 export function ContactPage() {
   const [submitted, setSubmitted] = useState(false)
+  const [serverError, setServerError] = useState<string | null>(null)
   const successRef = useRef<HTMLDivElement>(null)
   const form = useForm<FormData>({ resolver: zodResolver(schema) })
 
@@ -65,10 +68,27 @@ export function ContactPage() {
     }
   }, [submitted])
 
-  const onSubmit = (data: FormData) => {
-    const mailtoUrl = `mailto:${APP_CONFIG.contactEmail}?subject=${encodeURIComponent(data.subject)}&body=${encodeURIComponent(`Name: ${data.name}\n\n${data.message}`)}`
-    window.location.href = mailtoUrl
-    setSubmitted(true)
+  const onSubmit = async (data: FormData) => {
+    setServerError(null)
+    try {
+      await contactService.submit(data)
+      setSubmitted(true)
+    } catch (err) {
+      const apiErr = err as ApiError
+      if (apiErr.fieldErrors) {
+        for (const [field, messages] of Object.entries(apiErr.fieldErrors)) {
+          if (field in schema.shape) {
+            form.setError(field as keyof FormData, {
+              type: 'server',
+              message: messages.join(' '),
+            })
+          }
+        }
+      }
+      setServerError(
+        apiErr.message ?? 'Something went wrong. Please try again.'
+      )
+    }
   }
 
   return (
@@ -165,13 +185,14 @@ export function ContactPage() {
                   </span>
                   <h2 className="text-heading-md font-semibold text-text-primary">Message sent!</h2>
                   <p className="text-body-md text-text-secondary max-w-sm">
-                    Your email client should have opened. We'll reply to <strong>{form.getValues('email')}</strong> as soon as possible.
+                    We've received your message and will reply to{' '}
+                    <strong>{form.getValues('email')}</strong> as soon as possible.
                   </p>
                   <Button
                     variant="secondary"
                     size="sm"
                     className="mt-2"
-                    onClick={() => { setSubmitted(false); form.reset() }}
+                    onClick={() => { setSubmitted(false); setServerError(null); form.reset() }}
                   >
                     Send another message
                   </Button>
@@ -183,7 +204,18 @@ export function ContactPage() {
                     Send a message
                   </h2>
 
-                  <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="space-y-5">
+                  {/* Server-level error */}
+                  {serverError && (
+                    <div
+                      role="alert"
+                      className="mb-5 flex items-start gap-3 rounded-lg border border-danger/30 bg-danger-subtle px-4 py-3"
+                    >
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" aria-hidden />
+                      <p className="text-body-sm text-danger">{serverError}</p>
+                    </div>
+                  )}
+
+                  <form onSubmit={(e) => { void form.handleSubmit(onSubmit)(e) }} noValidate className="space-y-5">
                     <div className="grid sm:grid-cols-2 gap-5">
                       <FormField label="Your name" required error={form.formState.errors.name?.message}>
                         {(id) => (
@@ -233,18 +265,16 @@ export function ContactPage() {
                       )}
                     </FormField>
 
-                    <div className="flex items-center justify-between gap-4 pt-1">
-                      <p className="text-caption text-text-muted">
-                        By submitting, your message opens in your email client.
-                      </p>
+                    <div className="flex items-center justify-end gap-4 pt-1">
                       <Button
                         type="submit"
                         size="lg"
                         isLoading={form.formState.isSubmitting}
                         loadingText="Sending…"
+                        disabled={form.formState.isSubmitting}
                         className="shrink-0 inline-flex items-center gap-2"
                       >
-                        <Send className="h-4 w-4" />
+                        <Send className="h-4 w-4" aria-hidden />
                         Send message
                       </Button>
                     </div>

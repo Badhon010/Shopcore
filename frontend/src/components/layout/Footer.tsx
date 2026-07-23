@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { Instagram, Twitter, Facebook, ArrowRight } from 'lucide-react'
+import { Instagram, Twitter, Facebook, ArrowRight, Loader2 } from 'lucide-react'
 import { APP_CONFIG } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
+import { newsletterService } from '@/services/api/newsletter.service'
+import type { ApiError } from '@/types/api'
 
 const shopLinks = [
   { label: 'All Products', href: ROUTES.PRODUCTS },
@@ -24,17 +26,35 @@ const legalLinks = [
 
 const PAYMENT_METHODS = ['Visa', 'Mastercard', 'PayPal', 'Apple Pay']
 
+type NewsletterState = 'idle' | 'loading' | 'success' | 'duplicate' | 'error'
+
 export function Footer() {
   const [email, setEmail] = useState('')
-  const [subscribed, setSubscribed] = useState(false)
+  const [newsletterState, setNewsletterState] = useState<NewsletterState>('idle')
+  const [errorMsg, setErrorMsg] = useState<string>('')
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: FormEvent) => {
     e.preventDefault()
-    if (email.trim()) {
-      setSubscribed(true)
+    const trimmed = email.trim()
+    if (!trimmed) return
+    setNewsletterState('loading')
+    setErrorMsg('')
+    try {
+      await newsletterService.subscribe(trimmed)
+      setNewsletterState('success')
       setEmail('')
+    } catch (err) {
+      const apiErr = err as ApiError
+      if (newsletterService.isDuplicateEmail(apiErr)) {
+        setNewsletterState('duplicate')
+      } else {
+        setNewsletterState('error')
+        setErrorMsg(apiErr.message ?? 'Something went wrong. Please try again.')
+      }
     }
   }
+
+  const isLoading = newsletterState === 'loading'
 
   return (
     <footer className="border-t border-border bg-bg-subtle" aria-label="Site footer">
@@ -48,27 +68,47 @@ export function Footer() {
               New arrivals, exclusive offers, and maker stories — straight to your inbox.
             </p>
           </div>
-          {subscribed ? (
-            <p className="shrink-0 text-body-sm font-medium text-success">
+
+          {newsletterState === 'success' ? (
+            <p className="shrink-0 text-body-sm font-medium text-success" role="status">
               ✓ You're subscribed!
             </p>
+          ) : newsletterState === 'duplicate' ? (
+            <p className="shrink-0 text-body-sm font-medium text-text-secondary" role="status">
+              You're already subscribed — thank you!
+            </p>
           ) : (
-            <form onSubmit={handleSubscribe} className="flex w-full max-w-sm gap-2 shrink-0">
-              <input
-                type="email"
-                required
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-body-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:shadow-focus-ring"
-              />
-              <button
-                type="submit"
-                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-body-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:shadow-focus-ring"
-              >
-                Subscribe <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            </form>
+            <div className="flex w-full max-w-sm shrink-0 flex-col gap-1.5">
+              <form onSubmit={(e) => { void handleSubscribe(e) }} className="flex gap-2" noValidate>
+                <input
+                  type="email"
+                  required
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
+                  aria-label="Email address for newsletter"
+                  className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-body-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:shadow-focus-ring disabled:opacity-60"
+                />
+                <button
+                  type="submit"
+                  disabled={isLoading || !email.trim()}
+                  aria-label={isLoading ? 'Subscribing…' : 'Subscribe'}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-body-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:shadow-focus-ring disabled:opacity-60 disabled:pointer-events-none"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <>Subscribe <ArrowRight className="h-3.5 w-3.5" aria-hidden /></>
+                  )}
+                </button>
+              </form>
+              {newsletterState === 'error' && (
+                <p role="alert" className="text-caption text-danger">
+                  {errorMsg}
+                </p>
+              )}
+            </div>
           )}
         </div>
 

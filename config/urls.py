@@ -40,6 +40,8 @@ urlpatterns = [
     path(f"{API_V1}reviews/", include("apps.reviews.urls", namespace="reviews")),
     path(f"{API_V1}wishlist/", include("apps.wishlist.urls", namespace="wishlist")),
     path(f"{API_V1}notifications/", include("apps.notifications.urls", namespace="notifications")),
+    path(f"{API_V1}contact/", include("apps.contact.urls", namespace="contact")),
+    path(f"{API_V1}newsletter/", include("apps.newsletter.urls", namespace="newsletter")),
 ]
 
 # Serve media files in development

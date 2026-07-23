@@ -15,6 +15,39 @@ import {
   Cable,
   Speaker,
   Grid3x3,
+  Phone,
+  Monitor,
+  Gamepad,
+  Shirt,
+  Baby,
+  Sparkles,
+  HeartPulse,
+  Activity,
+  Dumbbell,
+  BookOpen,
+  PenLine,
+  Car,
+  Bike,
+  Wrench,
+  Flower,
+  PawPrint,
+  Sofa,
+  House,
+  Lamp,
+  UtensilsCrossed,
+  Microwave,
+  Gem,
+  ShoppingBag,
+  Plane,
+  ShoppingCart,
+  Wine,
+  Coffee,
+  Leaf,
+  Gift,
+  Music,
+  Film,
+  Briefcase,
+  Factory,
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { PageContainer } from '@/components/layout/PageContainer'
@@ -36,13 +69,62 @@ const fadeUp = (reducedMotion: boolean) => ({
 })
 
 const CATEGORY_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  // Tech & Electronics
   electronics: Smartphone,
-  phones: Smartphone,
+  phones: Phone,
   laptops: Laptop,
+  computers: Monitor,
+  gaming: Gamepad,
   audio: Headphones,
   wearables: Watch,
   accessories: Cable,
   speakers: Speaker,
+  // Fashion & Apparel
+  fashion: Shirt,
+  'mens-fashion': Shirt,
+  'womens-fashion': Shirt,
+  kids: Baby,
+  // Beauty & Health
+  beauty: Sparkles,
+  cosmetics: Sparkles,
+  health: HeartPulse,
+  sports: Activity,
+  fitness: Dumbbell,
+  // Books & Stationery
+  books: BookOpen,
+  stationery: PenLine,
+  // Automotive
+  automotive: Car,
+  motorcycle: Bike,
+  tools: Wrench,
+  // Home & Garden
+  garden: Flower,
+  pets: PawPrint,
+  baby: Baby,
+  furniture: Sofa,
+  home: House,
+  'home-decor': Lamp,
+  kitchen: UtensilsCrossed,
+  appliances: Microwave,
+  // Jewelry & Accessories
+  jewelry: Gem,
+  watches: Watch,
+  bags: ShoppingBag,
+  travel: Plane,
+  // Food & Grocery
+  grocery: ShoppingCart,
+  food: UtensilsCrossed,
+  drinks: Wine,
+  coffee: Coffee,
+  tea: Coffee,
+  organic: Leaf,
+  // Other
+  gift: Gift,
+  toys: Gamepad,
+  music: Music,
+  movies: Film,
+  office: Briefcase,
+  industrial: Factory,
 }
 
 function getCategoryIcon(slug: string) {
@@ -126,7 +208,7 @@ export function HomePage() {
           '@context': 'https://schema.org',
           '@type': 'Organization',
           name: env.VITE_APP_NAME,
-          url: import.meta.env.VITE_APP_URL ?? 'https://shopcore.com',
+          url: (import.meta.env.VITE_APP_URL as string | undefined) ?? 'https://shopcore.com',
           logo: '/logo.svg',
         })}</script>
       </Helmet>
@@ -314,7 +396,7 @@ export function HomePage() {
           </div>
           <div className="mt-8">
             {featuredError ? (
-              <ErrorState onRetry={refetch} />
+              <ErrorState onRetry={() => { void refetch() }} />
             ) : featuredProducts.length === 0 && !featuredLoading ? (
               <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-surface py-16 text-center">
                 <p className="text-body-md text-text-secondary">No featured products yet.</p>

@@ -27,7 +27,15 @@ export function ProductGrid({
 
   if (isLoading) {
     return (
-      <div role="status" aria-label="Loading products" className={viewMode === 'list' ? 'flex flex-col gap-4' : gridClass}>
+      <div
+        role="status"
+        aria-label="Loading products"
+        aria-busy="true"
+        className={cn(
+          viewMode === 'list' ? 'flex flex-col gap-4' : gridClass,
+          'pointer-events-none select-none'
+        )}
+      >
         {Array.from({ length: skeletonCount }, (_, i) => (
           <ProductCardSkeleton key={i} viewMode={viewMode} />
         ))}

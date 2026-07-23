@@ -158,7 +158,7 @@ export function AboutPage() {
         <div className="container-page py-20 md:py-28 grid md:grid-cols-2 gap-12 items-center">
           {/* text */}
           <div>
-            <span className="text-overline font-semibold uppercase tracking-widest text-primary">
+            <span className="text-overline font-semibold uppercase tracking-widest text-tw-accent">
               Mission
             </span>
             <h2 className="mt-3 text-heading-xl font-bold text-text-primary text-balance">
@@ -206,7 +206,7 @@ export function AboutPage() {
       <section className="bg-background">
         <div className="container-page py-20 md:py-28">
           <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-overline font-semibold uppercase tracking-widest text-primary">
+            <span className="text-overline font-semibold uppercase tracking-widest text-tw-accent">
               What we stand for
             </span>
             <h2 className="mt-3 text-heading-xl font-bold text-text-primary">Our values</h2>
@@ -236,7 +236,7 @@ export function AboutPage() {
       <section className="bg-background-subtle border-y border-border">
         <div className="container-page py-20 md:py-28">
           <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-overline font-semibold uppercase tracking-widest text-primary">
+            <span className="text-overline font-semibold uppercase tracking-widest text-tw-accent">
               The people
             </span>
             <h2 className="mt-3 text-heading-xl font-bold text-text-primary">Meet the team</h2>
