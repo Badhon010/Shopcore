@@ -10,6 +10,8 @@ class NotificationType(models.TextChoices):
     EMAIL_VERIFICATION = "EMAIL_VERIFICATION", "Email Verification"
     WELCOME = "WELCOME", "Welcome"
     LOW_STOCK_ALERT = "LOW_STOCK_ALERT", "Low Stock Alert"
+    NEWSLETTER_CONFIRMATION = "NEWSLETTER_CONFIRMATION", "Newsletter Confirmation"
+    CONTACT_RECEIVED = "CONTACT_RECEIVED", "Contact Form Received"
 
 
 class NotificationChannel(models.TextChoices):

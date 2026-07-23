@@ -1,0 +1,11 @@
+New Contact Form Submission
+
+From: {{ message.name }} <{{ message.email }}>
+Subject: {{ message.subject }}
+
+Message:
+{{ message.message }}
+
+View in admin: {{ site_url }}/admin/contact/contactmessage/
+
+-- ShopCore

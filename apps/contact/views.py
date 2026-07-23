@@ -27,6 +27,17 @@ class ContactMessageCreateView(generics.CreateAPIView):
             message.email,
             message.subject,
         )
+
+        try:
+            from apps.notifications.services import send_contact_received
+            send_contact_received(message)
+        except Exception:
+            logger.warning(
+                "Failed to send contact notification for message from %s",
+                message.email,
+                exc_info=True,
+            )
+
         return Response(
             {"message": "Your message has been received. We'll get back to you within one business day."},
             status=status.HTTP_201_CREATED,

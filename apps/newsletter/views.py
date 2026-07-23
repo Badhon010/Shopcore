@@ -22,6 +22,17 @@ class NewsletterSubscribeView(APIView):
         serializer.is_valid(raise_exception=True)
         subscriber = serializer.save()
         logger.info("Newsletter subscription: %s", subscriber.email)
+
+        try:
+            from apps.notifications.services import send_newsletter_confirmation
+            send_newsletter_confirmation(subscriber.email)
+        except Exception:
+            logger.warning(
+                "Failed to send newsletter confirmation to %s",
+                subscriber.email,
+                exc_info=True,
+            )
+
         return Response(
             {"message": "You're subscribed! Thank you for joining."},
             status=status.HTTP_201_CREATED,

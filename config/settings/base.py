@@ -315,6 +315,15 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@shopcore.exampl
 EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
 
 # ---------------------------------------------------------------------------
+# Frontend / site
+# ---------------------------------------------------------------------------
+# Used in transactional email links (verify email, password reset, etc.).
+# Must be set to your actual frontend origin in production.
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5000")
+# Admin notification email — receives contact form submissions.
+ADMIN_EMAIL = env("ADMIN_EMAIL", default="")
+
+# ---------------------------------------------------------------------------
 # drf-spectacular (OpenAPI)
 # ---------------------------------------------------------------------------
 SPECTACULAR_SETTINGS = {

@@ -23,6 +23,16 @@ from apps.notifications.models import NotificationLog
 logger = logging.getLogger("shopcore.notifications.services")
 
 
+def _site_url() -> str:
+    """Return the configured frontend URL for use in email links."""
+    return getattr(settings, "FRONTEND_URL", "http://localhost:5000").rstrip("/")
+
+
+def _admin_url() -> str:
+    """Return the Django admin URL base for use in staff notification emails."""
+    return getattr(settings, "FRONTEND_URL", "http://localhost:8000").rstrip("/")
+
+
 def _send_email(
     user,
     notification_type: str,
@@ -43,6 +53,9 @@ def _send_email(
         txt_template: Path to the plain-text email template.
         context: Template context dict.
     """
+    # Always inject site_url so every template can build absolute links.
+    context.setdefault("site_url", _site_url())
+
     html_content = render_to_string(html_template, context)
     txt_content = render_to_string(txt_template, context)
 
@@ -178,4 +191,41 @@ def send_order_status_notification(order, new_status: str) -> None:
         html_template=html_template,
         txt_template=txt_template,
         context={"order": order, "user": order.user},
+    )
+
+
+def send_newsletter_confirmation(email: str) -> None:
+    """Send a subscription confirmation email to a new newsletter subscriber."""
+    _send_email(
+        user=None,
+        notification_type=NotificationType.NEWSLETTER_CONFIRMATION,
+        recipient_email=email,
+        subject="You're subscribed to ShopCore",
+        html_template="emails/newsletter_confirmation.html",
+        txt_template="emails/newsletter_confirmation.txt",
+        context={"email": email},
+    )
+
+
+def send_contact_received(message) -> None:
+    """Send an admin notification email when a contact form is submitted.
+
+    Sends to ADMIN_EMAIL if configured; skips silently otherwise.
+    """
+    admin_email = getattr(settings, "ADMIN_EMAIL", "")
+    if not admin_email:
+        logger.debug(
+            "ADMIN_EMAIL not set — skipping contact notification for message from %s",
+            message.email,
+        )
+        return
+
+    _send_email(
+        user=None,
+        notification_type=NotificationType.CONTACT_RECEIVED,
+        recipient_email=admin_email,
+        subject=f"New Contact Message — {message.subject}",
+        html_template="emails/contact_received.html",
+        txt_template="emails/contact_received.txt",
+        context={"message": message, "site_url": _admin_url()},
     )
