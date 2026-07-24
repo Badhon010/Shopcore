@@ -17,6 +17,18 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs: dict) -> dict:
         data = super().validate(attrs)
+        # Block login until the user has verified their email address.
+        if not self.user.is_email_verified:
+            raise serializers.ValidationError(
+                {
+                    "detail": (
+                        "Email address is not verified. "
+                        "Please check your inbox and click the verification link "
+                        "before logging in."
+                    ),
+                    "code": "EMAIL_NOT_VERIFIED",
+                }
+            )
         data["user"] = UserSerializer(self.user).data
         return data
 
@@ -118,6 +130,12 @@ class EmailVerificationSerializer(serializers.Serializer):
 
     uid = serializers.CharField()
     token = serializers.CharField()
+
+
+class ResendVerificationSerializer(serializers.Serializer):
+    """Request a new verification email (no authentication required)."""
+
+    email = serializers.EmailField()
 
 
 class AddressSerializer(serializers.ModelSerializer):

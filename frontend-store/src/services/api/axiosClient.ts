@@ -149,11 +149,14 @@ function normalizeError(error: AxiosError): ApiError {
   // DRF field-level errors: { field_name: ["message"] }
   const fieldErrors: Record<string, string[]> = {}
   let message = 'An error occurred. Please try again.'
+  let code: string | undefined
 
   if (typeof data === 'object' && data !== null) {
     for (const [key, value] of Object.entries(data)) {
       if (key === 'detail' && typeof value === 'string') {
         message = value
+      } else if (key === 'code' && typeof value === 'string') {
+        code = value
       } else if (key === 'non_field_errors' && Array.isArray(value)) {
         message = (value as string[]).join(' ')
       } else if (Array.isArray(value)) {
@@ -179,6 +182,7 @@ function normalizeError(error: AxiosError): ApiError {
   return {
     status,
     message,
+    code,
     fieldErrors: Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined,
   }
 }

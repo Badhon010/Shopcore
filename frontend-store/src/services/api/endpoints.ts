@@ -13,6 +13,7 @@ export const endpoints = {
     forgotPassword: () => '/accounts/password-reset/',
     resetPassword: () => '/accounts/password-reset/confirm/',
     verifyEmail: () => '/accounts/verify-email/',
+    resendVerification: () => '/accounts/resend-verification/',
     changePassword: () => '/accounts/me/change-password/',
     deleteAccount: () => '/accounts/me/',
   },

@@ -21,6 +21,7 @@ from apps.accounts.serializers import (
     EmailVerificationSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
+    ResendVerificationSerializer,
     UserProfileUpdateSerializer,
     UserRegistrationSerializer,
     UserSerializer,
@@ -37,6 +38,7 @@ from apps.common.throttling import (
     LoginRateThrottle,
     PasswordResetRequestThrottle,
     RegisterRateThrottle,
+    ResendVerificationThrottle,
 )
 
 User = get_user_model()
@@ -218,11 +220,35 @@ class VerifyEmailView(APIView):
 
 
 class ResendVerificationEmailView(APIView):
-    """Resend the email verification link."""
+    """Resend the email verification link.
 
-    @extend_schema(summary="Resend verification email", responses={204: None})
+    Intentionally unauthenticated so that users who registered but never
+    verified their email (and are therefore blocked from logging in) can
+    still request a new link.  The response is always 204 regardless of
+    whether the account exists, to prevent email enumeration.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ResendVerificationThrottle]
+
+    @extend_schema(
+        summary="Resend verification email",
+        request=ResendVerificationSerializer,
+        responses={204: None},
+    )
     def post(self, request, *args, **kwargs):
-        send_verification_email(request.user)
+        serializer = ResendVerificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"]
+
+        try:
+            user = User.objects.get(email=email, is_active=True)
+            if not user.is_email_verified:
+                send_verification_email(user)
+        except User.DoesNotExist:
+            pass  # Do not reveal whether the account exists
+
+        # Always 204 — no enumeration of account existence or verified state
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

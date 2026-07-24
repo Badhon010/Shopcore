@@ -28,16 +28,35 @@ if not _env("DATABASE_URL", default=""):
         "full-text search via to_tsvector)."
     )
 
-# EMAIL_URL must point to a real SMTP backend.
-# console:// and an absent EMAIL_URL both silently drop all transactional
-# email (order confirmations, password resets, email verification).
+# Email must be configured for a real SMTP backend in production.
+# Two styles are accepted (base.py applies whichever is present):
+#
+#   Style 1 — individual vars (EMAIL_BACKEND + EMAIL_HOST + EMAIL_HOST_USER + …)
+#   Style 2 — DSN string  (EMAIL_URL=smtp+tls://user:pass@host:587)
+#
+# Either style is valid; console:// and a missing EMAIL_BACKEND / EMAIL_URL
+# both silently drop all transactional email, so we fail loud here.
+_email_backend_prod = _env("EMAIL_BACKEND", default="")
 _email_url_prod = _env("EMAIL_URL", default="")
-if not _email_url_prod or _email_url_prod.startswith("console://"):
-    raise environ.ImproperlyConfigured(
-        "EMAIL_URL environment variable is required in production and must "
-        "not use the console:// backend. Set it to an SMTP URL, e.g.: "
-        "smtp+tls://user:password@smtp.example.com:587"
-    )
+
+if _email_backend_prod:
+    # Style 1: individual vars — EMAIL_BACKEND must not be the console backend
+    if _email_backend_prod == "django.core.mail.backends.console.EmailBackend":
+        raise environ.ImproperlyConfigured(
+            "EMAIL_BACKEND must not be the console backend in production. "
+            "Use 'django.core.mail.backends.smtp.EmailBackend' and set "
+            "EMAIL_HOST, EMAIL_HOST_USER, and EMAIL_HOST_PASSWORD."
+        )
+else:
+    # Style 2: DSN — EMAIL_URL must be present and non-console
+    if not _email_url_prod or _email_url_prod.startswith("console://"):
+        raise environ.ImproperlyConfigured(
+            "Email is not configured for production. Either:\n"
+            "  • Set EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend "
+            "and EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, or\n"
+            "  • Set EMAIL_URL to an SMTP URL, e.g. "
+            "smtp+tls://user:password@smtp.example.com:587"
+        )
 
 # HTTPS / Security headers
 SECURE_SSL_REDIRECT = _env.bool("SECURE_SSL_REDIRECT", default=True)  # noqa: F405

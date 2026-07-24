@@ -53,7 +53,10 @@ export const authService = {
     axiosClient.post<LoginResponse>(endpoints.auth.login(), payload).then((r) => r.data),
 
   register: (payload: RegisterPayload) =>
-    axiosClient.post<LoginResponse>(endpoints.auth.register(), payload).then((r) => r.data),
+    axiosClient.post<User>(endpoints.auth.register(), payload).then((r) => r.data),
+
+  resendVerification: (payload: { email: string }) =>
+    axiosClient.post(endpoints.auth.resendVerification(), payload).then((r) => r.data),
 
   logout: () => {
     // LogoutView requires the refresh token in the body to blacklist it.

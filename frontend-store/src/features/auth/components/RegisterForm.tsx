@@ -2,8 +2,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useState } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Eye, EyeOff, MailCheck, RefreshCw } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -13,6 +13,7 @@ import { emailSchema, passwordSchema } from '@/utils/validators'
 import { ROUTES } from '@/constants/routes'
 import { useRegister } from '../hooks/useLogin'
 import { applyServerErrors } from '@/services/api/axiosClient'
+import { authService } from '@/services/api/auth.service'
 import type { ApiError } from '@/types/api'
 
 const registerSchema = z
@@ -40,10 +41,72 @@ function getPasswordStrength(pw: string): number {
   return score
 }
 
+// ── Success screen shown after registration ────────────────────────────────
+function CheckInboxScreen({ email }: { email: string }) {
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent'>('idle')
+
+  const handleResend = async () => {
+    if (resendStatus !== 'idle') return
+    setResendStatus('sending')
+    try {
+      await authService.resendVerification({ email })
+      setResendStatus('sent')
+    } catch {
+      setResendStatus('idle')
+    }
+  }
+
+  return (
+    <div className="text-center space-y-4">
+      <div className="flex justify-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success-subtle">
+          <MailCheck className="h-8 w-8 text-success" />
+        </div>
+      </div>
+
+      <div>
+        <h1 className="text-heading-md font-semibold text-text-primary">Check your inbox</h1>
+        <p className="mt-2 text-body-sm text-text-secondary">
+          We sent a verification link to
+        </p>
+        <p className="mt-0.5 font-medium text-text-primary">{email}</p>
+        <p className="mt-2 text-body-sm text-text-secondary">
+          Click the link in that email to activate your account.
+        </p>
+      </div>
+
+      <div className="rounded-lg border border-border bg-surface-secondary p-4 text-left text-body-sm text-text-secondary space-y-1">
+        <p className="font-medium text-text-primary">Didn&apos;t receive it?</p>
+        <p>Check your spam folder, or resend the email below.</p>
+      </div>
+
+      <button
+        type="button"
+        onClick={handleResend}
+        disabled={resendStatus !== 'idle'}
+        className="inline-flex items-center gap-2 text-body-sm font-medium text-accent hover:underline disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none"
+      >
+        {resendStatus === 'sending' && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+        {resendStatus === 'idle' && 'Resend verification email'}
+        {resendStatus === 'sending' && 'Sending…'}
+        {resendStatus === 'sent' && '✓ Email sent — check your inbox'}
+      </button>
+
+      <p className="text-body-sm text-text-secondary">
+        Already verified?{' '}
+        <Link to={ROUTES.LOGIN} className="font-medium text-accent hover:underline focus-visible:outline-none">
+          Sign in
+        </Link>
+      </p>
+    </div>
+  )
+}
+
+// ── Registration form ──────────────────────────────────────────────────────
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const navigate = useNavigate()
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null)
   const register = useRegister()
 
   const form = useForm<RegisterFormData>({
@@ -57,14 +120,21 @@ export function RegisterForm() {
   const onSubmit = async (data: RegisterFormData) => {
     try {
       await register.mutateAsync(data)
-      navigate(ROUTES.ACCOUNT, { replace: true })
+      // Show "check your inbox" screen — don't navigate, don't auto-login.
+      setRegisteredEmail(data.email)
     } catch (err) {
       const apiErr = err as ApiError
       applyServerErrors(form.setError, apiErr.fieldErrors)
-      if (!apiErr.fieldErrors) {
-        form.setError('root', { message: apiErr.message })
-      }
+      // Always show a root banner so the user gets immediate feedback,
+      // even when the error is attached to a field that may be off-screen.
+      form.setError('root', {
+        message: apiErr.fieldErrors?.email?.[0] ?? apiErr.message,
+      })
     }
+  }
+
+  if (registeredEmail) {
+    return <CheckInboxScreen email={registeredEmail} />
   }
 
   return (
@@ -129,6 +199,7 @@ export function RegisterForm() {
                 id={id}
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
+                placeholder="Create a password"
                 error={!!form.formState.errors.password}
                 errorId={errorId}
                 className="pr-10"

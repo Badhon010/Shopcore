@@ -3,7 +3,7 @@ Welcome to ShopCore, {{ user.first_name|default:user.email }}!
 Thank you for joining ShopCore.
 
 Please verify your email address by visiting:
-{{ site_url }}/verify-email/?uid={{ uid }}&token={{ token }}
+{{ site_url }}/verify-email/{{ uid }}/{{ token }}
 
 If you didn't create this account, you can safely ignore this email.
 

@@ -124,15 +124,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [queryClient]
   )
 
-  const register = useCallback(
-    async (payload: RegisterPayload) => {
-      const data = await authService.register(payload)
-      setAccessToken(data.access)
-      tokenStorage.setRefreshToken(data.refresh)
-      setUser(data.user)
-    },
-    []
-  )
+  const register = useCallback(async (payload: RegisterPayload) => {
+    // Registration does not log the user in — email verification is required
+    // before the login endpoint will issue tokens. The RegisterForm is
+    // responsible for showing the "check your inbox" success state.
+    await authService.register(payload)
+  }, [])
 
   const logout = useCallback(async () => {
     // Read the refresh token BEFORE clearing it — authService.logout() needs

@@ -242,6 +242,7 @@ REST_FRAMEWORK = {
         "login": "5/min",
         "register": "10/hour",
         "password_reset_request": "5/hour",
+        "resend_verification": "5/hour",
         "coupon_apply": "20/min",
     },
     "EXCEPTION_HANDLER": "apps.common.exception_handler.custom_exception_handler",
@@ -292,25 +293,57 @@ SESSION_CACHE_ALIAS = "default"
 # ---------------------------------------------------------------------------
 # Email
 # ---------------------------------------------------------------------------
-_email_url = env("EMAIL_URL", default="console://")
-if _email_url and _email_url != "console://":
-    try:
-        _email_config = env.email_url("EMAIL_URL")
-        EMAIL_BACKEND = _email_config.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
-        EMAIL_HOST = _email_config.get("EMAIL_HOST", "")
-        EMAIL_PORT = _email_config.get("EMAIL_PORT", 587)
-        EMAIL_HOST_USER = _email_config.get("EMAIL_HOST_USER", "")
-        EMAIL_HOST_PASSWORD = _email_config.get("EMAIL_HOST_PASSWORD", "")
-        EMAIL_USE_TLS = _email_config.get("EMAIL_USE_TLS", True)
-    except Exception:
-        EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# Supports two configuration styles:
+#
+#   Style 1 — individual Django vars (preferred, set in .env or Replit Secrets):
+#     EMAIL_BACKEND, EMAIL_HOST, EMAIL_PORT, EMAIL_USE_TLS,
+#     EMAIL_HOST_USER, EMAIL_HOST_PASSWORD
+#
+#   Style 2 — DSN string (legacy):
+#     EMAIL_URL=smtp+tls://user:pass@smtp.example.com:587
+#
+# Style 1 takes precedence when EMAIL_BACKEND is present.
+
+_email_backend_env = env("EMAIL_BACKEND", default="")
+if _email_backend_env:
+    # Individual SMTP vars (standard Django style)
+    EMAIL_BACKEND = _email_backend_env
+    EMAIL_HOST = env("EMAIL_HOST", default="")
+    EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+    EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+    EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
+    EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+    EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 else:
-    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-    EMAIL_HOST = ""
-    EMAIL_PORT = 587
-    EMAIL_HOST_USER = ""
-    EMAIL_HOST_PASSWORD = ""
-    EMAIL_USE_TLS = True
+    # Fall back to EMAIL_URL DSN parsing
+    _email_url = env("EMAIL_URL", default="console://")
+    if _email_url and _email_url != "console://":
+        try:
+            _email_config = env.email_url("EMAIL_URL")
+            EMAIL_BACKEND = _email_config.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+            EMAIL_HOST = _email_config.get("EMAIL_HOST", "")
+            EMAIL_PORT = _email_config.get("EMAIL_PORT", 587)
+            EMAIL_HOST_USER = _email_config.get("EMAIL_HOST_USER", "")
+            EMAIL_HOST_PASSWORD = _email_config.get("EMAIL_HOST_PASSWORD", "")
+            EMAIL_USE_TLS = _email_config.get("EMAIL_USE_TLS", True)
+            EMAIL_USE_SSL = False
+        except Exception:
+            EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+            EMAIL_HOST = ""
+            EMAIL_PORT = 587
+            EMAIL_HOST_USER = ""
+            EMAIL_HOST_PASSWORD = ""
+            EMAIL_USE_TLS = True
+            EMAIL_USE_SSL = False
+    else:
+        EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+        EMAIL_HOST = ""
+        EMAIL_PORT = 587
+        EMAIL_HOST_USER = ""
+        EMAIL_HOST_PASSWORD = ""
+        EMAIL_USE_TLS = True
+        EMAIL_USE_SSL = False
+
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@shopcore.example")
 EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
 

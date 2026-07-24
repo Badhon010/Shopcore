@@ -17,8 +17,14 @@ try:
 except _environ.ImproperlyConfigured:
     SECRET_KEY = "dev-only-insecure-secret-key-do-not-use-in-production"  # noqa: F405, S105
 
-# Use Django's built-in email backend in development (prints to console)
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"  # noqa: F405
+# Email: use SMTP if configured via individual vars or EMAIL_URL; otherwise
+# fall back to the console backend so pure dev setups work without any config.
+_email_backend_dev = _env("EMAIL_BACKEND", default="")
+_email_url_dev = _env("EMAIL_URL", default="")
+if not _email_backend_dev and not (_email_url_dev and not _email_url_dev.startswith("console://")):
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"  # noqa: F405
+# If EMAIL_BACKEND is set in the environment, base.py has already applied the
+# full SMTP config — no override needed here.
 
 # Cache — use local memory cache in dev if Redis is not available
 # (Swap to the Redis backend when testing cache behavior)

@@ -82,14 +82,25 @@ def _send_email(
         status = NotificationStatus.FAILED
         error_message = str(exc)
 
-    NotificationLog.objects.create(
-        user=user,
-        notification_type=notification_type,
-        recipient=recipient_email,
-        subject=subject,
-        status=status,
-        error_message=error_message,
-    )
+    try:
+        NotificationLog.objects.create(
+            user=user,
+            notification_type=notification_type,
+            recipient=recipient_email,
+            subject=subject,
+            status=status,
+            error_message=error_message,
+        )
+    except Exception as log_exc:
+        # Log-table write must never cause the caller to treat a successful
+        # send as a failure (e.g. stale schema before migrations are run).
+        logger.warning(
+            "Could not write NotificationLog for %s to %s: %s — "
+            "run 'python manage.py migrate' if this is a schema error.",
+            notification_type,
+            recipient_email,
+            log_exc,
+        )
 
 
 def send_welcome_email(user) -> None:

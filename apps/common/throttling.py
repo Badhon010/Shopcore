@@ -22,6 +22,12 @@ class PasswordResetRequestThrottle(AnonRateThrottle):
     scope = "password_reset_request"
 
 
+class ResendVerificationThrottle(AnonRateThrottle):
+    """Throttle for resend-verification endpoint: 5 per hour."""
+
+    scope = "resend_verification"
+
+
 class CouponApplyThrottle(UserRateThrottle):
     """Throttle for coupon application endpoint: 20 per minute."""
 
