@@ -34,7 +34,8 @@ export function SearchResultsPage() {
   useEffect(() => {
     if (debouncedQ !== q) {
       setSearchParams((prev) => {
-        debouncedQ ? prev.set('q', debouncedQ) : prev.delete('q')
+        if (debouncedQ) prev.set('q', debouncedQ)
+        else prev.delete('q')
         prev.set('page', '1')
         return prev
       })
@@ -99,7 +100,8 @@ export function SearchResultsPage() {
             value={ordering}
             onChange={(v) =>
               setSearchParams((prev) => {
-                v ? prev.set('ordering', v) : prev.delete('ordering')
+                if (v) prev.set('ordering', v)
+                else prev.delete('ordering')
                 prev.set('page', '1')
                 return prev
               })

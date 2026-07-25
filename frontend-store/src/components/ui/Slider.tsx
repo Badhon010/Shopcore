@@ -26,8 +26,8 @@ export function Slider({
     <RadixSlider.Root
       className={cn('relative flex w-full touch-none select-none items-center', className)}
       value={value}
-      onValueChange={onValueChange as (v: number[]) => void}
-      onValueCommit={onValueCommit as ((v: number[]) => void) | undefined}
+      onValueChange={onValueChange}
+      onValueCommit={onValueCommit}
       min={min}
       max={max}
       step={step}

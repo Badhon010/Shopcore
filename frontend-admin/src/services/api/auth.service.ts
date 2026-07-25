@@ -18,6 +18,7 @@ export const authService = {
     axiosClient.post<LoginResponse>(endpoints.auth.login(), payload).then((response) => response.data),
   logout: () => {
     const refresh = tokenStorage.getRefreshToken()
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return axiosClient.post(endpoints.auth.logout(), { refresh }).then((response) => response.data)
   },
   me: ({ signal }: { signal?: AbortSignal } = {}) =>

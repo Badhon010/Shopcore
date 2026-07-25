@@ -4,6 +4,12 @@
 // sets (e.g. list has `primary_image`/`min_price`, detail has full
 // `images`/`variants`), so these functions are the single place that
 // normalizes both into one consistent shape for the UI.
+//
+// The `no-unsafe-*` family is disabled for this file because normalizers by
+// design accept raw API responses (typed as `any` by the generic axios call
+// until proper response DTOs are introduced). All output types are enforced
+// at the return-type level. Track typing as a follow-up task.
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return */
 import type { Cart, CartItem, Category, Product, ProductImage, ProductVariant, WishlistItem } from '@/types/models'
 
 // Raw shapes as returned by Django REST Framework — intentionally loose

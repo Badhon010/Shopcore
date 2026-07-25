@@ -310,9 +310,9 @@ export function ProductFilters({
             <>
               <Slider
                 value={localPrice}
-                onValueChange={(v) => setLocalPrice(v as [number, number])}
+                onValueChange={(v) => setLocalPrice(v)}
                 onValueCommit={(v) =>
-                  onFiltersChange({ ...filters, priceRange: v as [number, number] })
+                  onFiltersChange({ ...filters, priceRange: v })
                 }
                 min={minPrice}
                 max={maxPrice}
@@ -434,7 +434,7 @@ export function ProductFilters({
 
         {/* ── In Stock ── */}
         <div className="py-3">
-          <label className="flex cursor-pointer items-center justify-between">
+          <div className="flex cursor-pointer items-center justify-between">
             <span className="text-[13px] text-text-primary font-medium">In stock only</span>
             <button
               type="button"
@@ -453,7 +453,7 @@ export function ProductFilters({
                 )}
               />
             </button>
-          </label>
+          </div>
         </div>
 
       </div>

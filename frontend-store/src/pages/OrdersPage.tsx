@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { ShoppingBag } from 'lucide-react'
-import { PageContainer } from '@/components/layout/PageContainer'
 import { OrderCard } from '@/features/orders/components/OrderCard'
 import { Pagination } from '@/components/ui/Pagination'
 import { Spinner } from '@/components/feedback/Spinner'

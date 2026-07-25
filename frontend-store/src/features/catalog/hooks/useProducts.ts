@@ -44,7 +44,7 @@ export function useInfiniteProducts(params: ProductListParams = {}) {
     queryKey: queryKeys.catalog.products({ ...params, infinite: true }),
     queryFn: ({ pageParam, signal }) =>
       catalogService.getProducts(
-        { ...params, page: pageParam as number, page_size: APP_CONFIG.pagination.defaultPageSize },
+        { ...params, page: pageParam, page_size: APP_CONFIG.pagination.defaultPageSize },
         { signal }
       ),
     initialPageParam: 1,

@@ -1,6 +1,7 @@
 export const APP_CONFIG = {
   name: 'ShopCore',
   description: 'Premium quality goods, curated with care.',
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   url: import.meta.env.VITE_APP_URL ?? '',
   defaultCurrency: import.meta.env.VITE_DEFAULT_CURRENCY ?? 'USD',
   defaultLocale: import.meta.env.VITE_DEFAULT_LOCALE ?? 'en-US',

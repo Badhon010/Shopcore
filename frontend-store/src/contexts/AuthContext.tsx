@@ -21,7 +21,6 @@ import {
 import { endpoints } from '@/services/api/endpoints'
 import type { User } from '@/types/models'
 import { guestCartToken } from '@/services/api/cart.service'
-import { cartService } from '@/services/api/cart.service'
 
 interface AuthContextValue {
   user: User | null
@@ -131,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authService.register(payload)
   }, [])
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(() => {
     // Read the refresh token BEFORE clearing it — authService.logout() needs
     // to send it to the backend to blacklist it.
     const refresh = tokenStorage.getRefreshToken()

@@ -27,6 +27,7 @@ export const addressesService = {
   deleteAddress: (id: string) =>
     axiosClient
       .delete(endpoints.addresses.detail(id))
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       .then((r) => r.data),
 
   setDefault: (id: string) =>

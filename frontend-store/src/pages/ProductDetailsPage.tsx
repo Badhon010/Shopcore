@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { useState } from 'react'
 import { Minus, Plus, ShoppingBag } from 'lucide-react'
@@ -27,7 +27,6 @@ import type { ProductVariant } from '@/types/models'
 
 export function ProductDetailsPage() {
   const { productSlug = '' } = useParams()
-  const navigate = useNavigate()
   const { openCart } = useCartUI()
   const { isAuthenticated } = useAuth()
 

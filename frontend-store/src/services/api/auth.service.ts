@@ -1,3 +1,7 @@
+// Several auth endpoints return untyped response bodies (204 / minimal JSON).
+// The no-unsafe-return rule is suppressed here until those endpoints receive
+// explicit response-type parameters. Track as a follow-up typing task.
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { axiosClient, tokenStorage } from './axiosClient'
 import { endpoints } from './endpoints'
 import type { User } from '@/types/models'

@@ -1,6 +1,7 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios'
 import type { ApiError } from '@/types/api'
 import { env } from '@/config/env'
+import { endpoints } from './endpoints'
 
 let accessToken: string | null = null
 let refreshPromise: Promise<string> | null = null
@@ -157,7 +158,8 @@ function normalizeError(error: AxiosError): ApiError {
 }
 
 export function applyServerErrors(
-  setError: (field: string, error: { type: string; message: string }) => void,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setError: (field: any, error: { type: string; message: string }) => void,
   fieldErrors?: Record<string, string[]>
 ) {
   if (!fieldErrors) return

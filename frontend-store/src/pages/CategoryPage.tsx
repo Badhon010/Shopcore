@@ -74,7 +74,8 @@ export function CategoryPage() {
 
   const handleSortChange = (value: string) => {
     setSearchParams((prev) => {
-      value ? prev.set('ordering', value) : prev.delete('ordering')
+      if (value) prev.set('ordering', value)
+      else prev.delete('ordering')
       prev.set('page', '1')
       return prev
     })

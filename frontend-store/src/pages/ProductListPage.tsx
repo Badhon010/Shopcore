@@ -109,7 +109,8 @@ export function ProductListPage() {
 
   const handleSortChange = (value: string) => {
     setSearchParams((prev) => {
-      value ? prev.set('ordering', value) : prev.delete('ordering')
+      if (value) prev.set('ordering', value)
+      else prev.delete('ordering')
       prev.set('page', '1')
       return prev
     })
@@ -142,19 +143,20 @@ export function ProductListPage() {
    */
   const handleFiltersChange = (f: FilterState) => {
     setSearchParams((prev) => {
-      f.inStockOnly ? prev.set('in_stock', 'true') : prev.delete('in_stock')
-      f.minRating > 0 ? prev.set('min_rating', String(f.minRating)) : prev.delete('min_rating')
-      f.brands.length > 0 ? prev.set('brands', f.brands.join(',')) : prev.delete('brands')
+      if (f.inStockOnly) prev.set('in_stock', 'true')
+      else prev.delete('in_stock')
+      if (f.minRating > 0) prev.set('min_rating', String(f.minRating))
+      else prev.delete('min_rating')
+      if (f.brands.length > 0) prev.set('brands', f.brands.join(','))
+      else prev.delete('brands')
 
       // Only write price params when they deviate from the full range.
       // This keeps URLs clean for unfiltered price ranges and avoids
       // unnecessarily locking in prices that match the default bounds.
-      f.priceRange[0] > minPrice
-        ? prev.set('price_min', String(f.priceRange[0]))
-        : prev.delete('price_min')
-      f.priceRange[1] < maxPrice
-        ? prev.set('price_max', String(f.priceRange[1]))
-        : prev.delete('price_max')
+      if (f.priceRange[0] > minPrice) prev.set('price_min', String(f.priceRange[0]))
+      else prev.delete('price_min')
+      if (f.priceRange[1] < maxPrice) prev.set('price_max', String(f.priceRange[1]))
+      else prev.delete('price_max')
 
       prev.set('page', '1')
       return prev

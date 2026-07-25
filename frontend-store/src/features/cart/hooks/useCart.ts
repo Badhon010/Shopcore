@@ -138,7 +138,7 @@ export function useRemoveCoupon() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: () => {
       queryClient.setQueryData<Cart>(queryKeys.cart.detail(), (previousCart) => {
         if (!previousCart) return previousCart
         const discount = Number(previousCart.discount ?? 0)

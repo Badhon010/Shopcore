@@ -18,7 +18,7 @@ interface AccordionProps {
 export function Accordion({ items, type = 'single', className }: AccordionProps) {
   return (
     <RadixAccordion.Root
-      type={type as 'single'}
+      type={type}
       collapsible={type === 'single' ? true : undefined}
       className={cn('divide-y divide-border', className)}
     >

@@ -66,7 +66,6 @@ axiosClient.interceptors.response.use(
         const newToken = await refreshPromise
         setAccessToken(newToken)
         if (originalRequest.headers) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           ;(originalRequest.headers as Record<string, string>).Authorization = `Bearer ${newToken}`
         }
         return axiosClient(originalRequest)

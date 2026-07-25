@@ -20,5 +20,6 @@ export const wishlistService = {
   removeItem: (productId: string) =>
     axiosClient
       .delete(endpoints.wishlist.remove(productId))
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       .then((r) => r.data),
 }

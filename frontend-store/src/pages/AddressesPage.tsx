@@ -80,7 +80,7 @@ export function AddressesPage() {
       <Modal open={addModalOpen} onClose={() => setAddModalOpen(false)} title="Add address" size="lg">
         <AddressForm
           onSubmit={async (data) => {
-            await createAddress.mutateAsync(data as AddressPayload)
+            await createAddress.mutateAsync(data)
             setAddModalOpen(false)
           }}
           isSubmitting={createAddress.isPending}

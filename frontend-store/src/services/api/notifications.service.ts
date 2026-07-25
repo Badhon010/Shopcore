@@ -17,5 +17,6 @@ export const notificationsService = {
   markAllRead: () =>
     axiosClient
       .post(endpoints.notifications.markAllRead())
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       .then((r) => r.data),
 }

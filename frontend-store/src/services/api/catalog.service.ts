@@ -45,7 +45,7 @@ export const catalogService = {
   getBrands: ({ signal }: { signal?: AbortSignal } = {}) =>
     axiosClient
       .get<PaginatedResponse<Brand>>(endpoints.catalog.brands(), { signal })
-      .then((r) => (r.data.results ?? (r.data as unknown as Brand[])) as Brand[]),
+      .then((r) => r.data.results ?? (r.data as unknown as Brand[])),
 
   getCategory: (slug: string, { signal }: { signal?: AbortSignal } = {}) =>
     axiosClient
@@ -120,5 +120,6 @@ export const catalogService = {
   deleteReview: (_productSlug: string, reviewId: string) =>
     axiosClient
       .delete(endpoints.catalog.review(reviewId))
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       .then((r) => r.data),
 }

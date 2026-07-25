@@ -86,7 +86,7 @@ export function SearchBar({
 
   // Close on outside click
   const handleBlur = useCallback((e: React.FocusEvent) => {
-    if (!containerRef.current?.contains(e.relatedTarget as Node)) {
+    if (!containerRef.current?.contains(e.relatedTarget)) {
       setOpen(false)
       setActiveIndex(-1)
     }
