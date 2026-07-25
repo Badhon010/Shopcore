@@ -7,14 +7,14 @@ import { PackageSearch, RefreshCw } from 'lucide-react'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { SearchBar } from '@/components/ui/SearchBar'
 import { Pagination } from '@/components/ui/Pagination'
 import { Modal } from '@/components/ui/Modal'
 import { FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
-import { Tabs, TabContent } from '@/components/ui/Tabs'
+import { Tabs } from '@/components/ui/Tabs'
 import { StatCard } from '@/components/ui/StatCard'
 import { inventoryService } from '@/services/api/inventory.service'
 import { useToast } from '@/contexts/ToastContext'
@@ -68,8 +68,8 @@ export function InventoryPage() {
     mutationFn: (d: RestockFormData) =>
       inventoryService.restock(restockTarget!.id, d.quantity, d.reference, d.note),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-stock'] })
-      queryClient.invalidateQueries({ queryKey: ['admin-low-stock-count'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-stock'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-low-stock-count'] })
       toast({ title: 'Stock updated', variant: 'success' })
       setRestockTarget(null)
       form.reset()

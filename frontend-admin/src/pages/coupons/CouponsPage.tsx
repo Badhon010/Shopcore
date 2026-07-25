@@ -92,11 +92,11 @@ export function CouponsPage() {
         usage_limit_total: d.usage_limit_total ? parseInt(d.usage_limit_total) : null,
       }
       return editing
-        ? couponsService.updateCoupon(editing.id, payload as never)
-        : couponsService.createCoupon(payload as never)
+        ? couponsService.updateCoupon(editing.id, payload)
+        : couponsService.createCoupon(payload)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-coupons'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-coupons'] })
       toast({ title: editing ? 'Coupon updated' : 'Coupon created', variant: 'success' })
       setModalOpen(false)
     },
@@ -106,7 +106,7 @@ export function CouponsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => couponsService.deleteCoupon(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-coupons'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-coupons'] })
       toast({ title: 'Coupon deleted', variant: 'success' })
       setDeleteTarget(null)
     },
@@ -193,7 +193,7 @@ export function CouponsPage() {
             placeholder="Search codes…"
             containerClassName="w-full max-w-xs"
           />
-          <Select value={activeFilter} onChange={(e) => { setActiveFilter(e.target.value); setPage(1) }} className="h-10 w-40">
+          <Select value={activeFilter} onChange={(e) => { setActiveFilter(e.target.value); setPage(1) }} containerClassName="w-40" className="h-10">
             <option value="all">All coupons</option>
             <option value="active">Active only</option>
             <option value="inactive">Inactive only</option>

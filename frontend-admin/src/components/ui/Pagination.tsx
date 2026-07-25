@@ -46,7 +46,7 @@ export function Pagination({ page, pageSize, total, onPageChange, className }: P
             pageNum = i === 0 ? 1 : totalPages - 6 + i
           } else {
             const map = [1, page - 2, page - 1, page, page + 1, page + 2, totalPages]
-            pageNum = map[i]
+            pageNum = map[i] ?? i + 1
           }
           const showEllipsis =
             totalPages > 7 &&

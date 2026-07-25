@@ -154,7 +154,7 @@ export function OrdersPage() {
               id="order-status"
               value={status}
               onChange={(e) => { setStatus(e.target.value); setPage(1) }}
-              className="h-10 w-full"
+              className="h-10"
             >
               {STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>

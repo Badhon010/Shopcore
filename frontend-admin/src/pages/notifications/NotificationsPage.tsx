@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bell } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { Skeleton } from '@/components/feedback/Skeleton'
 import { notificationsService } from '@/services/api/notifications.service'
@@ -21,14 +21,14 @@ export function NotificationsPage() {
 
   const markReadMutation = useMutation({
     mutationFn: (id: number) => notificationsService.markRead(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-notifications'] }),
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['admin-notifications'] }) },
     onError: (e: ApiError) => toast({ title: e.message, variant: 'error' }),
   })
 
   const markAllMutation = useMutation({
     mutationFn: () => notificationsService.markAllRead(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-notifications'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-notifications'] })
       toast({ title: 'All notifications marked as read', variant: 'success' })
     },
     onError: (e: ApiError) => toast({ title: e.message, variant: 'error' }),
@@ -81,7 +81,7 @@ export function NotificationsPage() {
             />
           </div>
         ) : (
-          <ul className="divide-y divide-border" role="list">
+          <ul className="divide-y divide-border">
             {notifications.map((n) => (
               <li
                 key={n.id}

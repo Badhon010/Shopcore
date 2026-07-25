@@ -89,7 +89,8 @@ export function CustomersPage() {
           <Select
             value={staffFilter}
             onChange={(e) => { setStaffFilter(e.target.value); setPage(1) }}
-            className="h-10 w-40"
+            containerClassName="w-40"
+            className="h-10"
           >
             <option value="">All accounts</option>
             <option value="customer">Customers only</option>

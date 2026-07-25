@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ClipboardList } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card'
+import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
@@ -71,7 +71,7 @@ export function OrderDetailPage() {
     mutationFn: () => ordersService.transitionOrder(orderNumber!, newStatus as OrderStatus, note || undefined),
     onSuccess: (updated) => {
       queryClient.setQueryData(['admin-order', orderNumber], updated)
-      queryClient.invalidateQueries({ queryKey: ['admin-orders'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-orders'] })
       toast({ title: 'Order status updated', variant: 'success' })
       setNewStatus('')
       setNote('')
@@ -146,13 +146,13 @@ export function OrderDetailPage() {
                 <tbody className="divide-y divide-border">
                   {order.items.map((item) => (
                     <tr key={item.id}>
-                      <td className="px-6 py-4 font-medium text-text-primary">{item.product_name_snapshot}</td>
+                      <td className="px-6 py-4 font-medium text-text-primary">{item.product_name}</td>
                       <td className="px-4 py-4 font-mono text-text-muted">
-                        {Object.entries(item.variant_attributes_snapshot ?? {}).map(([key, value]) => `${key}: ${value}`).join(' · ') || '—'}
+                        {item.variant_sku || '—'}
                       </td>
                       <td className="px-4 py-4 text-right text-text-secondary">{item.quantity}</td>
-                      <td className="px-4 py-4 text-right text-text-secondary">{formatCurrency(item.unit_price_snapshot)}</td>
-                      <td className="px-6 py-4 text-right font-semibold text-text-primary">{formatCurrency(item.line_total)}</td>
+                      <td className="px-4 py-4 text-right text-text-secondary">{formatCurrency(item.unit_price)}</td>
+                      <td className="px-6 py-4 text-right font-semibold text-text-primary">{formatCurrency(item.total_price)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -175,7 +175,7 @@ export function OrderDetailPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <Badge variant={cfg.variant} size="sm">{cfg.label}</Badge>
-                          <span className="text-caption text-text-muted">{formatDateTime(entry.created_at)}</span>
+                          <span className="text-caption text-text-muted">{formatDateTime(entry.timestamp)}</span>
                         </div>
                         {entry.note && <p className="mt-1 text-body-sm text-text-secondary">{entry.note}</p>}
                       </div>

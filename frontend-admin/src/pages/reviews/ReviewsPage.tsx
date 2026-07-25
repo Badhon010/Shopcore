@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card'
 import { SearchBar } from '@/components/ui/SearchBar'
 import { Pagination } from '@/components/ui/Pagination'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { Tabs, TabContent } from '@/components/ui/Tabs'
+import { Tabs } from '@/components/ui/Tabs'
 import { reviewsService } from '@/services/api/reviews.service'
 import { useToast } from '@/contexts/ToastContext'
 import { formatDate, truncate } from '@/utils/format'
@@ -53,7 +53,7 @@ export function ReviewsPage() {
       }),
   })
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin-reviews'] })
+  const invalidate = () => { void queryClient.invalidateQueries({ queryKey: ['admin-reviews'] }) }
 
   const approveMutation = useMutation({
     mutationFn: (id: number) => reviewsService.approveReview(id),

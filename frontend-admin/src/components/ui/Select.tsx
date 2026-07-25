@@ -5,11 +5,12 @@ import { cn } from '@/utils/cn'
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   error?: boolean
   errorId?: string
+  containerClassName?: string
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, error, errorId, children, ...props }, ref) => (
-    <div className="relative w-full">
+  ({ className, containerClassName, error, errorId, children, ...props }, ref) => (
+    <div className={cn('relative w-full', containerClassName)}>
       <select
         ref={ref}
         aria-invalid={error || undefined}

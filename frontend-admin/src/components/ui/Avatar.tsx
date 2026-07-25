@@ -17,8 +17,11 @@ const sizeMap = {
 function getInitials(name?: string): string {
   if (!name) return '?'
   const parts = name.trim().split(/\s+/)
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+  const first = parts[0]
+  if (!first) return '?'
+  if (parts.length === 1) return first.charAt(0).toUpperCase()
+  const last = parts[parts.length - 1]
+  return (first.charAt(0) + (last?.charAt(0) ?? '')).toUpperCase()
 }
 
 function getColor(name?: string): string {
@@ -29,9 +32,9 @@ function getColor(name?: string): string {
     'bg-warning-subtle text-warning',
     'bg-info-subtle text-info',
     'bg-accent-subtle text-accent',
-  ]
+  ] as const
   const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  return colors[hash % colors.length]
+  return colors[hash % colors.length] ?? 'bg-primary-light text-primary'
 }
 
 export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
@@ -49,7 +52,7 @@ export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
       aria-label={name}
     >
       {src ? (
-        <img src={src} alt={name} className="h-full w-full rounded-full object-cover" />
+        <img src={src} alt={name ?? ''} className="h-full w-full rounded-full object-cover" />
       ) : (
         <span aria-hidden>{initials}</span>
       )}

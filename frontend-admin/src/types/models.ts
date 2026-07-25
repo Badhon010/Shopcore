@@ -211,6 +211,38 @@ export interface NewsletterSubscriber {
   created_at: string
 }
 
+export type CampaignStatus = 'draft' | 'sending' | 'sent' | 'failed'
+
+export interface NewsletterCampaign {
+  id: number
+  title: string
+  subject: string
+  preview_text: string
+  html_body: string
+  plain_body: string
+  status: CampaignStatus
+  sent_at: string | null
+  recipient_count: number
+  open_count: number
+  click_count: number
+  open_rate: number
+  click_rate: number
+  created_at: string
+  updated_at: string
+}
+
+export interface NewsletterStats {
+  total_subscribers: number
+  active_subscribers: number
+  inactive_subscribers: number
+  new_this_month: number
+  new_last_month: number
+  campaigns_sent: number
+  campaigns_draft: number
+  avg_open_rate: number
+  avg_click_rate: number
+}
+
 // ── Notifications ────────────────────────────────────────────
 
 export interface Notification {

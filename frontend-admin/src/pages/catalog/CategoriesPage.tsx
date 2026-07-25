@@ -57,7 +57,7 @@ export function CategoriesPage() {
     mutationFn: (d: CategoryFormData) =>
       editing ? catalogService.updateCategory(editing.id, d) : catalogService.createCategory(d),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-categories'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-categories'] })
       toast({ title: editing ? 'Category updated' : 'Category created', variant: 'success' })
       setModalOpen(false)
     },
@@ -67,7 +67,7 @@ export function CategoriesPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => catalogService.deleteCategory(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-categories'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-categories'] })
       toast({ title: 'Category deleted', variant: 'success' })
       setDeleteTarget(null)
     },

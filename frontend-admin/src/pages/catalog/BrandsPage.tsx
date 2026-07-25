@@ -56,7 +56,7 @@ export function BrandsPage() {
     mutationFn: (d: BrandFormData) =>
       editing ? catalogService.updateBrand(editing.id, d) : catalogService.createBrand(d),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-brands'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-brands'] })
       toast({ title: editing ? 'Brand updated' : 'Brand created', variant: 'success' })
       setModalOpen(false)
     },
@@ -66,7 +66,7 @@ export function BrandsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => catalogService.deleteBrand(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-brands'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-brands'] })
       toast({ title: 'Brand deleted', variant: 'success' })
       setDeleteTarget(null)
     },

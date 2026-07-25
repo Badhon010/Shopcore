@@ -47,6 +47,11 @@ export const endpoints = {
     subscribe: () => '/newsletter/subscribe/',
     adminSubscribers: () => '/newsletter/admin/subscribers/',
     adminSubscriber: (id: number) => `/newsletter/admin/subscribers/${id}/`,
+    adminStats: () => '/newsletter/admin/stats/',
+    adminCampaigns: () => '/newsletter/admin/campaigns/',
+    adminCampaign: (id: number) => `/newsletter/admin/campaigns/${id}/`,
+    sendCampaign: (id: number) => `/newsletter/admin/campaigns/${id}/send/`,
+    duplicateCampaign: (id: number) => `/newsletter/admin/campaigns/${id}/duplicate/`,
   },
   notifications: {
     list: () => '/notifications/',

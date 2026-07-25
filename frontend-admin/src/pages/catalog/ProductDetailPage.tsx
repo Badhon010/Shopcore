@@ -42,7 +42,6 @@ export function ProductDetailPage() {
   if (!product) return null
 
   const statusCfg = statusConfig[product.status]
-  const primaryImage = product.images?.[0]?.image
 
   return (
     <div className="space-y-6">

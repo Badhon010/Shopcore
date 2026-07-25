@@ -7,7 +7,7 @@ import { Package, Plus } from 'lucide-react'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { SearchBar } from '@/components/ui/SearchBar'
 import { Pagination } from '@/components/ui/Pagination'
 import { Modal } from '@/components/ui/Modal'
@@ -62,7 +62,7 @@ export function ProductsPage() {
   const createMutation = useMutation({
     mutationFn: (d: ProductFormData) => catalogService.createProduct(d),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-products'] })
       toast({ title: 'Product created', variant: 'success' })
       setAddOpen(false)
       form.reset()
@@ -73,7 +73,7 @@ export function ProductsPage() {
   const deleteMutation = useMutation({
     mutationFn: (slug: string) => catalogService.deleteProduct(slug),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-products'] })
       toast({ title: 'Product deleted', variant: 'success' })
       setDeleteTarget(null)
     },
@@ -110,7 +110,7 @@ export function ProductsPage() {
       key: 'status',
       header: 'Status',
       cell: (p) => {
-        const cfg = statusConfig[p.status] ?? { label: p.status, variant: 'secondary' as StatusVariant }
+        const cfg = statusConfig[p.status] ?? { label: p.status, variant: 'secondary' as const }
         return <Badge variant={cfg.variant}>{cfg.label}</Badge>
       },
     },
