@@ -45,9 +45,9 @@ function AddressBlock({ snapshot }: { snapshot: Record<string, unknown> }) {
   if (!snapshot || Object.keys(snapshot).length === 0) return <span className="text-text-muted">—</span>
   return (
     <address className="not-italic text-body-sm text-text-secondary leading-relaxed">
-      {snapshot.first_name as string} {snapshot.last_name as string}<br />
-      {snapshot.line1 as string}<br />
-      {snapshot.city as string}, {snapshot.state as string} {snapshot.postal_code as string}<br />
+      {snapshot.full_name as string}<br />
+      {snapshot.address_line_1 as string}<br />
+      {snapshot.city as string}, {snapshot.state_province as string} {snapshot.postal_code as string}<br />
       {snapshot.country as string}
     </address>
   )
@@ -146,11 +146,13 @@ export function OrderDetailPage() {
                 <tbody className="divide-y divide-border">
                   {order.items.map((item) => (
                     <tr key={item.id}>
-                      <td className="px-6 py-4 font-medium text-text-primary">{item.product_name}</td>
-                      <td className="px-4 py-4 font-mono text-text-muted">{item.variant_sku}</td>
+                      <td className="px-6 py-4 font-medium text-text-primary">{item.product_name_snapshot}</td>
+                      <td className="px-4 py-4 font-mono text-text-muted">
+                        {Object.entries(item.variant_attributes_snapshot ?? {}).map(([key, value]) => `${key}: ${value}`).join(' · ') || '—'}
+                      </td>
                       <td className="px-4 py-4 text-right text-text-secondary">{item.quantity}</td>
-                      <td className="px-4 py-4 text-right text-text-secondary">{formatCurrency(item.unit_price)}</td>
-                      <td className="px-6 py-4 text-right font-semibold text-text-primary">{formatCurrency(item.total_price)}</td>
+                      <td className="px-4 py-4 text-right text-text-secondary">{formatCurrency(item.unit_price_snapshot)}</td>
+                      <td className="px-6 py-4 text-right font-semibold text-text-primary">{formatCurrency(item.line_total)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -173,7 +175,7 @@ export function OrderDetailPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <Badge variant={cfg.variant} size="sm">{cfg.label}</Badge>
-                          <span className="text-caption text-text-muted">{formatDateTime(entry.timestamp)}</span>
+                          <span className="text-caption text-text-muted">{formatDateTime(entry.created_at)}</span>
                         </div>
                         {entry.note && <p className="mt-1 text-body-sm text-text-secondary">{entry.note}</p>}
                       </div>

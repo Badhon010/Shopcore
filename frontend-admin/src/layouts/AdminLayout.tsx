@@ -11,13 +11,13 @@ import { cn } from '@/utils/cn'
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-20 items-center gap-2 border-b border-border px-6">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+      <div className="flex h-20 items-center gap-3 border-b border-border px-6">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
           <span className="text-body-md font-bold">S</span>
         </span>
         <div>
-          <p className="font-semibold leading-none text-text-primary">ShopCore</p>
-          <p className="mt-1 text-caption text-text-muted">Admin workspace</p>
+          <p className="text-body-sm font-bold leading-none tracking-tight text-text-primary">ShopCore</p>
+          <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-muted">Operations</p>
         </div>
       </div>
 
@@ -35,9 +35,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                     onClick={onNavigate}
                     className={({ isActive }) =>
                       cn(
-                        'flex items-center gap-3 rounded-md px-3 py-2.5 text-body-sm font-medium transition-colors',
+                        'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-body-sm font-medium transition-all',
                         isActive
-                          ? 'bg-primary-light text-primary'
+                          ? 'bg-primary text-primary-foreground shadow-sm'
                           : 'text-text-secondary hover:bg-bg-subtle hover:text-text-primary'
                       )
                     }
@@ -141,8 +141,8 @@ export function AdminLayout() {
         )}
       </aside>
 
-      <div className={cn('min-h-screen transition-[padding] duration-200', sidebarCollapsed ? 'lg:pl-[76px]' : 'lg:pl-64')}>
-        <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-border bg-surface/95 px-4 backdrop-blur sm:px-6">
+       <div className={cn('min-h-screen transition-[padding] duration-200', sidebarCollapsed ? 'lg:pl-[76px]' : 'lg:pl-64')}>
+        <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-border bg-surface/90 px-4 backdrop-blur-xl sm:px-8 lg:px-10">
           <div className="flex items-center gap-3">
             <IconButton
               label="Open navigation"
@@ -152,8 +152,8 @@ export function AdminLayout() {
               <Menu className="h-5 w-5" aria-hidden />
             </IconButton>
             <div>
-              <p className="text-caption font-semibold uppercase tracking-[0.12em] text-text-muted">ShopCore</p>
-              <h1 className="text-body-md font-semibold text-text-primary">Administration</h1>
+               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-text-muted">ShopCore</p>
+               <h1 className="text-body-md font-semibold tracking-tight text-text-primary">Administration</h1>
             </div>
           </div>
 
@@ -168,7 +168,7 @@ export function AdminLayout() {
                 <Moon className="h-4 w-4" aria-hidden />
               )}
             </IconButton>
-            <div className="hidden text-right sm:block">
+             <div className="hidden border-l border-border pl-4 text-right sm:block">
               <p className="max-w-[14rem] truncate text-body-sm font-medium text-text-primary">
                 {user?.full_name || user?.email}
               </p>
@@ -180,7 +180,7 @@ export function AdminLayout() {
           </div>
         </header>
 
-        <main className="container-page py-8 lg:py-10">
+         <main className="container-page py-8 lg:py-10">
           <Outlet />
         </main>
       </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { ClipboardList } from 'lucide-react'
+import { ClipboardList, Filter, ShoppingCart } from 'lucide-react'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
@@ -113,32 +113,54 @@ export function OrdersPage() {
   ]
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-heading-lg font-bold text-text-primary">Orders</h1>
-        <p className="mt-0.5 text-body-sm text-text-secondary">
-          {data?.count ?? 0} total orders
-        </p>
+    <div className="space-y-7">
+      <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
+        <div>
+          <p className="text-overline font-semibold uppercase tracking-[0.16em] text-primary">Commerce</p>
+          <h1 className="mt-2 text-heading-xl font-bold tracking-tight text-text-primary">Orders</h1>
+          <p className="mt-2 max-w-xl text-body-sm text-text-secondary">
+            Keep every customer purchase moving from payment to delivery.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 text-body-sm shadow-xs">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-light text-primary">
+            <ShoppingCart className="h-3.5 w-3.5" aria-hidden />
+          </span>
+          <span className="font-semibold text-text-primary">{data?.count ?? 0}</span>
+          <span className="text-text-muted">total orders</span>
+        </div>
       </div>
 
-      <Card noPadding>
-        <div className="flex flex-wrap items-center gap-3 border-b border-border p-4">
-          <SearchBar
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            onClear={() => { setSearch(''); setPage(1) }}
-            placeholder="Search order # or email…"
-            containerClassName="w-full max-w-xs"
-          />
-          <Select
-            value={status}
-            onChange={(e) => { setStatus(e.target.value); setPage(1) }}
-            className="h-10 w-48"
-          >
-            {STATUS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </Select>
+      <Card noPadding className="overflow-hidden shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-border bg-bg-subtle/60 p-5 md:flex-row md:items-end">
+          <div className="flex-1">
+            <div className="mb-2 flex items-center gap-2 text-overline font-semibold uppercase tracking-[0.12em] text-text-muted">
+              <Filter className="h-3.5 w-3.5" aria-hidden />
+              Filter orders
+            </div>
+            <SearchBar
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              onClear={() => { setSearch(''); setPage(1) }}
+              placeholder="Search order # or email…"
+              containerClassName="w-full max-w-md"
+            />
+          </div>
+          <div className="w-full md:w-52">
+            <label htmlFor="order-status" className="mb-2 block text-overline font-semibold uppercase tracking-[0.12em] text-text-muted">
+              Status
+            </label>
+            <Select
+              id="order-status"
+              value={status}
+              onChange={(e) => { setStatus(e.target.value); setPage(1) }}
+              className="h-10 w-full"
+            >
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </Select>
+          </div>
         </div>
 
         <DataTable
@@ -148,7 +170,7 @@ export function OrdersPage() {
           keyExtractor={(o) => o.id}
           emptyIcon={ClipboardList}
           emptyTitle="No orders found"
-          emptyDescription="Orders placed by customers will appear here."
+          emptyDescription="Orders placed by customers will appear here. Try changing the filters if you expected a result."
           onRowClick={(o) => navigate(`/orders/${o.order_number}`)}
         />
 

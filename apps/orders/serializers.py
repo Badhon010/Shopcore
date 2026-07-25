@@ -39,14 +39,15 @@ class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     status_history = OrderStatusHistorySerializer(many=True, read_only=True)
     can_cancel = serializers.SerializerMethodField()
+    user_email = serializers.EmailField(source="user.email", read_only=True)
 
     class Meta:
         model = Order
         fields = [
-            "id", "order_number", "status", "payment_status",
+            "id", "order_number", "status", "payment_status", "user_email",
             "shipping_address_snapshot", "billing_address_snapshot",
             "subtotal", "discount_total", "shipping_cost", "tax_total", "grand_total",
-            "coupon_code_snapshot", "notes", "placed_at",
+            "coupon_code_snapshot", "notes", "placed_at", "created_at",
             "items", "status_history", "can_cancel",
         ]
         read_only_fields = [f.name for f in Order._meta.fields]
