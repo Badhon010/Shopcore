@@ -6,7 +6,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.accounts.tests.factories import AddressFactory, UserFactory
+from apps.accounts.tests.factories import AddressFactory, StaffUserFactory, UserFactory
 
 
 @pytest.fixture
@@ -78,6 +78,28 @@ class TestMeView:
         response = auth_client.get(reverse("accounts:me"))
         assert response.status_code == status.HTTP_200_OK
         assert response.data["email"] == user.email
+        assert response.data["is_staff"] is False
+
+    def test_staff_status_is_read_only_and_exposed(self, api_client):
+        staff_user = StaffUserFactory()
+        response = api_client.post(
+            reverse("accounts:login"),
+            {"email": staff_user.email, "password": "testpassword123!"},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["user"]["is_staff"] is True
+
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['access']}")
+        profile_response = api_client.patch(
+            reverse("accounts:me"),
+            {"is_staff": False},
+            format="json",
+        )
+
+        assert profile_response.status_code == status.HTTP_200_OK
+        assert profile_response.data["is_staff"] is True
 
     def test_get_profile_unauthenticated(self, api_client):
         response = api_client.get(reverse("accounts:me"))

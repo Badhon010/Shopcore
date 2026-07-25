@@ -1,0 +1,103 @@
+/* ShopCore admin uses the same semantic HSL token vocabulary as the store. */
+:root,
+[data-theme='light'] {
+  --primary: 245 70% 56%;
+  --primary-hover: 245 70% 48%;
+  --primary-active: 245 70% 42%;
+  --primary-light: 245 80% 95%;
+  --primary-foreground: 0 0% 100%;
+
+  --accent: 35 95% 52%;
+  --accent-hover: 35 95% 44%;
+  --accent-subtle: 35 100% 94%;
+  --accent-foreground: 20 40% 12%;
+
+  --background: 210 40% 99%;
+  --background-subtle: 210 40% 97%;
+  --surface: 0 0% 100%;
+  --surface-elevated: 0 0% 100%;
+
+  --text-primary: 222 47% 11%;
+  --text-secondary: 215 20% 35%;
+  --text-muted: 215 16% 47%;
+  --text-tertiary: 215 16% 47%;
+  --text-inverse: 0 0% 100%;
+  --text-on-primary: 0 0% 100%;
+
+  --border: 220 13% 91%;
+  --border-light: 220 13% 95%;
+  --border-strong: 220 13% 84%;
+
+  --success: 152 60% 36%;
+  --success-subtle: 152 50% 95%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;
+  --warning-subtle: 38 92% 95%;
+  --warning-foreground: 222 20% 12%;
+  --danger: 0 72% 51%;
+  --danger-subtle: 0 100% 97%;
+  --danger-foreground: 0 0% 100%;
+  --info: 217 91% 60%;
+  --info-subtle: 217 91% 95%;
+  --info-foreground: 0 0% 100%;
+
+  --overlay: 0 0% 0%;
+  --disabled: 220 13% 91%;
+  --disabled-foreground: 222 8% 56%;
+  --skeleton: 220 13% 91%;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-2xl: 28px;
+  --radius-full: 9999px;
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 4px 10px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.1);
+  --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.14);
+  --shadow-focus-ring: 0 0 0 4px hsl(var(--primary) / 0.22);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+}
+
+.dark,
+[data-theme='dark'] {
+  --primary: 245 75% 68%;
+  --primary-hover: 245 75% 74%;
+  --primary-active: 245 75% 62%;
+  --primary-light: 245 50% 22%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 38 90% 58%;
+  --accent-hover: 38 90% 50%;
+  --accent-subtle: 35 70% 20%;
+  --accent-foreground: 20 40% 12%;
+  --background: 222 47% 7%;
+  --background-subtle: 222 40% 10%;
+  --surface: 222 35% 12%;
+  --surface-elevated: 222 30% 16%;
+  --text-primary: 210 40% 98%;
+  --text-secondary: 215 20% 74%;
+  --text-muted: 215 16% 60%;
+  --text-tertiary: 215 16% 60%;
+  --text-inverse: 222 47% 10%;
+  --text-on-primary: 0 0% 100%;
+  --border: 222 15% 22%;
+  --border-light: 222 15% 18%;
+  --border-strong: 222 15% 30%;
+  --success: 152 50% 46%;
+  --success-subtle: 152 50% 18%;
+  --warning: 38 92% 58%;
+  --warning-subtle: 38 50% 18%;
+  --danger: 0 72% 62%;
+  --danger-subtle: 0 50% 20%;
+  --info: 217 91% 65%;
+  --info-subtle: 217 50% 20%;
+  --disabled: 222 15% 22%;
+  --disabled-foreground: 220 8% 55%;
+  --skeleton: 222 15% 22%;
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
