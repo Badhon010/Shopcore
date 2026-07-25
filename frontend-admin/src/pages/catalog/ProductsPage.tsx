@@ -110,7 +110,7 @@ export function ProductsPage() {
       key: 'status',
       header: 'Status',
       cell: (p) => {
-        const cfg = statusConfig[p.status]
+        const cfg = statusConfig[p.status] ?? { label: p.status, variant: 'secondary' as StatusVariant }
         return <Badge variant={cfg.variant}>{cfg.label}</Badge>
       },
     },

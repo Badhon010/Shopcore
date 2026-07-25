@@ -61,7 +61,7 @@ export const navigationSections: NavigationSection[] = [
   {
     label: 'System',
     items: [
-      { label: 'Analytics', icon: BarChart3, available: false },
+      { label: 'Analytics', icon: BarChart3, available: true, to: '/analytics' },
       { label: 'Settings', icon: Settings2, available: true, to: '/settings' },
     ],
   },

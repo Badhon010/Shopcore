@@ -40,6 +40,7 @@ const NotificationsPage = lazy(() => import('@/pages/notifications/Notifications
 
 // System
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
+const AnalyticsPage = lazy(() => import('@/pages/analytics/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })))
 
 function PageFallback() {
   return (
@@ -107,6 +108,7 @@ export const router = createBrowserRouter([
       { path: '/notifications', element: withSuspense(NotificationsPage) },
 
       // System
+      { path: '/analytics', element: withSuspense(AnalyticsPage) },
       { path: '/settings', element: withSuspense(SettingsPage) },
     ],
   },

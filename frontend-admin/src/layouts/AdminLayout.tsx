@@ -65,7 +65,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="border-t border-border p-4">
         <p className="px-3 text-caption leading-relaxed text-text-muted">
-          Business modules will be enabled as their real API contracts are ready.
+          ShopCore Admin · All systems operational
         </p>
       </div>
     </div>
