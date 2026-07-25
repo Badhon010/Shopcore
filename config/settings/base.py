@@ -1,7 +1,6 @@
 """Base settings shared across all environments."""
 from __future__ import annotations
 
-import logging
 from datetime import timedelta
 from pathlib import Path
 

@@ -1,11 +1,15 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   BarChart3,
+  Bell,
   Boxes,
   ClipboardList,
   LayoutDashboard,
   Megaphone,
+  PackageSearch,
   Settings2,
+  Star,
+  Tag,
   Users,
 } from 'lucide-react'
 
@@ -14,6 +18,7 @@ export interface NavigationItem {
   icon: LucideIcon
   available: boolean
   to?: string
+  children?: NavigationItem[]
 }
 
 export interface NavigationSection {
@@ -23,18 +28,41 @@ export interface NavigationSection {
 
 export const navigationSections: NavigationSection[] = [
   {
-    label: 'Workspace',
-    items: [{ label: 'Overview', icon: LayoutDashboard, available: true, to: '/' }],
+    label: 'Overview',
+    items: [
+      { label: 'Dashboard', icon: LayoutDashboard, available: true, to: '/' },
+    ],
   },
   {
-    label: 'Coming next',
+    label: 'Catalog',
     items: [
-      { label: 'Catalog', icon: Boxes, available: false },
-      { label: 'Orders', icon: ClipboardList, available: false },
-      { label: 'Customers', icon: Users, available: false },
-      { label: 'Marketing', icon: Megaphone, available: false },
+      { label: 'Products', icon: Boxes, available: true, to: '/catalog/products' },
+      { label: 'Categories', icon: Tag, available: true, to: '/catalog/categories' },
+      { label: 'Brands', icon: Star, available: true, to: '/catalog/brands' },
+      { label: 'Inventory', icon: PackageSearch, available: true, to: '/catalog/inventory' },
+    ],
+  },
+  {
+    label: 'Commerce',
+    items: [
+      { label: 'Orders', icon: ClipboardList, available: true, to: '/orders' },
+      { label: 'Customers', icon: Users, available: true, to: '/customers' },
+      { label: 'Coupons', icon: Tag, available: true, to: '/coupons' },
+    ],
+  },
+  {
+    label: 'Engagement',
+    items: [
+      { label: 'Reviews', icon: Star, available: true, to: '/reviews' },
+      { label: 'Marketing', icon: Megaphone, available: true, to: '/marketing' },
+      { label: 'Notifications', icon: Bell, available: true, to: '/notifications' },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
       { label: 'Analytics', icon: BarChart3, available: false },
-      { label: 'Settings', icon: Settings2, available: false },
+      { label: 'Settings', icon: Settings2, available: true, to: '/settings' },
     ],
   },
 ]

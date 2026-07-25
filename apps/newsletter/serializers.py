@@ -26,3 +26,14 @@ class NewsletterSubscribeSerializer(serializers.Serializer):
             subscriber.active = True
             subscriber.save(update_fields=["active", "updated_at"])
         return subscriber
+
+
+class NewsletterSubscriberAdminSerializer(serializers.ModelSerializer):
+    """Admin serializer for managing subscribers."""
+
+    subscribed_at = serializers.DateTimeField(source="created_at", read_only=True)
+
+    class Meta:
+        model = NewsletterSubscriber
+        fields = ["id", "email", "active", "subscribed_at", "created_at"]
+        read_only_fields = ["id", "email", "subscribed_at", "created_at"]

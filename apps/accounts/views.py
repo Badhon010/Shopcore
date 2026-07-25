@@ -33,6 +33,7 @@ from apps.accounts.services import (
     set_default_address,
     verify_email,
 )
+from apps.common.pagination import StandardResultsSetPagination
 from apps.common.permissions import IsOwner
 from apps.common.throttling import (
     LoginRateThrottle,
@@ -296,3 +297,38 @@ class SetDefaultAddressView(APIView):
             )
         updated = set_default_address(request.user, address)
         return Response(AddressSerializer(updated).data)
+
+
+class AdminUserListView(generics.ListAPIView):
+    """Staff-only: list all users."""
+
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAdminUser]
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        from django.db.models import Q
+
+        qs = User.objects.all().order_by("-date_joined")
+        search = self.request.query_params.get("search", "")
+        if search:
+            qs = qs.filter(
+                Q(email__icontains=search)
+                | Q(first_name__icontains=search)
+                | Q(last_name__icontains=search)
+            )
+        is_active = self.request.query_params.get("is_active")
+        if is_active is not None:
+            qs = qs.filter(is_active=is_active.lower() == "true")
+        is_staff = self.request.query_params.get("is_staff")
+        if is_staff is not None:
+            qs = qs.filter(is_staff=is_staff.lower() == "true")
+        return qs
+
+
+class AdminUserDetailView(generics.RetrieveAPIView):
+    """Staff-only: retrieve a specific user."""
+
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAdminUser]
+    queryset = User.objects.all()

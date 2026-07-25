@@ -1,11 +1,16 @@
 from __future__ import annotations
-from rest_framework import permissions, status
+
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from apps.cart.services import get_or_create_cart, get_cart_summary
-from apps.coupons.serializers import ApplyCouponSerializer
-from apps.coupons.services import validate_and_apply_coupon
+
+from apps.cart.services import get_cart_summary, get_or_create_cart
+from apps.common.pagination import StandardResultsSetPagination
+from apps.common.permissions import IsStaffUser
 from apps.common.throttling import CouponApplyThrottle
+from apps.coupons.models import Coupon
+from apps.coupons.serializers import ApplyCouponSerializer, CouponSerializer
+from apps.coupons.services import validate_and_apply_coupon
 
 
 class ApplyCouponView(APIView):
@@ -44,3 +49,29 @@ class ApplyCouponView(APIView):
             "discount_amount": str(discount_amount),
             "subtotal_after_discount": str(summary["subtotal"] - discount_amount),
         })
+
+
+class AdminCouponListCreateView(generics.ListCreateAPIView):
+    """Staff-only: list and create coupons."""
+
+    serializer_class = CouponSerializer
+    permission_classes = [IsStaffUser]
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        qs = Coupon.objects.all()
+        search = self.request.query_params.get("search", "")
+        if search:
+            qs = qs.filter(code__icontains=search)
+        is_active = self.request.query_params.get("is_active")
+        if is_active is not None:
+            qs = qs.filter(is_active=is_active.lower() == "true")
+        return qs
+
+
+class AdminCouponDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Staff-only: retrieve, update, or delete a coupon."""
+
+    serializer_class = CouponSerializer
+    permission_classes = [IsStaffUser]
+    queryset = Coupon.objects.all()

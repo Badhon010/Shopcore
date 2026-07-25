@@ -64,3 +64,38 @@ class MyReviewDetailView(generics.RetrieveUpdateDestroyAPIView):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         return Response(ReviewSerializer(instance).data)
+
+
+class AdminReviewListView(generics.ListAPIView):
+    """Staff-only: list all reviews."""
+
+    serializer_class = ReviewSerializer
+    permission_classes = [permissions.IsAdminUser]
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        from django.db.models import Q
+
+        qs = Review.objects.select_related("user", "product").order_by("-created_at")
+        search = self.request.query_params.get("search", "")
+        if search:
+            qs = qs.filter(
+                Q(user__email__icontains=search)
+                | Q(product__name__icontains=search)
+                | Q(title__icontains=search)
+            )
+        is_approved = self.request.query_params.get("is_approved")
+        if is_approved is not None:
+            qs = qs.filter(is_approved=is_approved.lower() == "true")
+        rating = self.request.query_params.get("rating")
+        if rating:
+            qs = qs.filter(rating=rating)
+        return qs
+
+
+class AdminReviewDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Staff-only: approve, reject, or delete a review."""
+
+    serializer_class = ReviewSerializer
+    permission_classes = [permissions.IsAdminUser]
+    queryset = Review.objects.select_related("user", "product").all()

@@ -123,3 +123,28 @@ class StaffOrderTransitionView(APIView):
                 status=400,
             )
         return Response(OrderSerializer(order).data)
+
+
+class AdminOrderListView(generics.ListAPIView):
+    """Staff-only: list ALL orders across all users."""
+
+    serializer_class = OrderSerializer
+    permission_classes = [IsStaffUser]
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        from django.db.models import Q
+
+        qs = Order.objects.select_related("user").order_by("-created_at")
+        search = self.request.query_params.get("search", "")
+        if search:
+            qs = qs.filter(
+                Q(order_number__icontains=search) | Q(user__email__icontains=search)
+            )
+        order_status = self.request.query_params.get("status")
+        if order_status:
+            qs = qs.filter(status=order_status)
+        payment_status = self.request.query_params.get("payment_status")
+        if payment_status:
+            qs = qs.filter(payment_status=payment_status)
+        return qs

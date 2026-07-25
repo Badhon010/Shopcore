@@ -3,11 +3,16 @@ from __future__ import annotations
 
 import logging
 
-from rest_framework import permissions, status
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.newsletter.serializers import NewsletterSubscribeSerializer
+from apps.common.pagination import StandardResultsSetPagination
+from apps.newsletter.models import NewsletterSubscriber
+from apps.newsletter.serializers import (
+    NewsletterSubscribeSerializer,
+    NewsletterSubscriberAdminSerializer,
+)
 
 logger = logging.getLogger("shopcore.newsletter.views")
 
@@ -37,3 +42,29 @@ class NewsletterSubscribeView(APIView):
             {"message": "You're subscribed! Thank you for joining."},
             status=status.HTTP_201_CREATED,
         )
+
+
+class AdminSubscriberListView(generics.ListAPIView):
+    """Staff-only: list all newsletter subscribers."""
+
+    serializer_class = NewsletterSubscriberAdminSerializer
+    permission_classes = [permissions.IsAdminUser]
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        qs = NewsletterSubscriber.objects.all()
+        search = self.request.query_params.get("search", "")
+        if search:
+            qs = qs.filter(email__icontains=search)
+        active = self.request.query_params.get("active")
+        if active is not None:
+            qs = qs.filter(active=active.lower() == "true")
+        return qs
+
+
+class AdminSubscriberDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Staff-only: retrieve, toggle, or delete a subscriber."""
+
+    serializer_class = NewsletterSubscriberAdminSerializer
+    permission_classes = [permissions.IsAdminUser]
+    queryset = NewsletterSubscriber.objects.all()

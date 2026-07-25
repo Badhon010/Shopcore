@@ -7,6 +7,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from apps.accounts.views import (
     AddressDetailView,
     AddressListCreateView,
+    AdminUserDetailView,
+    AdminUserListView,
     ChangePasswordView,
     LoginView,
     LogoutView,
@@ -40,4 +42,7 @@ urlpatterns = [
     path("addresses/", AddressListCreateView.as_view(), name="address-list"),
     path("addresses/<int:pk>/", AddressDetailView.as_view(), name="address-detail"),
     path("addresses/<int:pk>/set-default/", SetDefaultAddressView.as_view(), name="address-set-default"),
+    # Admin
+    path("admin/users/", AdminUserListView.as_view(), name="admin-user-list"),
+    path("admin/users/<int:pk>/", AdminUserDetailView.as_view(), name="admin-user-detail"),
 ]

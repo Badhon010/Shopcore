@@ -1,22 +1,46 @@
-import { forwardRef, type HTMLAttributes } from 'react'
 import { cn } from '@/utils/cn'
+import type { HTMLAttributes, ReactNode } from 'react'
 
-export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('rounded-lg border border-border bg-surface shadow-xs', className)} {...props} />
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
+  children: ReactNode
+  noPadding?: boolean
+}
+
+export function Card({ className, children, noPadding, ...props }: CardProps) {
+  return (
+    <div
+      className={cn(
+        'rounded-xl border border-border bg-surface shadow-xs',
+        !noPadding && 'p-6',
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </div>
   )
-)
-Card.displayName = 'Card'
+}
 
-export const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => <div ref={ref} className={cn('p-6', className)} {...props} />
-)
-CardHeader.displayName = 'CardHeader'
-
-export const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingElement>>(
-  ({ className, ...props }, ref) => (
-    // eslint-disable-next-line jsx-a11y/heading-has-content -- content provided via {...props} at call site
-    <h2 ref={ref} className={cn('text-heading-sm font-semibold text-text-primary', className)} {...props} />
+export function CardHeader({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={cn('flex items-center justify-between gap-4', className)} {...props}>
+      {children}
+    </div>
   )
-)
-CardTitle.displayName = 'CardTitle'
+}
+
+export function CardTitle({ className, children, ...props }: HTMLAttributes<HTMLHeadingElement>) {
+  return (
+    <h2 className={cn('text-heading-sm font-semibold text-text-primary', className)} {...props}>
+      {children}
+    </h2>
+  )
+}
+
+export function CardDescription({ className, children, ...props }: HTMLAttributes<HTMLParagraphElement>) {
+  return (
+    <p className={cn('text-body-sm text-text-secondary', className)} {...props}>
+      {children}
+    </p>
+  )
+}
