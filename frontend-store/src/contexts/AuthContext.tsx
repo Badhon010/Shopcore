@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // old one. Persist the new token immediately or the next refresh will
         // send a revoked token and log the user out.
         const response = await axios.post<{ access: string; refresh?: string }>(
-          `${baseURL}/accounts/token/refresh/`,
+          `${baseURL.replace(/\/+$/, '')}/accounts/token/refresh/`,
           { refresh: refreshToken }
         )
         if (response.data.refresh) {

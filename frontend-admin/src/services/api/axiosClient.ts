@@ -82,7 +82,7 @@ async function attemptRefresh(): Promise<string> {
 
   try {
     const response = await axios.post<{ access: string; refresh?: string }>(
-      `${env.apiBaseUrl}/accounts/token/refresh/`,
+      `${env.apiBaseUrl.replace(/\/+$/, '')}/accounts/token/refresh/`,
       { refresh: refreshToken }
     )
     if (response.data.refresh) {

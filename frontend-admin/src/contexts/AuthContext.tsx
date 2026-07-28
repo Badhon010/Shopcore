@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { default: axios } = await import('axios')
         const baseURL = import.meta.env['VITE_API_BASE_URL'] ?? '/api'
         const response = await axios.post<{ access: string; refresh?: string }>(
-          `${baseURL}/accounts/token/refresh/`,
+          `${baseURL.replace(/\/+$/, '')}/accounts/token/refresh/`,
           { refresh: refreshToken }
         )
         if (response.data.refresh) tokenStorage.setRefreshToken(response.data.refresh)

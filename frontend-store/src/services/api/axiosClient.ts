@@ -111,7 +111,7 @@ async function attemptRefresh(): Promise<string> {
 
   try {
     const response = await axios.post<{ access: string; refresh?: string }>(
-      `${BASE_URL}/accounts/token/refresh/`,
+      `${BASE_URL.replace(/\/+$/, '')}/accounts/token/refresh/`,
       { refresh: refreshToken }
     )
     // Persist the rotated refresh token immediately.
