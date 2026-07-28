@@ -139,6 +139,48 @@ class ResendVerificationSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
 
+class AdminUserUpdateSerializer(serializers.ModelSerializer):
+    """Partial update of a user's fields by an admin. Never exposes password."""
+
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "is_active", "is_staff", "is_email_verified"]
+
+
+class AdminUserDetailSerializer(serializers.ModelSerializer):
+    """Read-only admin view of a user — no password fields ever."""
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "phone_number",
+            "is_active",
+            "is_staff",
+            "is_email_verified",
+            "date_joined",
+            "last_login",
+        ]
+        read_only_fields = fields
+
+
+class AdminBulkActionSerializer(serializers.Serializer):
+    """Validate a bulk action request on a list of user IDs."""
+
+    ACTION_CHOICES = [
+        ("activate", "Activate"),
+        ("deactivate", "Deactivate"),
+        ("promote_staff", "Promote to Staff"),
+        ("remove_staff", "Remove Staff"),
+    ]
+
+    action = serializers.ChoiceField(choices=ACTION_CHOICES)
+    ids = serializers.ListField(child=serializers.IntegerField(min_value=1), min_length=1)
+
+
 class AddressSerializer(serializers.ModelSerializer):
     """Full address representation."""
 

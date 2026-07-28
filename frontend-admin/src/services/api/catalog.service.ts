@@ -1,97 +1,162 @@
 import { axiosClient } from './axiosClient'
 import { endpoints } from './endpoints'
-import type { Brand, Category, Product } from '@/types/models'
-import type { PaginatedResponse } from '@/types/api'
+import type { AdminProduct, Category, Brand, Banner, ProductVariant, ProductImage } from '@/types/models'
+import type { PaginatedResponse, ListParams } from '@/types/api'
 
-export interface ProductListParams {
-  page?: number
-  page_size?: number
-  search?: string
-  category?: number
-  brand?: number
+export interface AdminProductParams extends ListParams {
   status?: string
-  is_featured?: boolean
-  ordering?: string
+  category?: string
+  brand?: string
 }
 
 export const catalogService = {
-  // Products
-  async getProducts(params?: ProductListParams): Promise<PaginatedResponse<Product>> {
-    const res = await axiosClient.get<PaginatedResponse<Product>>(endpoints.catalog.products(), { params })
+  // ── Products ────────────────────────────────────────────
+  async listProducts(params?: AdminProductParams): Promise<PaginatedResponse<AdminProduct>> {
+    const res = await axiosClient.get<PaginatedResponse<AdminProduct>>(
+      endpoints.catalog.adminProducts(), { params }
+    )
     return res.data
   },
 
-  async getProduct(slug: string): Promise<Product> {
-    const res = await axiosClient.get<Product>(endpoints.catalog.product(slug))
+  async getProduct(slug: string): Promise<AdminProduct> {
+    const res = await axiosClient.get<AdminProduct>(endpoints.catalog.adminProduct(slug))
     return res.data
   },
 
-  async createProduct(data: Partial<Product>): Promise<Product> {
-    const res = await axiosClient.post<Product>(endpoints.catalog.products(), data)
+  async createProduct(data: FormData | Partial<AdminProduct>): Promise<AdminProduct> {
+    const res = await axiosClient.post<AdminProduct>(endpoints.catalog.adminProducts(), data, {
+      headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    })
     return res.data
   },
 
-  async updateProduct(slug: string, data: Partial<Product>): Promise<Product> {
-    const res = await axiosClient.patch<Product>(endpoints.catalog.product(slug), data)
+  async updateProduct(slug: string, data: Partial<AdminProduct>): Promise<AdminProduct> {
+    const res = await axiosClient.patch<AdminProduct>(endpoints.catalog.adminProduct(slug), data)
     return res.data
   },
 
   async deleteProduct(slug: string): Promise<void> {
-    await axiosClient.delete(endpoints.catalog.product(slug))
+    await axiosClient.delete(endpoints.catalog.adminProduct(slug))
   },
 
-  // Categories
-  async getCategories(params?: { page?: number; page_size?: number; search?: string }): Promise<PaginatedResponse<Category>> {
-    const res = await axiosClient.get<PaginatedResponse<Category>>(endpoints.catalog.categories(), { params })
+  // ── Variants ────────────────────────────────────────────
+  async listVariants(productSlug: string): Promise<ProductVariant[]> {
+    const res = await axiosClient.get<ProductVariant[]>(endpoints.catalog.adminVariants(productSlug))
     return res.data
   },
 
-  async getCategoryTree(): Promise<Category[]> {
-    const res = await axiosClient.get<Category[]>(endpoints.catalog.categoryTree())
+  async createVariant(productSlug: string, data: Partial<ProductVariant>): Promise<ProductVariant> {
+    const res = await axiosClient.post<ProductVariant>(endpoints.catalog.adminVariants(productSlug), data)
     return res.data
   },
 
-  async getCategory(id: number): Promise<Category> {
-    const res = await axiosClient.get<Category>(endpoints.catalog.category(id))
+  async updateVariant(productSlug: string, pk: string, data: Partial<ProductVariant>): Promise<ProductVariant> {
+    const res = await axiosClient.patch<ProductVariant>(endpoints.catalog.adminVariant(productSlug, pk), data)
     return res.data
   },
 
-  async createCategory(data: Partial<Category>): Promise<Category> {
-    const res = await axiosClient.post<Category>(endpoints.catalog.categories(), data)
+  async deleteVariant(productSlug: string, pk: string): Promise<void> {
+    await axiosClient.delete(endpoints.catalog.adminVariant(productSlug, pk))
+  },
+
+  // ── Images ──────────────────────────────────────────────
+  async listImages(productSlug: string): Promise<ProductImage[]> {
+    const res = await axiosClient.get<ProductImage[]>(endpoints.catalog.adminImages(productSlug))
     return res.data
   },
 
-  async updateCategory(id: number, data: Partial<Category>): Promise<Category> {
-    const res = await axiosClient.patch<Category>(endpoints.catalog.category(id), data)
+  async uploadImage(productSlug: string, data: FormData): Promise<ProductImage> {
+    const res = await axiosClient.post<ProductImage>(endpoints.catalog.adminImages(productSlug), data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
     return res.data
   },
 
-  async deleteCategory(id: number): Promise<void> {
-    await axiosClient.delete(endpoints.catalog.category(id))
-  },
-
-  // Brands
-  async getBrands(params?: { page?: number; page_size?: number; search?: string }): Promise<PaginatedResponse<Brand>> {
-    const res = await axiosClient.get<PaginatedResponse<Brand>>(endpoints.catalog.brands(), { params })
+  async updateImage(productSlug: string, pk: string, data: Partial<ProductImage>): Promise<ProductImage> {
+    const res = await axiosClient.patch<ProductImage>(endpoints.catalog.adminImage(productSlug, pk), data)
     return res.data
   },
 
-  async getBrand(id: number): Promise<Brand> {
-    const res = await axiosClient.get<Brand>(endpoints.catalog.brand(id))
+  async deleteImage(productSlug: string, pk: string): Promise<void> {
+    await axiosClient.delete(endpoints.catalog.adminImage(productSlug, pk))
+  },
+
+  // ── Categories ──────────────────────────────────────────
+  async listCategories(params?: ListParams): Promise<PaginatedResponse<Category>> {
+    const res = await axiosClient.get<PaginatedResponse<Category>>(
+      endpoints.catalog.adminCategories(), { params }
+    )
     return res.data
   },
 
-  async createBrand(data: Partial<Brand>): Promise<Brand> {
-    const res = await axiosClient.post<Brand>(endpoints.catalog.brands(), data)
+  async getCategory(pk: string): Promise<Category> {
+    const res = await axiosClient.get<Category>(endpoints.catalog.adminCategory(pk))
     return res.data
   },
 
-  async updateBrand(id: number, data: Partial<Brand>): Promise<Brand> {
-    const res = await axiosClient.patch<Brand>(endpoints.catalog.brand(id), data)
+  async createCategory(data: FormData | Partial<Category>): Promise<Category> {
+    const res = await axiosClient.post<Category>(endpoints.catalog.adminCategories(), data, {
+      headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    })
     return res.data
   },
 
-  async deleteBrand(id: number): Promise<void> {
-    await axiosClient.delete(endpoints.catalog.brand(id))
+  async updateCategory(pk: string, data: Partial<Category>): Promise<Category> {
+    const res = await axiosClient.patch<Category>(endpoints.catalog.adminCategory(pk), data)
+    return res.data
+  },
+
+  async deleteCategory(pk: string): Promise<void> {
+    await axiosClient.delete(endpoints.catalog.adminCategory(pk))
+  },
+
+  // ── Brands ──────────────────────────────────────────────
+  async listBrands(params?: ListParams): Promise<PaginatedResponse<Brand>> {
+    const res = await axiosClient.get<PaginatedResponse<Brand>>(
+      endpoints.catalog.adminBrands(), { params }
+    )
+    return res.data
+  },
+
+  async createBrand(data: FormData | Partial<Brand>): Promise<Brand> {
+    const res = await axiosClient.post<Brand>(endpoints.catalog.adminBrands(), data, {
+      headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    })
+    return res.data
+  },
+
+  async updateBrand(pk: string, data: Partial<Brand>): Promise<Brand> {
+    const res = await axiosClient.patch<Brand>(endpoints.catalog.adminBrand(pk), data)
+    return res.data
+  },
+
+  async deleteBrand(pk: string): Promise<void> {
+    await axiosClient.delete(endpoints.catalog.adminBrand(pk))
+  },
+
+  // ── Banners ─────────────────────────────────────────────
+  async listBanners(params?: ListParams): Promise<PaginatedResponse<Banner>> {
+    const res = await axiosClient.get<PaginatedResponse<Banner>>(
+      endpoints.catalog.adminBanners(), { params }
+    )
+    return res.data
+  },
+
+  async createBanner(data: FormData): Promise<Banner> {
+    const res = await axiosClient.post<Banner>(endpoints.catalog.adminBanners(), data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return res.data
+  },
+
+  async updateBanner(pk: string, data: Partial<Banner> | FormData): Promise<Banner> {
+    const res = await axiosClient.patch<Banner>(endpoints.catalog.adminBanner(pk), data, {
+      headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    })
+    return res.data
+  },
+
+  async deleteBanner(pk: string): Promise<void> {
+    await axiosClient.delete(endpoints.catalog.adminBanner(pk))
   },
 }

@@ -16,3 +16,13 @@ class NotificationSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+
+class NotificationBulkActionSerializer(serializers.Serializer):
+    """Serializer for bulk actions that take a list of notification IDs."""
+
+    ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        min_length=1,
+        help_text="List of notification IDs to act on.",
+    )

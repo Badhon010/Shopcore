@@ -1,34 +1,38 @@
 import { axiosClient } from './axiosClient'
 import { endpoints } from './endpoints'
 import type { Review } from '@/types/models'
-import type { PaginatedResponse } from '@/types/api'
+import type { PaginatedResponse, ListParams } from '@/types/api'
 
-export interface ReviewListParams {
-  page?: number
-  page_size?: number
-  search?: string
+export interface ReviewParams extends ListParams {
   is_approved?: boolean
-  rating?: number
-  ordering?: string
+  min_rating?: number
+  max_rating?: number
 }
 
 export const reviewsService = {
-  async getReviews(params?: ReviewListParams): Promise<PaginatedResponse<Review>> {
-    const res = await axiosClient.get<PaginatedResponse<Review>>(endpoints.reviews.adminList(), { params })
+  async listReviews(params?: ReviewParams): Promise<PaginatedResponse<Review>> {
+    const res = await axiosClient.get<PaginatedResponse<Review>>(
+      endpoints.reviews.adminList(), { params }
+    )
     return res.data
   },
 
-  async approveReview(id: number): Promise<Review> {
-    const res = await axiosClient.patch<Review>(endpoints.reviews.adminDetail(id), { is_approved: true })
+  async getReview(pk: string): Promise<Review> {
+    const res = await axiosClient.get<Review>(endpoints.reviews.adminDetail(pk))
     return res.data
   },
 
-  async rejectReview(id: number): Promise<Review> {
-    const res = await axiosClient.patch<Review>(endpoints.reviews.adminDetail(id), { is_approved: false })
+  async approveReview(pk: string): Promise<Review> {
+    const res = await axiosClient.patch<Review>(endpoints.reviews.adminDetail(pk), { is_approved: true })
     return res.data
   },
 
-  async deleteReview(id: number): Promise<void> {
-    await axiosClient.delete(endpoints.reviews.adminDetail(id))
+  async rejectReview(pk: string): Promise<Review> {
+    const res = await axiosClient.patch<Review>(endpoints.reviews.adminDetail(pk), { is_approved: false })
+    return res.data
+  },
+
+  async deleteReview(pk: string): Promise<void> {
+    await axiosClient.delete(endpoints.reviews.adminDetail(pk))
   },
 }

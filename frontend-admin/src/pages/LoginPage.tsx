@@ -1,109 +1,90 @@
-import { useState } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, LockKeyhole } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
-import { FormField } from '@/components/ui/FormField'
-import { IconButton } from '@/components/ui/IconButton'
-import { Input } from '@/components/ui/Input'
-import { applyServerErrors } from '@/services/api/axiosClient'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { LogIn } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { emailSchema } from '@/utils/validators'
+import { useToast } from '@/contexts/ToastContext'
+import { FormField } from '@/components/ui/FormField'
+import { Input } from '@/components/ui/Input'
+import { Button } from '@/components/ui/Button'
+import { applyServerErrors } from '@/services/api/axiosClient'
 import type { ApiError } from '@/types/api'
+import { ROUTES } from '@/constants/routes'
 
-const loginSchema = z.object({
-  email: emailSchema,
+const schema = z.object({
+  email:    z.string().email('Enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
 })
-
-type LoginFormData = z.infer<typeof loginSchema>
+type FormValues = z.infer<typeof schema>
 
 export function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false)
   const { login } = useAuth()
+  const { toast } = useToast()
   const navigate = useNavigate()
   const location = useLocation()
-  const form = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? ROUTES.DASHBOARD
+
+  const { register, handleSubmit, setError, formState: { errors, isSubmitting } } = useForm<FormValues>({
+    resolver: zodResolver(schema),
   })
 
-  const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/'
-
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (values: FormValues) => {
     try {
-      await login(data)
+      await login(values)
       navigate(from, { replace: true })
-    } catch (error) {
-      const apiError = error as ApiError
-      applyServerErrors(form.setError, apiError.fieldErrors)
-      if (!apiError.fieldErrors) {
-        form.setError('root', { message: apiError.message || 'Unable to sign in.' })
+    } catch (err) {
+      const apiErr = err as ApiError
+      if (apiErr.fieldErrors) {
+        applyServerErrors(setError, apiErr.fieldErrors)
+      } else {
+        toast({ title: 'Login failed', description: apiErr.message, variant: 'destructive' })
       }
     }
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="space-y-5">
-      <div className="mb-7">
-        <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-light text-primary">
-          <LockKeyhole className="h-5 w-5" aria-hidden />
-        </div>
-        <h1 className="text-heading-md font-semibold text-text-primary">Welcome back</h1>
-        <p className="mt-1 text-body-sm text-text-secondary">Sign in with your ShopCore staff account.</p>
+    <div className="admin-surface p-6">
+      <div className="mb-6">
+        <h2 className="text-base font-semibold text-text-primary">Sign in to your account</h2>
+        <p className="mt-1 text-sm text-text-secondary">Staff credentials required</p>
       </div>
 
-      {form.formState.errors.root && (
-        <div role="alert" className="rounded-lg border border-danger/20 bg-danger-subtle p-3 text-body-sm text-danger">
-          {form.formState.errors.root.message}
-        </div>
-      )}
-
-      <FormField label="Email" required error={form.formState.errors.email?.message}>
-        {(id, errorId) => (
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+        <FormField label="Email address" htmlFor="email" error={errors.email?.message} required>
           <Input
-            id={id}
+            id="email"
             type="email"
             autoComplete="email"
+            autoFocus
+            error={!!errors.email}
             placeholder="you@company.com"
-            error={!!form.formState.errors.email}
-            errorId={errorId}
-            {...form.register('email')}
+            {...register('email')}
           />
-        )}
-      </FormField>
+        </FormField>
 
-      <FormField label="Password" required error={form.formState.errors.password?.message}>
-        {(id, errorId) => (
-          <div className="relative">
-            <Input
-              id={id}
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
-              placeholder="Your password"
-              error={!!form.formState.errors.password}
-              errorId={errorId}
-              className="pr-12"
-              {...form.register('password')}
-            />
-            <IconButton
-              type="button"
-              label={showPassword ? 'Hide password' : 'Show password'}
-              size="sm"
-              className="absolute right-1 top-1.5"
-              onClick={() => setShowPassword((current) => !current)}
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </IconButton>
-          </div>
-        )}
-      </FormField>
+        <FormField label="Password" htmlFor="password" error={errors.password?.message} required>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            error={!!errors.password}
+            placeholder="••••••••"
+            {...register('password')}
+          />
+        </FormField>
 
-      <Button type="submit" className="w-full" size="lg" isLoading={form.formState.isSubmitting} loadingText="Signing in…">
-        Sign in
-      </Button>
-    </form>
+        <Button
+          type="submit"
+          className="w-full"
+          isLoading={isSubmitting}
+          loadingText="Signing in…"
+          size="lg"
+        >
+          <LogIn className="h-4 w-4" />
+          Sign in
+        </Button>
+      </form>
+    </div>
   )
 }

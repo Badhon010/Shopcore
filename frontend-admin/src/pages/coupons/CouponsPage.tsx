@@ -22,15 +22,16 @@ import type { Coupon } from '@/types/models'
 import type { ApiError } from '@/types/api'
 
 const couponSchema = z.object({
-  code: z.string().min(1, 'Code is required'),
-  discount_type: z.enum(['PERCENTAGE', 'FIXED_AMOUNT']),
-  discount_value: z.string().min(1, 'Value is required'),
-  minimum_order_amount: z.string().optional(),
-  max_discount_amount: z.string().optional(),
-  valid_from: z.string().min(1, 'Start date is required'),
-  valid_until: z.string().min(1, 'End date is required'),
-  usage_limit_total: z.string().optional(),
-  is_active: z.boolean().default(true),
+  code:                       z.string().min(1, 'Code is required'),
+  discount_type:              z.enum(['PERCENTAGE', 'FIXED_AMOUNT']),
+  discount_value:             z.string().min(1, 'Value is required'),
+  minimum_order_amount:       z.string().optional(),
+  max_discount_amount:        z.string().optional(),
+  valid_from:                 z.string().min(1, 'Start date is required'),
+  valid_until:                z.string().min(1, 'End date is required'),
+  usage_limit_total:          z.string().optional(),
+  usage_limit_per_user:   z.string().optional(),
+  is_active:                  z.boolean().default(true),
 })
 type CouponFormData = z.infer<typeof couponSchema>
 
@@ -76,7 +77,8 @@ export function CouponsPage() {
       max_discount_amount: c.max_discount_amount ?? '',
       valid_from: toDatetimeLocal(c.valid_from),
       valid_until: toDatetimeLocal(c.valid_until),
-      usage_limit_total: c.usage_limit_total != null ? String(c.usage_limit_total) : '',
+      usage_limit_total:        c.usage_limit_total        != null ? String(c.usage_limit_total)        : '',
+      usage_limit_per_user: c.usage_limit_per_user != null ? String(c.usage_limit_per_user) : '',
       is_active: c.is_active,
     })
     setModalOpen(true)
@@ -89,7 +91,8 @@ export function CouponsPage() {
         code: d.code.toUpperCase(),
         minimum_order_amount: d.minimum_order_amount || null,
         max_discount_amount: d.max_discount_amount || null,
-        usage_limit_total: d.usage_limit_total ? parseInt(d.usage_limit_total) : null,
+        usage_limit_total:        d.usage_limit_total        ? parseInt(d.usage_limit_total)        : null,
+        usage_limit_per_user: d.usage_limit_per_user ? parseInt(d.usage_limit_per_user) : null,
       }
       return editing
         ? couponsService.updateCoupon(editing.id, payload)
@@ -240,8 +243,11 @@ export function CouponsPage() {
                 {(id) => <Input id={id} type="number" step="0.01" placeholder="Optional cap" {...form.register('max_discount_amount')} />}
               </FormField>
             )}
-            <FormField label="Usage Limit">
-              {(id) => <Input id={id} type="number" placeholder="Unlimited if blank" {...form.register('usage_limit_total')} />}
+            <FormField label="Total Usage Limit" helperText="All customers combined">
+              {(id) => <Input id={id} type="number" min="1" placeholder="Unlimited" {...form.register('usage_limit_total')} />}
+            </FormField>
+            <FormField label="Per-Customer Limit" helperText="Max uses per individual customer">
+              {(id) => <Input id={id} type="number" min="1" placeholder="Unlimited" {...form.register('usage_limit_per_user')} />}
             </FormField>
             <FormField label="Valid From" required error={form.formState.errors.valid_from?.message}>
               {(id, errorId) => <Input id={id} errorId={errorId} error={!!form.formState.errors.valid_from} type="datetime-local" {...form.register('valid_from')} />}

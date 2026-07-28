@@ -1,61 +1,50 @@
+import { type ImgHTMLAttributes } from 'react'
 import { cn } from '@/utils/cn'
 
-interface AvatarProps {
+interface AvatarProps extends ImgHTMLAttributes<HTMLImageElement> {
   name?: string
-  src?: string | null
-  size?: 'xs' | 'sm' | 'md' | 'lg'
-  className?: string
+  size?: 'sm' | 'md' | 'lg'
 }
 
-const sizeMap = {
-  xs: 'h-6 w-6 text-[10px]',
-  sm: 'h-8 w-8 text-caption',
-  md: 'h-10 w-10 text-body-sm',
-  lg: 'h-12 w-12 text-body-md',
+const SIZE = {
+  sm: 'h-6 w-6 text-[10px]',
+  md: 'h-8 w-8 text-xs',
+  lg: 'h-10 w-10 text-sm',
 }
 
 function getInitials(name?: string): string {
   if (!name) return '?'
-  const parts = name.trim().split(/\s+/)
-  const first = parts[0]
-  if (!first) return '?'
-  if (parts.length === 1) return first.charAt(0).toUpperCase()
-  const last = parts[parts.length - 1]
-  return (first.charAt(0) + (last?.charAt(0) ?? '')).toUpperCase()
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0]?.toUpperCase() ?? '')
+    .join('')
 }
 
-function getColor(name?: string): string {
-  if (!name) return 'hsl(var(--text-muted))'
-  const colors = [
-    'bg-primary-light text-primary',
-    'bg-success-subtle text-success',
-    'bg-warning-subtle text-warning',
-    'bg-info-subtle text-info',
-    'bg-accent-subtle text-accent',
-  ] as const
-  const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  return colors[hash % colors.length] ?? 'bg-primary-light text-primary'
-}
-
-export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
+export function Avatar({ name, size = 'md', src, alt, className }: AvatarProps) {
   const initials = getInitials(name)
-  const colorClass = getColor(name)
+
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={alt ?? name ?? 'Avatar'}
+        className={cn('rounded-full object-cover', SIZE[size], className)}
+      />
+    )
+  }
 
   return (
     <div
+      aria-label={name ?? 'User avatar'}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-full font-semibold',
-        sizeMap[size],
-        !src && colorClass,
+        'inline-flex items-center justify-center rounded-full bg-primary-light font-semibold text-primary',
+        SIZE[size],
         className
       )}
-      aria-label={name}
     >
-      {src ? (
-        <img src={src} alt={name ?? ''} className="h-full w-full rounded-full object-cover" />
-      ) : (
-        <span aria-hidden>{initials}</span>
-      )}
+      {initials}
     </div>
   )
 }

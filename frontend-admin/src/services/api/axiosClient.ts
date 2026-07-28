@@ -1,41 +1,18 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios'
 import type { ApiError } from '@/types/api'
 import { env } from '@/config/env'
-import { endpoints } from './endpoints'
 
+// Access token stored in memory only — never localStorage — to reduce XSS surface.
 let accessToken: string | null = null
+// Shared refresh promise — deduplicates concurrent 401 retries.
 let refreshPromise: Promise<string> | null = null
 
 export function setAccessToken(token: string | null) {
   accessToken = token
 }
 
-export function getAccessToken() {
+export function getAccessToken(): string | null {
   return accessToken
-}
-
-export const tokenStorage = {
-  getRefreshToken(): string | null {
-    try {
-      return localStorage.getItem('shopcore-refresh-token')
-    } catch {
-      return null
-    }
-  },
-  setRefreshToken(token: string) {
-    try {
-      localStorage.setItem('shopcore-refresh-token', token)
-    } catch {
-      console.warn('[AdminAuth] Could not persist refresh token')
-    }
-  },
-  clearRefreshToken() {
-    try {
-      localStorage.removeItem('shopcore-refresh-token')
-    } catch {
-      // Storage can be unavailable in privacy-restricted browsers.
-    }
-  },
 }
 
 export const axiosClient = axios.create({
@@ -44,27 +21,32 @@ export const axiosClient = axios.create({
   timeout: 15000,
 })
 
+// --- Request interceptor: attach Bearer token ---
 axiosClient.interceptors.request.use((config) => {
-  if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`
+  }
   return config
 })
 
+// --- Response interceptor: 401 refresh + error normalisation ---
 axiosClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
 
-    if (error.response?.status === 401 && !originalRequest?._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
+
       if (!refreshPromise) {
         refreshPromise = attemptRefresh()
-          .catch((refreshError) => {
-            if (refreshError instanceof RefreshTokenExpiredError) {
+          .catch((refreshErr) => {
+            if (refreshErr instanceof RefreshTokenExpiredError) {
               setAccessToken(null)
               tokenStorage.clearRefreshToken()
               window.dispatchEvent(new CustomEvent('auth:session-expired'))
             }
-            throw refreshError
+            throw refreshErr
           })
           .finally(() => {
             refreshPromise = null
@@ -89,64 +71,76 @@ axiosClient.interceptors.response.use(
 
 class RefreshTokenExpiredError extends Error {
   readonly name = 'RefreshTokenExpiredError'
+  constructor() {
+    super('Refresh token is invalid or has been revoked')
+  }
 }
 
 async function attemptRefresh(): Promise<string> {
   const refreshToken = tokenStorage.getRefreshToken()
-  if (!refreshToken) throw new RefreshTokenExpiredError('Refresh token is missing')
+  if (!refreshToken) throw new RefreshTokenExpiredError()
 
   try {
     const response = await axios.post<{ access: string; refresh?: string }>(
-      `${env.apiBaseUrl}${endpoints.auth.refresh()}`,
+      `${env.apiBaseUrl}/accounts/token/refresh/`,
       { refresh: refreshToken }
     )
-    if (response.data.refresh) tokenStorage.setRefreshToken(response.data.refresh)
-    return response.data.access
-  } catch (error) {
-    const status = (error as AxiosError).response?.status
-    if (status === 400 || status === 401) {
-      throw new RefreshTokenExpiredError('Refresh token is invalid')
+    if (response.data.refresh) {
+      tokenStorage.setRefreshToken(response.data.refresh)
     }
-    throw error
+    return response.data.access
+  } catch (err) {
+    const status = (err as { response?: { status?: number } })?.response?.status
+    if (status === 401 || status === 400) {
+      throw new RefreshTokenExpiredError()
+    }
+    throw err
   }
 }
 
 function normalizeError(error: AxiosError): ApiError {
-  if (!error.response) {
-    return { status: 0, message: 'Network error. Please check your connection.' }
-  }
+  const status = error.response?.status ?? 0
+  const data = error.response?.data as Record<string, unknown> | undefined
 
-  const status = error.response.status
-  const data = error.response.data as Record<string, unknown>
-  const fieldErrors: Record<string, string[]> = {}
-  let message = 'An error occurred. Please try again.'
+  let message = 'An unexpected error occurred'
   let code: string | undefined
+  const fieldErrors: Record<string, string[]> = {}
 
-  if (typeof data === 'object' && data !== null) {
-    const errorEnvelope = data.error
-    if (typeof errorEnvelope === 'object' && errorEnvelope !== null) {
-      const envelope = errorEnvelope as Record<string, unknown>
-      if (typeof envelope.message === 'string') message = envelope.message
-      if (typeof envelope.code === 'string') code = envelope.code
+  if (data) {
+    if (typeof data['detail'] === 'string') {
+      message = data['detail']
+    } else if (typeof data['message'] === 'string') {
+      message = data['message']
+    } else if (typeof data['non_field_errors'] === 'object' && Array.isArray(data['non_field_errors'])) {
+      message = (data['non_field_errors'] as string[]).join(' ')
+    } else if (status === 400) {
+      message = 'Please check the form for errors'
+    } else if (status === 401) {
+      message = 'Authentication required'
+    } else if (status === 403) {
+      message = 'You do not have permission to perform this action'
+    } else if (status === 404) {
+      message = 'Resource not found'
+    } else if (status >= 500) {
+      message = 'Server error. Please try again later.'
     }
+
+    if (typeof data['code'] === 'string') {
+      code = data['code']
+    }
+
+    // Extract DRF field errors
     for (const [key, value] of Object.entries(data)) {
-      if (key === 'detail' && typeof value === 'string') message = value
-      else if (key === 'code' && typeof value === 'string') code = value
-      else if (key === 'non_field_errors' && Array.isArray(value)) message = value.join(' ')
-      else if (Array.isArray(value)) fieldErrors[key] = value.filter((item): item is string => typeof item === 'string')
+      if (key !== 'detail' && key !== 'message' && key !== 'code' && key !== 'non_field_errors') {
+        if (Array.isArray(value)) {
+          fieldErrors[key] = value.map(String)
+        }
+      }
     }
-  }
-
-  const statusMessages: Record<number, string> = {
-    400: 'Please check your input and try again.',
-    401: 'Your session has expired. Please sign in again.',
-    403: 'You do not have permission to perform this action.',
-    429: 'Too many requests. Please wait a moment and try again.',
-    500: 'Something went wrong on our end. Please try again later.',
-    503: 'Service temporarily unavailable. Please try again later.',
-  }
-  if (message === 'An error occurred. Please try again.' && statusMessages[status]) {
-    message = statusMessages[status]
+  } else if (error.code === 'ECONNABORTED') {
+    message = 'Request timed out. Please try again.'
+  } else if (!error.response) {
+    message = 'Network error. Please check your connection.'
   }
 
   return {
@@ -157,11 +151,35 @@ function normalizeError(error: AxiosError): ApiError {
   }
 }
 
+export const tokenStorage = {
+  getRefreshToken(): string | null {
+    try {
+      return localStorage.getItem('shopcore-refresh-token')
+    } catch {
+      return null
+    }
+  },
+  setRefreshToken(token: string): void {
+    try {
+      localStorage.setItem('shopcore-refresh-token', token)
+    } catch {
+      console.warn('[Auth] Could not persist refresh token')
+    }
+  },
+  clearRefreshToken(): void {
+    try {
+      localStorage.removeItem('shopcore-refresh-token')
+    } catch {
+      // ignore
+    }
+  },
+}
+
 export function applyServerErrors(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setError: (field: any, error: { type: string; message: string }) => void,
   fieldErrors?: Record<string, string[]>
-) {
+): void {
   if (!fieldErrors) return
   for (const [field, messages] of Object.entries(fieldErrors)) {
     if (field !== 'non_field_errors' && field !== 'detail') {

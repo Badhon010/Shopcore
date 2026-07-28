@@ -1,178 +1,138 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
-import { z } from 'zod'
-import { Star, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Tag } from 'lucide-react'
+import { catalogService } from '@/services/api/catalog.service'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
 import { SearchBar } from '@/components/ui/SearchBar'
 import { Pagination } from '@/components/ui/Pagination'
-import { Modal } from '@/components/ui/Modal'
+import { IconButton } from '@/components/ui/IconButton'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Modal } from '@/components/ui/Modal'
 import { FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/Input'
-import { Textarea } from '@/components/ui/Textarea'
-import { catalogService } from '@/services/api/catalog.service'
+import { useDebounce } from '@/utils/useDebounce'
 import { useToast } from '@/contexts/ToastContext'
+import { formatDate } from '@/utils/format'
 import type { Brand } from '@/types/models'
-import type { ApiError } from '@/types/api'
-
-const brandSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  slug: z.string().optional(),
-  description: z.string().optional(),
-})
-type BrandFormData = z.infer<typeof brandSchema>
 
 export function BrandsPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState<Brand | null>(null)
+  const [editTarget, setEditTarget] = useState<Brand | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Brand | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
+  const [formName, setFormName] = useState('')
+  const debouncedSearch = useDebounce(search)
   const { toast } = useToast()
-  const queryClient = useQueryClient()
+  const qc = useQueryClient()
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['admin-brands', page, search],
-    queryFn: () => catalogService.getBrands({ page, page_size: 20, search: search || undefined }),
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['admin-brands', page, debouncedSearch],
+    queryFn: () => catalogService.listBrands({ page, search: debouncedSearch }),
   })
 
-  const form = useForm<BrandFormData>({
-    resolver: zodResolver(brandSchema),
-    defaultValues: { name: '', slug: '', description: '' },
-  })
-
-  const openAdd = () => { setEditing(null); form.reset(); setModalOpen(true) }
-  const openEdit = (b: Brand) => {
-    setEditing(b)
-    form.reset({ name: b.name, slug: b.slug, description: b.description ?? '' })
-    setModalOpen(true)
-  }
-
-  const saveMutation = useMutation({
-    mutationFn: (d: BrandFormData) =>
-      editing ? catalogService.updateBrand(editing.id, d) : catalogService.createBrand(d),
+  const createMutation = useMutation({
+    mutationFn: (name: string) => catalogService.createBrand({ name }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['admin-brands'] })
-      toast({ title: editing ? 'Brand updated' : 'Brand created', variant: 'success' })
-      setModalOpen(false)
+      toast({ title: 'Brand created', variant: 'success' })
+      void qc.invalidateQueries({ queryKey: ['admin-brands'] })
+      setShowCreate(false); setFormName('')
     },
-    onError: (e: ApiError) => toast({ title: e.message, variant: 'error' }),
+    onError: () => toast({ title: 'Failed to create brand', variant: 'destructive' }),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ pk, name }: { pk: string; name: string }) => catalogService.updateBrand(pk, { name }),
+    onSuccess: () => {
+      toast({ title: 'Brand updated', variant: 'success' })
+      void qc.invalidateQueries({ queryKey: ['admin-brands'] })
+      setEditTarget(null)
+    },
+    onError: () => toast({ title: 'Failed to update brand', variant: 'destructive' }),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => catalogService.deleteBrand(id),
+    mutationFn: (pk: string) => catalogService.deleteBrand(pk),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['admin-brands'] })
       toast({ title: 'Brand deleted', variant: 'success' })
+      void qc.invalidateQueries({ queryKey: ['admin-brands'] })
       setDeleteTarget(null)
     },
-    onError: (e: ApiError) => toast({ title: e.message, variant: 'error' }),
+    onError: () => toast({ title: 'Failed to delete brand', variant: 'destructive' }),
   })
 
   const columns: Column<Brand>[] = [
     {
-      key: 'logo',
-      header: 'Logo',
-      headerClassName: 'w-14',
-      cell: (b) =>
-        b.logo ? (
-          <img src={b.logo} alt={b.name} className="h-10 w-10 rounded-md object-contain" />
-        ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-bg-subtle text-body-sm font-bold text-text-muted">
-            {b.name.charAt(0).toUpperCase()}
-          </div>
-        ),
+      key: 'name', header: 'Brand',
+      render: (row) => (
+        <div className="flex items-center gap-3">
+          {row.logo ? (
+            <img src={row.logo} alt={row.name} className="h-8 w-8 rounded-lg object-contain border border-border bg-white p-1" />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-bg-subtle"><Tag className="h-4 w-4 text-text-muted" /></div>
+          )}
+          <span className="font-medium text-text-primary">{row.name}</span>
+        </div>
+      ),
     },
+    { key: 'slug', header: 'Slug', render: (row) => <span className="font-mono text-xs text-text-muted">{row.slug}</span> },
+    { key: 'created', header: 'Created', render: (row) => <span className="text-text-muted">{formatDate(row.created_at)}</span> },
     {
-      key: 'name',
-      header: 'Brand',
-      cell: (b) => <span className="font-medium text-text-primary">{b.name}</span>,
-    },
-    {
-      key: 'slug',
-      header: 'Slug',
-      cell: (b) => <span className="font-mono text-body-sm text-text-muted">{b.slug}</span>,
-    },
-    {
-      key: 'actions',
-      header: '',
-      headerClassName: 'w-28',
-      cell: (b) => (
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); openEdit(b) }} aria-label="Edit"><Pencil className="h-3.5 w-3.5" /></Button>
-          <Button variant="ghost" size="icon-sm" className="text-danger hover:bg-danger-subtle" onClick={(e) => { e.stopPropagation(); setDeleteTarget(b) }} aria-label="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
+      key: 'actions', header: '', width: '80px', align: 'right',
+      render: (row) => (
+        <div className="flex items-center justify-end gap-1">
+          <IconButton icon={<Pencil />} label="Edit" size="sm" onClick={() => { setEditTarget(row); setFormName(row.name) }} />
+          <IconButton icon={<Trash2 />} label="Delete" size="sm" className="text-danger hover:bg-danger-subtle" onClick={() => setDeleteTarget(row)} />
         </div>
       ),
     },
   ]
 
+  const totalPages = Math.ceil((data?.count ?? 0) / 20)
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-heading-lg font-bold text-text-primary">Brands</h1>
-          <p className="mt-0.5 text-body-sm text-text-secondary">{data?.count ?? 0} brands</p>
+          <h1 className="text-lg font-semibold text-text-primary">Brands</h1>
+          <p className="text-sm text-text-muted">{data?.count ?? 0} total brands</p>
         </div>
-        <Button onClick={openAdd} size="sm"><Plus className="h-4 w-4" aria-hidden /> Add Brand</Button>
+        <Button onClick={() => { setShowCreate(true); setFormName('') }}><Plus className="h-4 w-4" /> Add brand</Button>
       </div>
 
-      <Card noPadding>
-        <div className="flex items-center gap-3 border-b border-border p-4">
-          <SearchBar
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            onClear={() => { setSearch(''); setPage(1) }}
-            placeholder="Search brands…"
-            containerClassName="w-full max-w-xs"
-          />
-        </div>
-        <DataTable
-          columns={columns}
-          data={data?.results ?? []}
-          isLoading={isLoading}
-          keyExtractor={(b) => b.id}
-          emptyIcon={Star}
-          emptyTitle="No brands yet"
-          emptyDescription="Add your first brand."
-        />
-        {data && data.count > 20 && (
-          <div className="border-t border-border px-4 py-4">
-            <Pagination page={page} pageSize={20} total={data.count} onPageChange={setPage} />
+      <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Search brands…" className="w-64" />
+
+      <div className="admin-surface overflow-hidden">
+        <DataTable columns={columns} data={data?.results ?? []} isLoading={isLoading} error={error ? 'Failed to load brands.' : null} onRetry={refetch} rowKey={(r) => r.id} emptyTitle="No brands" />
+        {totalPages > 1 && (
+          <div className="flex justify-end border-t border-border p-4">
+            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         )}
-      </Card>
+      </div>
 
-      <Modal open={modalOpen} onOpenChange={setModalOpen} title={editing ? 'Edit Brand' : 'Add Brand'} size="md">
-        <form onSubmit={form.handleSubmit((d) => saveMutation.mutate(d))} className="space-y-4">
-          <FormField label="Name" required error={form.formState.errors.name?.message}>
-            {(id, errorId) => <Input id={id} errorId={errorId} error={!!form.formState.errors.name} placeholder="Brand name" {...form.register('name')} />}
-          </FormField>
-          <FormField label="Slug" helperText="Auto-generated if left blank">
-            {(id) => <Input id={id} placeholder="brand-slug" {...form.register('slug')} />}
-          </FormField>
-          <FormField label="Description">
-            {(id) => <Textarea id={id} placeholder="Optional description…" rows={3} {...form.register('description')} />}
-          </FormField>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="secondary" size="sm" onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button type="submit" size="sm" isLoading={saveMutation.isPending} loadingText="Saving…">{editing ? 'Save Changes' : 'Create Brand'}</Button>
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New brand" size="sm">
+        <div className="space-y-4">
+          <FormField label="Name" required><Input autoFocus value={formName} onChange={(e) => setFormName(e.target.value)} /></FormField>
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button isLoading={createMutation.isPending} onClick={() => createMutation.mutate(formName)} disabled={!formName.trim()}>Create</Button>
           </div>
-        </form>
+        </div>
       </Modal>
 
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(o) => !o && setDeleteTarget(null)}
-        title="Delete Brand"
-        description={`Delete "${deleteTarget?.name}"?`}
-        confirmLabel="Delete"
-        isLoading={deleteMutation.isPending}
-        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
-      />
+      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit brand" size="sm">
+        <div className="space-y-4">
+          <FormField label="Name" required><Input autoFocus value={formName} onChange={(e) => setFormName(e.target.value)} /></FormField>
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setEditTarget(null)}>Cancel</Button>
+            <Button isLoading={updateMutation.isPending} onClick={() => editTarget && updateMutation.mutate({ pk: String(editTarget.id), name: formName })} disabled={!formName.trim()}>Save</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={() => deleteTarget && deleteMutation.mutate(String(deleteTarget.id))} title="Delete brand?" description={`"${deleteTarget?.name}" will be deleted.`} confirmLabel="Delete" isLoading={deleteMutation.isPending} />
     </div>
   )
 }

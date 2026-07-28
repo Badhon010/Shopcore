@@ -1,16 +1,18 @@
 import { axiosClient } from './axiosClient'
 import { endpoints } from './endpoints'
 import type { Notification } from '@/types/models'
-import type { PaginatedResponse } from '@/types/api'
+import type { PaginatedResponse, ListParams } from '@/types/api'
 
 export const notificationsService = {
-  async getNotifications(params?: { page?: number; page_size?: number }): Promise<PaginatedResponse<Notification>> {
-    const res = await axiosClient.get<PaginatedResponse<Notification>>(endpoints.notifications.list(), { params })
+  async listNotifications(params?: ListParams): Promise<PaginatedResponse<Notification>> {
+    const res = await axiosClient.get<PaginatedResponse<Notification>>(
+      endpoints.notifications.list(), { params }
+    )
     return res.data
   },
 
-  async markRead(id: number): Promise<Notification> {
-    const res = await axiosClient.post<Notification>(endpoints.notifications.markRead(id))
+  async markRead(pk: string): Promise<Notification> {
+    const res = await axiosClient.post<Notification>(endpoints.notifications.markRead(pk))
     return res.data
   },
 

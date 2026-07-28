@@ -1,119 +1,66 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Users } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { customersService } from '@/services/api/customers.service'
 import { DataTable, type Column } from '@/components/ui/DataTable'
-import { Badge } from '@/components/ui/Badge'
-import { Card } from '@/components/ui/Card'
 import { SearchBar } from '@/components/ui/SearchBar'
-import { Select } from '@/components/ui/Select'
 import { Pagination } from '@/components/ui/Pagination'
 import { Avatar } from '@/components/ui/Avatar'
-import { customersService } from '@/services/api/customers.service'
+import { Badge } from '@/components/ui/Badge'
+import { useDebounce } from '@/utils/useDebounce'
 import { formatDate } from '@/utils/format'
 import type { User } from '@/types/models'
 
 export function CustomersPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
-  const [staffFilter, setStaffFilter] = useState('')
+  const debouncedSearch = useDebounce(search)
+  const navigate = useNavigate()
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['admin-customers', page, search, staffFilter],
-    queryFn: () =>
-      customersService.getCustomers({
-        page,
-        page_size: 20,
-        search: search || undefined,
-        is_staff: staffFilter === '' ? undefined : staffFilter === 'staff',
-      }),
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['admin-customers', page, debouncedSearch],
+    queryFn: () => customersService.listCustomers({ page, search: debouncedSearch }),
   })
 
   const columns: Column<User>[] = [
     {
-      key: 'avatar',
-      header: 'Customer',
-      cell: (u) => (
-        <div className="flex items-center gap-3">
-          <Avatar name={u.full_name || u.email} size="sm" />
+      key: 'name', header: 'Customer',
+      render: (row) => (
+        <button className="flex items-center gap-3 text-left hover:underline" onClick={() => navigate(`/customers/${row.id}`)}>
+          <Avatar name={row.full_name || row.email} size="md" />
           <div>
-            <p className="font-medium text-text-primary">{u.full_name || '—'}</p>
-            <p className="text-caption text-text-muted">{u.email}</p>
+            <p className="font-medium text-text-primary">{row.full_name || '—'}</p>
+            <p className="text-xs text-text-muted">{row.email}</p>
           </div>
-        </div>
+        </button>
       ),
     },
     {
-      key: 'phone',
-      header: 'Phone',
-      cell: (u) => <span className="text-body-sm text-text-secondary">{u.phone_number ?? '—'}</span>,
+      key: 'status', header: 'Status',
+      render: (row) => <Badge variant={row.is_active ? 'success' : 'default'}>{row.is_active ? 'Active' : 'Inactive'}</Badge>,
     },
-    {
-      key: 'badges',
-      header: 'Roles',
-      cell: (u) => (
-        <div className="flex flex-wrap gap-1">
-          {u.is_staff && <Badge variant="info" size="sm">Staff</Badge>}
-          {u.is_email_verified ? (
-            <Badge variant="success" size="sm">Verified</Badge>
-          ) : (
-            <Badge variant="secondary" size="sm">Unverified</Badge>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'joined',
-      header: 'Joined',
-      cell: (u) => <span className="text-body-sm text-text-muted">{formatDate(u.date_joined)}</span>,
-    },
+    { key: 'joined', header: 'Joined', render: (row) => <span className="text-text-muted">{formatDate(row.date_joined ?? '')}</span> },
   ]
 
+  const totalPages = Math.ceil((data?.count ?? 0) / 20)
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-heading-lg font-bold text-text-primary">Customers</h1>
-        <p className="mt-0.5 text-body-sm text-text-secondary">
-          {data?.count ?? 0} registered accounts
-        </p>
+        <h1 className="text-lg font-semibold text-text-primary">Customers</h1>
+        <p className="text-sm text-text-muted">{data?.count ?? 0} total customers</p>
       </div>
 
-      <Card noPadding>
-        <div className="flex flex-wrap items-center gap-3 border-b border-border p-4">
-          <SearchBar
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            onClear={() => { setSearch(''); setPage(1) }}
-            placeholder="Search by name or email…"
-            containerClassName="w-full max-w-xs"
-          />
-          <Select
-            value={staffFilter}
-            onChange={(e) => { setStaffFilter(e.target.value); setPage(1) }}
-            containerClassName="w-40"
-            className="h-10"
-          >
-            <option value="">All accounts</option>
-            <option value="customer">Customers only</option>
-            <option value="staff">Staff only</option>
-          </Select>
-        </div>
+      <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Search name or email…" className="w-64" />
 
-        <DataTable
-          columns={columns}
-          data={data?.results ?? []}
-          isLoading={isLoading}
-          keyExtractor={(u) => u.id}
-          emptyIcon={Users}
-          emptyTitle="No customers found"
-          emptyDescription="Customers who register will appear here."
-        />
-
-        {data && data.count > 20 && (
-          <div className="border-t border-border px-4 py-4">
-            <Pagination page={page} pageSize={20} total={data.count} onPageChange={setPage} />
+      <div className="admin-surface overflow-hidden">
+        <DataTable columns={columns} data={data?.results ?? []} isLoading={isLoading} error={error ? 'Failed to load customers.' : null} onRetry={refetch} rowKey={(r) => r.id} emptyTitle="No customers found" />
+        {totalPages > 1 && (
+          <div className="flex justify-end border-t border-border p-4">
+            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         )}
-      </Card>
+      </div>
     </div>
   )
 }

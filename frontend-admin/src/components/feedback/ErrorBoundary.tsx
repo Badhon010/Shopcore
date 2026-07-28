@@ -1,33 +1,42 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { Component, type ReactNode, type ErrorInfo } from 'react'
 import { ErrorState } from './ErrorState'
 
 interface Props {
   children: ReactNode
+  fallback?: ReactNode
 }
 
 interface State {
   hasError: boolean
+  error?: Error
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false }
-
-  static getDerivedStateFromError(): State {
-    return { hasError: true }
+  constructor(props: Props) {
+    super(props)
+    this.state = { hasError: false }
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('[AdminErrorBoundary] Unhandled error:', error, info)
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('[ErrorBoundary]', error, errorInfo)
   }
 
   render() {
-    return this.state.hasError ? (
-      <ErrorState
-        title="The admin workspace encountered an error"
-        description="Refresh the page to try again."
-      />
-    ) : (
-      this.props.children
-    )
+    if (this.state.hasError) {
+      return (
+        this.props.fallback ?? (
+          <ErrorState
+            title="Something went wrong"
+            description={this.state.error?.message ?? 'An unexpected error occurred.'}
+            onRetry={() => this.setState({ hasError: false })}
+          />
+        )
+      )
+    }
+    return this.props.children
   }
 }

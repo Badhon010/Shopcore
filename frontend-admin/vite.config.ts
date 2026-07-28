@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
@@ -33,7 +33,13 @@ export default defineConfig({
           query: ['@tanstack/react-query'],
           ui: ['framer-motion', 'lucide-react'],
           forms: ['react-hook-form', 'zod', '@hookform/resolvers'],
-          radix: ['@radix-ui/react-dialog', '@radix-ui/react-toast'],
+          charts: ['recharts'],
+          radix: [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-toast',
+          ],
         },
       },
     },

@@ -1,29 +1,39 @@
-import { useId, type ReactNode } from 'react'
+import { type ReactNode, type HTMLAttributes } from 'react'
 import { cn } from '@/utils/cn'
 
-interface FormFieldProps {
+interface FormFieldProps extends HTMLAttributes<HTMLDivElement> {
   label: string
-  children: (id: string, errorId: string) => ReactNode
+  htmlFor?: string
   error?: string
-  helperText?: string
+  hint?: string
   required?: boolean
-  className?: string
+  children: ReactNode
 }
 
-export function FormField({ label, children, error, helperText, required, className }: FormFieldProps) {
-  const id = useId()
-  const errorId = `${id}-error`
+export function FormField({
+  label,
+  htmlFor,
+  error,
+  hint,
+  required,
+  children,
+  className,
+  ...props
+}: FormFieldProps) {
   return (
-    <div className={cn('space-y-1.5', className)}>
-      <label htmlFor={id} className="block text-body-sm font-medium text-text-primary">
+    <div className={cn('flex flex-col gap-1.5', className)} {...props}>
+      <label
+        htmlFor={htmlFor}
+        className="text-sm font-medium text-text-primary"
+      >
         {label}
-        {required && <span className="ml-0.5 text-danger" aria-hidden="true">*</span>}
+        {required && <span className="ml-0.5 text-danger">*</span>}
       </label>
-      {children(id, errorId)}
+      {children}
       {error ? (
-        <p id={errorId} role="alert" className="text-caption text-danger">{error}</p>
-      ) : helperText ? (
-        <p className="text-caption text-text-tertiary">{helperText}</p>
+        <p className="text-xs text-danger">{error}</p>
+      ) : hint ? (
+        <p className="text-xs text-text-muted">{hint}</p>
       ) : null}
     </div>
   )

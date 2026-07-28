@@ -1,16 +1,19 @@
-import { Navigate, useLocation } from 'react-router-dom'
-import type { ReactNode } from 'react'
-import { ROUTES } from '@/constants/routes'
+import { Navigate, useLocation, type ReactNode } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Spinner } from '@/components/feedback/Spinner'
+import { ROUTES } from '@/constants/routes'
 
-export function AdminOnlyRoute({ children }: { children: ReactNode }) {
+interface AdminOnlyRouteProps {
+  children: ReactNode
+}
+
+export function AdminOnlyRoute({ children }: AdminOnlyRouteProps) {
   const { user, isAuthenticated, isLoading } = useAuth()
   const location = useLocation()
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-screen items-center justify-center">
         <Spinner size="lg" className="text-primary" />
       </div>
     )

@@ -39,6 +39,14 @@ class PaymentGateway(ABC):
             PaymentIntent with provider-specific data.
         """
 
+    def verify_signature(self, raw_body: bytes, headers: dict) -> None:
+        """Verify the webhook signature/HMAC.
+
+        Raise ``ValueError`` if the signature is invalid.
+        The default implementation is a no-op (no signature required).
+        Override in gateways that enforce HMAC verification.
+        """
+
     @abstractmethod
     def handle_webhook(self, payload: dict, raw_body: bytes, headers: dict) -> None:
         """Process an incoming webhook from the payment gateway.

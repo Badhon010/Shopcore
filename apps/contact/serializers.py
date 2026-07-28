@@ -37,3 +37,20 @@ class ContactMessageSerializer(serializers.ModelSerializer):
                 "Please provide a bit more detail (at least 10 characters)."
             )
         return value
+
+
+class AdminContactMessageSerializer(serializers.ModelSerializer):
+    """Full serializer for admin views of ContactMessage."""
+
+    class Meta:
+        model = ContactMessage
+        fields = ["id", "name", "email", "subject", "message", "status", "created_at", "updated_at"]
+        read_only_fields = ["id", "name", "email", "subject", "message", "created_at"]
+
+
+class AdminContactMessageUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for PATCH updates on ContactMessage (status only)."""
+
+    class Meta:
+        model = ContactMessage
+        fields = ["status"]

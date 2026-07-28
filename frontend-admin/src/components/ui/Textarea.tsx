@@ -1,23 +1,20 @@
 import { forwardRef, type TextareaHTMLAttributes } from 'react'
 import { cn } from '@/utils/cn'
 
-export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   error?: boolean
-  errorId?: string
 }
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, error, errorId, ...props }, ref) => (
+  ({ className, error, ...props }, ref) => (
     <textarea
       ref={ref}
-      aria-invalid={error || undefined}
-      aria-describedby={errorId}
       className={cn(
-        'flex min-h-[120px] w-full resize-y rounded-md border bg-background px-4 py-3',
-        'text-body-md text-text-primary placeholder:text-text-muted transition-colors',
-        'focus-visible:border-primary focus-visible:outline-none focus-visible:shadow-focus-ring',
+        'w-full rounded-lg border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted',
+        'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:border-primary',
+        'resize-y min-h-[80px]',
+        error ? 'border-danger' : 'border-border hover:border-border-strong',
         'disabled:cursor-not-allowed disabled:opacity-50',
-        error ? 'border-danger' : 'border-border',
         className
       )}
       {...props}

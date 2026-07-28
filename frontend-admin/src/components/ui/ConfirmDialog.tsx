@@ -1,47 +1,55 @@
-import { Modal } from '@/components/ui/Modal'
-import { Button } from '@/components/ui/Button'
-import type { ReactNode } from 'react'
+import { type ReactNode } from 'react'
+import { AlertTriangle } from 'lucide-react'
+import { Modal } from './Modal'
+import { Button } from './Button'
 
-export interface ConfirmDialogProps {
+interface ConfirmDialogProps {
   open: boolean
-  onOpenChange: (open: boolean) => void
-  title: string
-  description?: ReactNode
+  onClose: () => void
+  onConfirm: () => void
+  title?: string
+  description?: string
   confirmLabel?: string
   cancelLabel?: string
-  variant?: 'destructive' | 'primary'
+  variant?: 'destructive' | 'warning'
   isLoading?: boolean
-  onConfirm: () => void
+  children?: ReactNode
 }
 
 export function ConfirmDialog({
   open,
-  onOpenChange,
-  title,
-  description,
+  onClose,
+  onConfirm,
+  title = 'Are you sure?',
+  description = 'This action cannot be undone.',
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   variant = 'destructive',
   isLoading,
-  onConfirm,
 }: ConfirmDialogProps) {
   return (
-    <Modal open={open} onOpenChange={onOpenChange} title={title} size="sm">
-      {description && (
-        <p className="mb-6 text-body-sm text-text-secondary">{description}</p>
-      )}
-      <div className="flex justify-end gap-3">
-        <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)} disabled={isLoading}>
-          {cancelLabel}
-        </Button>
-        <Button
-          variant={variant === 'destructive' ? 'destructive' : 'primary'}
-          size="sm"
-          isLoading={isLoading}
-          onClick={onConfirm}
-        >
-          {confirmLabel}
-        </Button>
+    <Modal open={open} onClose={onClose} size="sm">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <div className={`flex h-12 w-12 items-center justify-center rounded-full ${variant === 'destructive' ? 'bg-danger-subtle text-danger' : 'bg-warning-subtle text-warning'}`}>
+          <AlertTriangle className="h-5 w-5" />
+        </div>
+        <div>
+          <h3 className="text-base font-semibold text-text-primary">{title}</h3>
+          <p className="mt-1.5 text-sm text-text-secondary">{description}</p>
+        </div>
+        <div className="flex w-full gap-3">
+          <Button variant="secondary" className="flex-1" onClick={onClose} disabled={isLoading}>
+            {cancelLabel}
+          </Button>
+          <Button
+            variant={variant === 'destructive' ? 'destructive' : 'primary'}
+            className="flex-1"
+            onClick={onConfirm}
+            isLoading={isLoading}
+          >
+            {confirmLabel}
+          </Button>
+        </div>
       </div>
     </Modal>
   )

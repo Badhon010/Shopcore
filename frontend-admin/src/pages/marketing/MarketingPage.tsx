@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Mail, Trash2, Megaphone, Plus, Send, Copy, Eye, Edit3,
   Users, TrendingUp, BarChart3, CheckCircle, Clock, AlertCircle,
-  Search as SearchIcon, X,
+  Search as SearchIcon, X, CalendarDays, MousePointerClick, type LucideIcon,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -31,12 +31,12 @@ function campaignStatusBadge(status: CampaignStatus) {
 
 // ─── Stat chip ────────────────────────────────────────────────────────────────
 function StatChip({
-  emoji, label, value, sub,
-}: { emoji: string; label: string; value: string | number; sub?: string }) {
+  icon: Icon, label, value, sub,
+}: { icon: LucideIcon; label: string; value: string | number; sub?: string }) {
   return (
     <div className="flex flex-col gap-0.5 rounded-xl border border-border bg-surface px-4 py-3.5 shadow-xs">
       <div className="flex items-center gap-2">
-        <span className="text-lg">{emoji}</span>
+        <Icon className="h-4 w-4 shrink-0 text-text-muted" aria-hidden />
         <span className="text-caption text-text-muted">{label}</span>
       </div>
       <p className="text-heading-sm font-bold text-text-primary">{value}</p>
@@ -365,12 +365,12 @@ export function MarketingPage() {
 
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <StatChip emoji="👥" label="Total"        value={ns?.total_subscribers.toLocaleString() ?? '—'} />
-        <StatChip emoji="✅" label="Active"       value={ns?.active_subscribers.toLocaleString() ?? '—'} />
-        <StatChip emoji="📅" label="This month"   value={ns?.new_this_month.toLocaleString() ?? '—'} />
-        <StatChip emoji="📧" label="Campaigns"    value={ns?.campaigns_sent.toLocaleString() ?? '—'} sub="sent" />
-        <StatChip emoji="📊" label="Open rate"    value={ns ? `${ns.avg_open_rate}%` : '—'} />
-        <StatChip emoji="🖱️" label="Click rate"   value={ns ? `${ns.avg_click_rate}%` : '—'} />
+        <StatChip icon={Users}             label="Total"       value={ns?.total_subscribers.toLocaleString() ?? '—'} />
+        <StatChip icon={CheckCircle}       label="Active"      value={ns?.active_subscribers.toLocaleString() ?? '—'} />
+        <StatChip icon={CalendarDays}      label="This month"  value={ns?.new_this_month.toLocaleString() ?? '—'} />
+        <StatChip icon={Mail}              label="Campaigns"   value={ns?.campaigns_sent.toLocaleString() ?? '—'} sub="sent" />
+        <StatChip icon={BarChart3}         label="Open rate"   value={ns ? `${ns.avg_open_rate}%` : '—'} />
+        <StatChip icon={MousePointerClick} label="Click rate"  value={ns ? `${ns.avg_click_rate}%` : '—'} />
       </div>
 
       {/* Tab bar */}

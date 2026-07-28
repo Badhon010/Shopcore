@@ -42,6 +42,10 @@ urlpatterns = [
     path(f"{API_V1}notifications/", include("apps.notifications.urls", namespace="notifications")),
     path(f"{API_V1}contact/", include("apps.contact.urls", namespace="contact")),
     path(f"{API_V1}newsletter/", include("apps.newsletter.urls", namespace="newsletter")),
+    path(f"{API_V1}dashboard/", include("apps.dashboard.urls", namespace="dashboard")),
+    path(f"{API_V1}exports/", include("apps.exports.urls", namespace="exports")),
+    path(f"{API_V1}search/", include("apps.search.urls", namespace="search")),
+    path(f"{API_V1}uploads/", include("apps.uploads.urls", namespace="uploads")),
 ]
 
 # Serve media files in development

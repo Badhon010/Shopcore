@@ -13,11 +13,13 @@ C4Context
     System(shopcore, "ShopCore API", "Django REST API — products, cart, checkout, orders, payments")
     System_Ext(smtp, "SMTP Relay", "SendGrid / Mailgun / SES — transactional email")
     System_Ext(payment, "Payment Gateway", "Stripe / SSLCommerz / bKash (stubs in v1.0.0)")
-    System_Ext(frontend, "Frontend App", "React / Next.js — not yet built")
+    System(store_fe, "frontend-store", "React / Vite / Tailwind — customer SPA")
+    System(admin_fe, "frontend-admin", "React / Vite / Tailwind — staff SPA")
 
-    Rel(customer, frontend, "Uses")
-    Rel(staff, frontend, "Manages store via")
-    Rel(frontend, shopcore, "REST / JSON over HTTPS")
+    Rel(customer, store_fe, "Uses")
+    Rel(staff, admin_fe, "Manages store via")
+    Rel(store_fe, shopcore, "REST / JSON over HTTPS")
+    Rel(admin_fe, shopcore, "REST / JSON over HTTPS")
     Rel(shopcore, smtp, "Sends transactional email")
     Rel(shopcore, payment, "Initiates payment, receives webhooks")
     Rel(dev, shopcore, "Reads API docs, builds frontend")
@@ -32,7 +34,7 @@ flowchart TB
     subgraph Client["REST Clients"]
         Browser["Browser / SPA"]
         Mobile["Mobile App"]
-        Admin["Admin UI"]
+        Admin["frontend-admin\n(Staff SPA)"]
     end
 
     subgraph API["ShopCore API (Django / DRF)"]

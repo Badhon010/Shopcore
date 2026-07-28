@@ -29,6 +29,10 @@ SECRET_KEY = "test-secret-key-not-for-production"  # noqa: F405, S105
 # ImproperlyConfigured.  Setting high rates (10 000/min) prevents that error
 # while still never throttling within a normal test run.
 REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []  # noqa: F405
+# Disable DRF's URL format override so that ?format=xlsx/csv in export views
+# is consumed by the view's own query-param logic, not by DRF content negotiation
+# (which would 406/404 when xlsx/pdf are not registered renderers).
+REST_FRAMEWORK["URL_FORMAT_OVERRIDE"] = None  # noqa: F405
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {  # noqa: F405
     "anon": "10000/min",
     "user": "10000/min",

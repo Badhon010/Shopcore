@@ -1,46 +1,38 @@
+import { type ReactNode, type HTMLAttributes } from 'react'
 import { cn } from '@/utils/cn'
-import type { HTMLAttributes, ReactNode } from 'react'
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode
-  noPadding?: boolean
+  padding?: 'none' | 'sm' | 'md' | 'lg'
 }
 
-export function Card({ className, children, noPadding, ...props }: CardProps) {
+const PADDING = {
+  none: '',
+  sm:   'p-4',
+  md:   'p-5',
+  lg:   'p-6',
+}
+
+export function Card({ children, className, padding = 'md', ...props }: CardProps) {
   return (
-    <div
-      className={cn(
-        'rounded-xl border border-border bg-surface shadow-xs',
-        !noPadding && 'p-6',
-        className
-      )}
-      {...props}
-    >
+    <div className={cn('admin-surface', PADDING[padding], className)} {...props}>
       {children}
     </div>
   )
 }
 
-export function CardHeader({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
+export function CardTitle({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn('flex items-center justify-between gap-4', className)} {...props}>
-      {children}
-    </div>
-  )
-}
-
-export function CardTitle({ className, children, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return (
-    <h2 className={cn('text-heading-sm font-semibold text-text-primary', className)} {...props}>
+    <h2 className={cn('text-sm font-semibold text-text-primary', className)}>
       {children}
     </h2>
   )
 }
 
-export function CardDescription({ className, children, ...props }: HTMLAttributes<HTMLParagraphElement>) {
+export function CardHeader({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <p className={cn('text-body-sm text-text-secondary', className)} {...props}>
+    <div className={cn('mb-4 flex items-center justify-between gap-4', className)}>
       {children}
-    </p>
+    </div>
   )
 }

@@ -80,15 +80,23 @@ class WebhookView(APIView):
 
     def post(self, request, provider: str, *args, **kwargs):
         from apps.payments.services import get_gateway
+        # Read raw_body BEFORE request.data is parsed — accessing request.body
+        # after DRF has already consumed the stream raises RawPostDataException.
+        raw_body = request.body
         try:
             gateway = get_gateway(provider.upper())
         except ValueError:
             return Response({"error": {"code": "UNKNOWN_PROVIDER", "message": f"Unknown provider: {provider}", "details": {}}}, status=400)
 
         try:
+            gateway.verify_signature(raw_body=raw_body, headers=dict(request.headers))
+        except ValueError as exc:
+            return Response({"error": {"code": "INVALID_SIGNATURE", "message": str(exc), "details": {}}}, status=400)
+
+        try:
             gateway.handle_webhook(
                 payload=request.data,
-                raw_body=request.body,
+                raw_body=raw_body,
                 headers=dict(request.headers),
             )
         except Exception as exc:

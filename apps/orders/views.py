@@ -1,5 +1,11 @@
 from __future__ import annotations
 import logging
+from decimal import Decimal
+from datetime import timedelta
+
+from django.db.models import Count, Sum
+from django.db.models.functions import TruncDate
+from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -148,3 +154,77 @@ class AdminOrderListView(generics.ListAPIView):
         if payment_status:
             qs = qs.filter(payment_status=payment_status)
         return qs
+
+
+class AdminOrderStatsView(APIView):
+    """Staff-only: aggregate order statistics for the dashboard and analytics pages."""
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request, *args, **kwargs):
+        now = timezone.now()
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_month_start = (month_start - timedelta(days=1)).replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+        thirty_days_ago = now - timedelta(days=30)
+
+        # All-time totals
+        totals = Order.objects.aggregate(
+            total_orders=Count("id"),
+            total_revenue=Sum("grand_total"),
+        )
+        total_orders = totals["total_orders"] or 0
+        total_revenue = totals["total_revenue"] or Decimal("0")
+        avg_order_value = (
+            (total_revenue / total_orders) if total_orders > 0 else Decimal("0")
+        )
+
+        # This-month stats
+        this_month = Order.objects.filter(created_at__gte=month_start).aggregate(
+            orders=Count("id"),
+            revenue=Sum("grand_total"),
+        )
+
+        # Last-month stats
+        last_month = Order.objects.filter(
+            created_at__gte=last_month_start, created_at__lt=month_start
+        ).aggregate(
+            orders=Count("id"),
+            revenue=Sum("grand_total"),
+        )
+
+        # Status breakdown (full count per status)
+        status_qs = Order.objects.values("status").annotate(count=Count("id"))
+        status_breakdown = {row["status"]: row["count"] for row in status_qs}
+
+        # Daily revenue for the last 30 days
+        daily_qs = (
+            Order.objects.filter(created_at__gte=thirty_days_ago)
+            .annotate(date=TruncDate("created_at"))
+            .values("date")
+            .annotate(revenue=Sum("grand_total"), orders=Count("id"))
+            .order_by("date")
+        )
+        daily_revenue = [
+            {
+                "date": str(row["date"]),
+                "revenue": str(row["revenue"] or Decimal("0")),
+                "orders": row["orders"],
+            }
+            for row in daily_qs
+        ]
+
+        return Response(
+            {
+                "total_orders": total_orders,
+                "total_revenue": str(total_revenue),
+                "avg_order_value": str(round(avg_order_value, 2)),
+                "this_month_orders": this_month["orders"] or 0,
+                "this_month_revenue": str(this_month["revenue"] or Decimal("0")),
+                "last_month_orders": last_month["orders"] or 0,
+                "last_month_revenue": str(last_month["revenue"] or Decimal("0")),
+                "status_breakdown": status_breakdown,
+                "daily_revenue": daily_revenue,
+            }
+        )

@@ -1,4 +1,4 @@
-import { axiosClient, tokenStorage } from './axiosClient'
+import { axiosClient } from './axiosClient'
 import { endpoints } from './endpoints'
 import type { User } from '@/types/models'
 
@@ -13,14 +13,28 @@ export interface LoginResponse {
   user: User
 }
 
+export interface ChangePasswordPayload {
+  old_password: string
+  new_password: string
+  confirm_password: string
+}
+
 export const authService = {
-  login: (payload: LoginPayload) =>
-    axiosClient.post<LoginResponse>(endpoints.auth.login(), payload).then((response) => response.data),
-  logout: () => {
-    const refresh = tokenStorage.getRefreshToken()
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return axiosClient.post(endpoints.auth.logout(), { refresh }).then((response) => response.data)
+  async login(payload: LoginPayload): Promise<LoginResponse> {
+    const res = await axiosClient.post<LoginResponse>(endpoints.auth.login(), payload)
+    return res.data
   },
-  me: ({ signal }: { signal?: AbortSignal } = {}) =>
-    axiosClient.get<User>(endpoints.auth.me(), { signal }).then((response) => response.data),
+
+  async logout(refresh: string): Promise<void> {
+    await axiosClient.post(endpoints.auth.logout(), { refresh })
+  },
+
+  async me(): Promise<User> {
+    const res = await axiosClient.get<User>(endpoints.auth.me())
+    return res.data
+  },
+
+  async changePassword(payload: ChangePasswordPayload): Promise<void> {
+    await axiosClient.post(endpoints.auth.changePassword(), payload)
+  },
 }

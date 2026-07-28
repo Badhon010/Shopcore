@@ -1,14 +1,16 @@
 # ShopCore
 
 A full-stack e-commerce platform: production-hardened **Django REST API** backend
-paired with a **React / Vite / Tailwind** frontend.
+paired with two **React / Vite / Tailwind** frontends — a customer-facing store
+(`frontend-store/`) and an admin panel (`frontend-admin/`).
 
 The backend provides every primitive needed for a modern online store: product
 catalog with full-text search, cart, idempotent checkout, race-condition-proof
 inventory reservation, order lifecycle management, JWT auth with full device
-logout, coupons, wishlists, product reviews, and an in-app notification centre.
+logout, coupons, wishlists, product reviews, an in-app notification centre,
+CSV/Excel exports, dashboard analytics, and a global search API.
 
-The frontend is a single-page application with full TypeScript type safety,
+The frontends are single-page applications with full TypeScript type safety,
 React Query data-fetching, a custom design system, and route-level code-splitting.
 
 ---
@@ -17,10 +19,10 @@ React Query data-fetching, a custom design system, and route-level code-splittin
 
 | Check | Status |
 |-------|--------|
-| Backend test suite | ✅ 90 / 90 passing |
+| Backend test suite | ✅ 377 / 377 passing |
 | `manage.py check` | ✅ 0 issues |
 | TypeScript build (`tsc -b`) | ✅ 0 errors |
-| Vite production build | ✅ 2 206 modules |
+| Vite production build | ✅ 0 errors |
 | Critical vulnerabilities | ✅ 0 |
 | Pending migrations | ✅ None |
 
@@ -35,16 +37,21 @@ cp .env.example .env          # set DATABASE_URL at minimum
 python manage.py migrate
 python manage.py runserver    # API at http://localhost:8000/api/v1/
 
-# ── Frontend ───────────────────────────────────────────────────
-cd frontend
+# ── Store frontend ─────────────────────────────────────────────
+cd frontend-store
 pnpm install
 pnpm dev                      # UI at http://localhost:3000
+
+# ── Admin frontend ─────────────────────────────────────────────
+cd frontend-admin
+pnpm install
+pnpm dev                      # Admin UI at http://localhost:3001
 ```
 
 - Interactive API docs: `http://localhost:8000/api/docs/`
 - OpenAPI schema JSON: `http://localhost:8000/api/schema/`
 - Run backend tests: `pytest`
-- Run frontend type-check: `cd frontend && pnpm tsc -b --noEmit`
+- Run frontend type-check: `cd frontend-store && pnpm tsc -b --noEmit`
 
 ---
 
@@ -52,14 +59,20 @@ pnpm dev                      # UI at http://localhost:3000
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                React / Vite / Tailwind SPA                       │
+│   frontend-store (React / Vite / Tailwind — customer SPA)        │
 │   catalog · cart · checkout · account · notifications · reviews  │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │ HTTPS  JWT Bearer  /api/v1/
-┌───────────────────────────▼─────────────────────────────────────┐
+└──────────────────┬──────────────────────────────────────────────┘
+                   │
+┌──────────────────┴──────────────────────────────────────────────┐
+│   frontend-admin (React / Vite / Tailwind — staff SPA)           │
+│   dashboard · products · orders · customers · inventory          │
+└──────────────────┬──────────────────────────────────────────────┘
+                   │ HTTPS  JWT Bearer  /api/v1/
+┌──────────────────▼──────────────────────────────────────────────┐
 │                    Django / DRF API                              │
 │  accounts · catalog · cart · orders · inventory · payments      │
-│        coupons · reviews · wishlist · notifications             │
+│  coupons · reviews · wishlist · notifications · contact         │
+│  newsletter · dashboard · exports · search · uploads            │
 └──────────┬──────────────────────────────┬───────────────────────┘
            │ SQL (psycopg3)               │ Cache (django-redis)
 ┌──────────▼──────────┐        ┌──────────▼──────────────────────┐
@@ -79,29 +92,36 @@ the database schema.
 shopcore/
 ├── apps/
 │   ├── accounts/       # Users, JWT auth, addresses, password reset
-│   ├── catalog/        # Products, categories, brands, variants, attributes
+│   ├── catalog/        # Products, categories, brands, variants, attributes, banners
 │   ├── cart/           # Session & user carts with guest→user merge
 │   ├── orders/         # Checkout, order lifecycle, status history
-│   ├── inventory/      # Stock items, warehouse, stock movements
-│   ├── payments/       # Payment initiation, webhook ingestion
+│   ├── inventory/      # Stock items, warehouses, stock movements, thresholds
+│   ├── payments/       # Payment initiation, webhook ingestion, gateway abstraction
 │   ├── coupons/        # Discount codes with per-user redemption limits
 │   ├── reviews/        # Product reviews and ratings
 │   ├── wishlist/       # Wishlist with move-to-cart
 │   ├── notifications/  # In-app notification centre + transactional email log
+│   ├── contact/        # Contact form submissions (admin-readable)
+│   ├── newsletter/     # Newsletter subscriber management
+│   ├── dashboard/      # Admin dashboard stats and KPIs
+│   ├── exports/        # CSV / Excel export endpoints (products, orders, customers…)
+│   ├── search/         # Global full-text search across catalog entities
+│   ├── uploads/        # Centralised file upload infrastructure
 │   └── common/         # Shared mixins (TimeStampedModel, SoftDeleteModel)
 ├── config/
 │   ├── settings/
 │   │   ├── base.py        # Shared settings
 │   │   ├── production.py  # Production overrides + startup guards
-│   │   └── test.py        # Test overrides (throttle rates, test DB)
+│   │   └── test.py        # Test overrides (throttle rates, URL_FORMAT_OVERRIDE, test DB)
 │   ├── urls.py
 │   └── wsgi.py
 ├── docs/
 │   ├── API.md
 │   ├── ARCHITECTURE.md
 │   ├── ER_DIAGRAM.md
-│   └── PRODUCTION_READINESS_AUDIT_*.md
-├── frontend/
+│   ├── FRONTEND_ADMIN_GUIDE.md
+│   └── FRONTEND_ADMIN_COMPATIBILITY_REPORT.md
+├── frontend-store/     # Customer-facing SPA (React / Vite / Tailwind)
 │   ├── src/
 │   │   ├── app/            # Router, providers, App root
 │   │   ├── pages/          # Route-level page components
@@ -111,12 +131,14 @@ shopcore/
 │   │   ├── types/          # TypeScript models and API types
 │   │   └── utils/          # Formatting, validation helpers
 │   ├── public/             # favicon.svg, logo.svg, placeholder-product.svg
-│   ├── vite.config.ts
-│   └── tsconfig.app.json
+│   └── vite.config.ts
+├── frontend-admin/     # Staff admin SPA (React / Vite / Tailwind)
+│   └── src/
 ├── .env.example
 ├── CHANGELOG.md
 ├── DEPLOYMENT.md
-└── requirements.txt
+├── requirements.txt
+└── requirements-dev.txt
 ```
 
 ---
@@ -144,10 +166,11 @@ out immediately.
 `deleted_at` rather than removing the row, preserving referential integrity for
 historical orders.
 
-### Canonical URL routing (frontend)
-Category browsing uses a single URL structure: `/products/category/:slug`.
-Old `/category/:slug` paths are redirected permanently. A single
-`ProductListPage` handles both the all-products and category-filtered views.
+### Gateway abstraction for payments
+`PaymentGateway` is an abstract base class. All concrete gateways implement
+`initiate()`, `verify_signature()`, and `handle_webhook()`. The webhook view
+always calls `verify_signature()` before processing, ensuring HMAC validation
+is enforced without duplicating that logic per-gateway.
 
 ### Defensive data layer (frontend)
 All date-formatting utilities (`formatRelativeDate`, `formatDate`) accept
@@ -164,15 +187,21 @@ Full documentation is in `docs/API.md`. Key endpoint groups:
 | Prefix | Description | Auth |
 |--------|-------------|------|
 | `/api/v1/accounts/` | Register, login, logout, profile, password, addresses | Mixed |
-| `/api/v1/catalog/` | Products, categories, brands, full-text search | Public |
+| `/api/v1/catalog/` | Products, categories, brands, variants, banners, full-text search | Public |
 | `/api/v1/cart/` | Cart management, coupon application | Required |
 | `/api/v1/orders/` | Checkout, order history, cancellation | Required |
-| `/api/v1/inventory/` | Stock management | Staff only |
+| `/api/v1/inventory/` | Stock management, warehouses, thresholds, adjustments | Staff only |
 | `/api/v1/payments/` | Initiate payment, webhooks | Mixed |
 | `/api/v1/coupons/` | Apply discount codes | Required |
 | `/api/v1/reviews/` | Product reviews and ratings | Mixed |
 | `/api/v1/wishlist/` | Wishlist management | Required |
 | `/api/v1/notifications/` | In-app notification centre, mark read | Required |
+| `/api/v1/contact/` | Contact form submission and admin inbox | Mixed |
+| `/api/v1/newsletter/` | Newsletter subscribe / unsubscribe | Mixed |
+| `/api/v1/dashboard/` | KPIs, sales stats, recent orders for admin dashboard | Staff only |
+| `/api/v1/exports/` | CSV / Excel exports: products, orders, customers, inventory… | Staff only |
+| `/api/v1/search/` | Global full-text search across catalog entities | Public |
+| `/api/v1/uploads/` | Centralised file upload endpoint | Staff only |
 
 ---
 
@@ -190,8 +219,11 @@ gunicorn config.wsgi:application \
   --timeout 30 \
   --bind 0.0.0.0:8000
 
-# Frontend — build once, serve with any static host
-cd frontend && pnpm build   # outputs to frontend/dist/
+# Store frontend — build once, serve with any static host
+cd frontend-store && pnpm build   # outputs to frontend-store/dist/
+
+# Admin frontend — build once, serve with any static host
+cd frontend-admin && pnpm build   # outputs to frontend-admin/dist/
 ```
 
 ---

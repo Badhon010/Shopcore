@@ -1,7 +1,4 @@
-// ─────────────────────────────────────────────────────────────
-// ShopCore Admin — Domain models
-// ─────────────────────────────────────────────────────────────
-
+// ── Users ───────────────────────────────────────────────────
 export interface User {
   id: string
   email: string
@@ -9,93 +6,97 @@ export interface User {
   last_name: string
   full_name: string
   phone_number?: string
+  avatar?: string
   date_joined: string
   is_email_verified: boolean
   is_staff: boolean
   is_superuser?: boolean
-  is_active?: boolean
+  is_active: boolean
+  last_login?: string
 }
 
 // ── Catalog ──────────────────────────────────────────────────
+export type ProductStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
 
 export interface Category {
-  id: number
+  id: string
   name: string
   slug: string
-  parent: number | null
-  children?: Category[]
   description?: string
-  image?: string | null
-  display_order: number
-  meta_title?: string
-  meta_description?: string
+  image?: string
+  parent?: { id: string; name: string; slug: string } | null
+  children?: Category[]
+  product_count?: number
 }
 
 export interface Brand {
-  id: number
+  id: string
   name: string
   slug: string
-  logo?: string | null
   description?: string
+  logo?: string
 }
 
 export interface ProductImage {
-  id: number
+  id: string
   image: string
   alt_text?: string
-  display_order: number
   is_primary: boolean
+  ordering: number
+}
+
+export interface ProductVariantOption {
+  name: string
+  value: string
 }
 
 export interface ProductVariant {
-  id: number
+  id: string
   sku: string
-  name: string
-  price?: string
-  weight_kg?: string
-  stock?: number
+  options: ProductVariantOption[]
+  price: string
+  original_price?: string
+  is_available: boolean
 }
 
-export type ProductStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED'
-
-export interface Product {
-  id: number
+export interface AdminProduct {
+  id: string
   name: string
   slug: string
-  category: number | null
-  category_name?: string
-  brand: number | null
-  brand_name?: string
-  description?: string
+  description: string
   short_description?: string
-  base_price: string
-  compare_at_price?: string | null
-  sku?: string
+  /** Integer ID from admin endpoint */
+  category: number
+  category_name?: string
+  /** Integer ID from admin endpoint */
+  brand?: number | null
+  brand_name?: string
   status: ProductStatus
+  price: string
+  original_price?: string
   is_featured: boolean
-  weight_kg?: string
-  average_rating?: number
-  review_count?: number
-  images: ProductImage[]
-  variants: ProductVariant[]
+  images?: ProductImage[]
+  variants?: ProductVariant[]
+  created_at: string
+  updated_at?: string
 }
 
 export interface Banner {
-  id: number
+  id: string
   title: string
   subtitle?: string
-  image: string
-  cta_label?: string
-  cta_url?: string
+  image?: string
+  cta_text?: string
+  cta_link?: string
   is_active: boolean
   display_order: number
+  created_at?: string
 }
 
 // ── Orders ───────────────────────────────────────────────────
-
 export type OrderStatus =
-  | 'PENDING_PAYMENT'
-  | 'PAID'
+  | 'PENDING'
+  | 'CONFIRMED'
   | 'PROCESSING'
   | 'SHIPPED'
   | 'DELIVERED'
@@ -105,150 +106,195 @@ export type OrderStatus =
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
 
 export interface OrderItem {
-  id: number
+  id: string
   product_name: string
-  variant_sku: string
+  product_slug?: string
+  variant_sku?: string
   quantity: number
   unit_price: string
   total_price: string
-  image?: string
-}
-
-export interface OrderStatusHistoryEntry {
-  status: OrderStatus
-  timestamp: string
-  note?: string
 }
 
 export interface Order {
-  id: number
+  id: string
   order_number: string
+  user?: {
+    id: string
+    email: string
+    full_name: string
+  }
   status: OrderStatus
   payment_status: PaymentStatus
-  user_email?: string
-  shipping_address_snapshot: Record<string, unknown>
-  billing_address_snapshot?: Record<string, unknown>
-  subtotal: string
-  discount_total: string
-  shipping_cost: string
-  tax_total: string
-  grand_total: string
-  coupon_code_snapshot?: string | null
   items: OrderItem[]
-  status_history: OrderStatusHistoryEntry[]
+  subtotal: string
+  discount?: string
+  shipping_cost?: string
+  tax?: string
+  grand_total: string
+  shipping_address?: {
+    full_name: string
+    address_line_1: string
+    address_line_2?: string
+    city: string
+    state_province: string
+    postal_code: string
+    country: string
+  }
+  coupon_code?: string
+  notes?: string
   created_at: string
   updated_at?: string
-  notes?: string
+}
+
+export interface OrderStats {
+  total_orders: number
+  pending_orders: number
+  revenue_today: string
+  revenue_this_month: string
+  orders_today: number
+  orders_this_week?: number
 }
 
 // ── Inventory ────────────────────────────────────────────────
-
-export interface Warehouse {
-  id: number
-  name: string
-  code: string
-  city: string
-  country: string
-  is_default: boolean
-}
-
 export interface StockItem {
-  id: number
-  variant_sku: string
+  id: string
   product_name: string
-  warehouse_name: string
+  variant_sku: string
   quantity_on_hand: number
   quantity_reserved: number
   quantity_available: number
   low_stock_threshold: number
   is_low_stock: boolean
-  updated_at: string
+  is_out_of_stock: boolean
+  warehouse?: string
+}
+
+export interface StockMovement {
+  id: string
+  movement_type: string
+  quantity_delta: number
+  quantity_before: number
+  quantity_after: number
+  reason?: string
+  created_at: string
+  created_by?: string
+}
+
+export interface Warehouse {
+  id: string
+  name: string
+  address?: string
 }
 
 // ── Reviews ──────────────────────────────────────────────────
-
 export interface Review {
-  id: number
-  product: number
-  product_name?: string
+  id: string
+  product_name: string
   product_slug?: string
-  user_email: string
+  user_email?: string
+  user_name?: string
   rating: number
-  title: string
+  title?: string
   body: string
-  is_verified_purchase: boolean
   is_approved: boolean
   created_at: string
-  updated_at: string
 }
 
 // ── Coupons ──────────────────────────────────────────────────
-
-export type DiscountType = 'PERCENTAGE' | 'FIXED_AMOUNT'
+export type CouponDiscountType = 'percentage' | 'fixed'
 
 export interface Coupon {
-  id: number
+  id: string
   code: string
-  discount_type: DiscountType
+  description?: string
+  discount_type: CouponDiscountType
   discount_value: string
-  minimum_order_amount?: string | null
-  max_discount_amount?: string | null
-  valid_from: string
-  valid_until: string
-  usage_limit_total?: number | null
-  usage_limit_per_user?: number | null
-  times_used: number
+  minimum_order_amount?: string
+  usage_limit?: number
+  usage_count: number
+  usage_limit_per_user?: number
   is_active: boolean
+  valid_from?: string
+  valid_to?: string
+  created_at: string
 }
 
-// ── Newsletter ───────────────────────────────────────────────
+// ── Newsletter ────────────────────────────────────────────────
+export type CampaignStatus = 'DRAFT' | 'SENT' | 'SCHEDULED'
 
 export interface NewsletterSubscriber {
-  id: number
+  id: string
   email: string
-  active: boolean
+  is_active: boolean
   subscribed_at: string
-  created_at: string
 }
 
-export type CampaignStatus = 'draft' | 'sending' | 'sent' | 'failed'
-
 export interface NewsletterCampaign {
-  id: number
-  title: string
+  id: string
   subject: string
-  preview_text: string
-  html_body: string
-  plain_body: string
+  body: string
   status: CampaignStatus
-  sent_at: string | null
-  recipient_count: number
-  open_count: number
-  click_count: number
-  open_rate: number
-  click_rate: number
+  sent_at?: string
   created_at: string
-  updated_at: string
 }
 
 export interface NewsletterStats {
   total_subscribers: number
   active_subscribers: number
-  inactive_subscribers: number
-  new_this_month: number
-  new_last_month: number
-  campaigns_sent: number
-  campaigns_draft: number
-  avg_open_rate: number
-  avg_click_rate: number
+  total_campaigns: number
+  sent_campaigns: number
 }
 
-// ── Notifications ────────────────────────────────────────────
-
+// ── Notifications ─────────────────────────────────────────────
 export interface Notification {
-  id: number
-  message: string
+  id: string
+  title: string
+  body: string
+  notification_type: string
   is_read: boolean
+  action_url?: string
   created_at: string
-  link?: string
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
+export interface DashboardKPIs {
+  total_revenue: string
+  revenue_change_pct?: number
+  total_orders: number
+  orders_change_pct?: number
+  total_customers: number
+  customers_change_pct?: number
+  low_stock_count: number
+  pending_orders: number
+}
+
+export interface RevenueDataPoint {
+  date: string
+  revenue: string | number
+}
+
+export interface OrderVolumeDataPoint {
+  date: string
+  orders: number
+}
+
+export interface BestSellerItem {
+  product_name: string
+  product_slug?: string
+  revenue: string | number
+  units_sold: number
+}
+
+// ── Contact ───────────────────────────────────────────────────
+export type ContactStatus = 'NEW' | 'IN_PROGRESS' | 'RESOLVED'
+
+export interface ContactMessage {
+  id: string
+  name: string
+  email: string
+  subject?: string
+  message: string
+  status: ContactStatus
+  created_at: string
+  resolved_at?: string
 }

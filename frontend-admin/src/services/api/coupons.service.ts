@@ -1,40 +1,32 @@
 import { axiosClient } from './axiosClient'
 import { endpoints } from './endpoints'
 import type { Coupon } from '@/types/models'
-import type { PaginatedResponse } from '@/types/api'
-
-export interface CouponListParams {
-  page?: number
-  page_size?: number
-  search?: string
-  is_active?: boolean
-  ordering?: string
-}
-
-export type CouponPayload = Omit<Coupon, 'id' | 'times_used'>
+import type { PaginatedResponse, ListParams } from '@/types/api'
 
 export const couponsService = {
-  async getCoupons(params?: CouponListParams): Promise<PaginatedResponse<Coupon>> {
-    const res = await axiosClient.get<PaginatedResponse<Coupon>>(endpoints.coupons.list(), { params })
+  async listCoupons(params?: ListParams): Promise<PaginatedResponse<Coupon>> {
+    const res = await axiosClient.get<PaginatedResponse<Coupon>>(
+      endpoints.coupons.list(), { params }
+    )
     return res.data
   },
 
-  async getCoupon(id: number): Promise<Coupon> {
-    const res = await axiosClient.get<Coupon>(endpoints.coupons.detail(id))
+  async getCoupon(pk: string): Promise<Coupon> {
+    const res = await axiosClient.get<Coupon>(endpoints.coupons.detail(pk))
     return res.data
   },
 
-  async createCoupon(data: CouponPayload): Promise<Coupon> {
-    const res = await axiosClient.post<Coupon>(endpoints.coupons.create(), data)
+  async createCoupon(data: Partial<Coupon>): Promise<Coupon> {
+    const res = await axiosClient.post<Coupon>(endpoints.coupons.list(), data)
     return res.data
   },
 
-  async updateCoupon(id: number, data: Partial<CouponPayload>): Promise<Coupon> {
-    const res = await axiosClient.patch<Coupon>(endpoints.coupons.detail(id), data)
+  async updateCoupon(pk: string, data: Partial<Coupon>): Promise<Coupon> {
+    const res = await axiosClient.patch<Coupon>(endpoints.coupons.detail(pk), data)
     return res.data
   },
 
-  async deleteCoupon(id: number): Promise<void> {
-    await axiosClient.delete(endpoints.coupons.detail(id))
+  async deleteCoupon(pk: string): Promise<void> {
+    await axiosClient.delete(endpoints.coupons.detail(pk))
   },
 }

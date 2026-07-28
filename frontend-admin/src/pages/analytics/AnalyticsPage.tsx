@@ -116,10 +116,10 @@ function SectionSkeleton({ rows = 4 }: { rows?: number }) {
 // ── Main page ────────────────────────────────────────────────
 
 export function AnalyticsPage() {
-  // Fetch all data in parallel
-  const ordersQuery = useQuery({
-    queryKey: ['analytics-orders'],
-    queryFn: () => ordersService.getOrders({ page_size: 100 }),
+  // Stats from dedicated endpoint — accurate DB aggregations
+  const statsQuery = useQuery({
+    queryKey: ['analytics-order-stats'],
+    queryFn: () => ordersService.getStats(),
     staleTime: 60_000,
   })
 
@@ -171,26 +171,22 @@ export function AnalyticsPage() {
     staleTime: 60_000,
   })
 
-  // Derived values
-  const orders = ordersQuery.data?.results ?? []
-  const totalOrders = ordersQuery.data?.count ?? 0
-  const totalRevenue = orders.reduce((sum, o) => sum + parseFloat(o.grand_total || '0'), 0)
-  const avgOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0
+  // Order stats — from DB aggregation, always accurate regardless of record count
+  const stats = statsQuery.data
+  const totalOrders    = stats?.total_orders        ?? 0
+  const totalRevenue   = stats ? parseFloat(stats.total_revenue)    : 0
+  const avgOrderValue  = stats ? parseFloat(stats.avg_order_value)  : 0
 
-  // Order status breakdown from fetched results
-  const statusCounts: Partial<Record<OrderStatus, number>> = {}
-  for (const order of orders) {
-    statusCounts[order.status] = (statusCounts[order.status] ?? 0) + 1
-  }
-
+  // Status breakdown from full DB count
+  const statusBreakdown = stats?.status_breakdown ?? {}
   const orderStatusStats: StatusStat[] = [
-    { status: 'DELIVERED',       label: 'Delivered',       count: statusCounts['DELIVERED']       ?? 0, color: 'bg-success',   icon: CheckCircle2 },
-    { status: 'PROCESSING',      label: 'Processing',      count: statusCounts['PROCESSING']      ?? 0, color: 'bg-info',      icon: RefreshCw    },
-    { status: 'SHIPPED',         label: 'Shipped',         count: statusCounts['SHIPPED']         ?? 0, color: 'bg-primary',   icon: Truck        },
-    { status: 'PAID',            label: 'Paid',            count: statusCounts['PAID']            ?? 0, color: 'bg-primary',   icon: DollarSign   },
-    { status: 'PENDING_PAYMENT', label: 'Pending payment', count: statusCounts['PENDING_PAYMENT'] ?? 0, color: 'bg-warning',   icon: Clock        },
-    { status: 'CANCELLED',       label: 'Cancelled',       count: statusCounts['CANCELLED']       ?? 0, color: 'bg-danger',    icon: XCircle      },
-    { status: 'REFUNDED',        label: 'Refunded',        count: statusCounts['REFUNDED']        ?? 0, color: 'bg-danger',    icon: RefreshCw    },
+    { status: 'DELIVERED',       label: 'Delivered',       count: statusBreakdown['DELIVERED']       ?? 0, color: 'bg-success',   icon: CheckCircle2 },
+    { status: 'PROCESSING',      label: 'Processing',      count: statusBreakdown['PROCESSING']      ?? 0, color: 'bg-info',      icon: RefreshCw    },
+    { status: 'SHIPPED',         label: 'Shipped',         count: statusBreakdown['SHIPPED']         ?? 0, color: 'bg-primary',   icon: Truck        },
+    { status: 'PAID',            label: 'Paid',            count: statusBreakdown['PAID']            ?? 0, color: 'bg-primary',   icon: DollarSign   },
+    { status: 'PENDING_PAYMENT', label: 'Pending payment', count: statusBreakdown['PENDING_PAYMENT'] ?? 0, color: 'bg-warning',   icon: Clock        },
+    { status: 'CANCELLED',       label: 'Cancelled',       count: statusBreakdown['CANCELLED']       ?? 0, color: 'bg-danger',    icon: XCircle      },
+    { status: 'REFUNDED',        label: 'Refunded',        count: statusBreakdown['REFUNDED']        ?? 0, color: 'bg-danger',    icon: RefreshCw    },
   ]
 
   const statusVariantMap: Record<OrderStatus, 'warning' | 'success' | 'info' | 'danger' | 'default'> = {
@@ -203,7 +199,7 @@ export function AnalyticsPage() {
     REFUNDED:        'danger',
   }
 
-  // Catalog counts
+  // Catalog counts (accurate — uses count from paginated response, not result slice)
   const totalProducts    = productsQuery.data?.count        ?? 0
   const activeProducts   = activeProductsQuery.data?.count  ?? 0
   const draftProducts    = draftProductsQuery.data?.count   ?? 0
@@ -215,10 +211,10 @@ export function AnalyticsPage() {
     draftProductsQuery.isLoading ||
     archivedProductsQuery.isLoading
 
-  const totalReviews   = reviewsQuery.data?.count        ?? 0
-  const pendingReviews = pendingReviewsQuery.data?.count  ?? 0
+  const totalReviews    = reviewsQuery.data?.count        ?? 0
+  const pendingReviews  = pendingReviewsQuery.data?.count  ?? 0
   const approvedReviews = totalReviews - pendingReviews
-  const reviewsLoading = reviewsQuery.isLoading || pendingReviewsQuery.isLoading
+  const reviewsLoading  = reviewsQuery.isLoading || pendingReviewsQuery.isLoading
 
   return (
     <div className="space-y-8">
@@ -240,19 +236,19 @@ export function AnalyticsPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Total Orders"
-          value={ordersQuery.isLoading ? '…' : totalOrders.toLocaleString()}
+          value={statsQuery.isLoading ? '…' : totalOrders.toLocaleString()}
           icon={ShoppingCart}
           variant="primary"
           description="all time"
-          isLoading={ordersQuery.isLoading}
+          isLoading={statsQuery.isLoading}
         />
         <StatCard
-          title="Revenue (sampled)"
-          value={ordersQuery.isLoading ? '…' : formatCurrency(totalRevenue)}
+          title="Revenue"
+          value={statsQuery.isLoading ? '…' : formatCurrency(totalRevenue)}
           icon={DollarSign}
           variant="success"
-          description={`from ${orders.length} most recent orders`}
-          isLoading={ordersQuery.isLoading}
+          description="all time"
+          isLoading={statsQuery.isLoading}
         />
         <StatCard
           title="Customers"
@@ -284,11 +280,11 @@ export function AnalyticsPage() {
         />
         <StatCard
           title="Avg Order Value"
-          value={ordersQuery.isLoading ? '…' : formatCurrency(avgOrderValue)}
+          value={statsQuery.isLoading ? '…' : formatCurrency(avgOrderValue)}
           icon={BarChart3}
           variant="default"
-          description="from sampled orders"
-          isLoading={ordersQuery.isLoading}
+          description="all orders"
+          isLoading={statsQuery.isLoading}
         />
         <StatCard
           title="Total Reviews"
@@ -319,9 +315,9 @@ export function AnalyticsPage() {
               View all →
             </Link>
           </CardHeader>
-          {ordersQuery.isLoading ? (
+          {statsQuery.isLoading ? (
             <SectionSkeleton rows={5} />
-          ) : orders.length === 0 ? (
+          ) : totalOrders === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
               <ShoppingCart className="h-8 w-8 text-text-muted" aria-hidden />
               <p className="text-body-sm text-text-muted">No orders yet</p>
@@ -333,7 +329,7 @@ export function AnalyticsPage() {
                 {orderStatusStats.map((s) => (
                   <BarSegment
                     key={s.status}
-                    pct={totalOrders > 0 ? (s.count / Math.min(orders.length, totalOrders)) * 100 : 0}
+                    pct={totalOrders > 0 ? (s.count / totalOrders) * 100 : 0}
                     color={s.color}
                   />
                 ))}
@@ -345,16 +341,13 @@ export function AnalyticsPage() {
                     key={s.status}
                     label={s.label}
                     count={s.count}
-                    total={orders.length}
+                    total={totalOrders}
                     color={s.color}
                     icon={s.icon}
                     variant={statusVariantMap[s.status]}
                   />
                 ))}
               </div>
-              <p className="pt-1 text-caption text-text-muted">
-                Breakdown based on {orders.length} most recently fetched orders.
-              </p>
             </div>
           )}
         </Card>

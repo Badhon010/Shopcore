@@ -39,3 +39,22 @@ class StockMovementSerializer(serializers.ModelSerializer):
             "id", "movement_type", "quantity_delta", "reference", "note",
             "created_at", "created_by",
         ]
+
+
+class StockThresholdSerializer(serializers.Serializer):
+    """Update only the low_stock_threshold of a StockItem."""
+
+    low_stock_threshold = serializers.IntegerField(min_value=0)
+
+
+class ManualAdjustmentSerializer(serializers.Serializer):
+    """Validate a manual stock adjustment request."""
+
+    quantity_delta = serializers.IntegerField()
+    reason = serializers.CharField(max_length=200)
+    note = serializers.CharField(max_length=500, required=False, default="")
+
+    def validate_quantity_delta(self, value: int) -> int:
+        if value == 0:
+            raise serializers.ValidationError("quantity_delta must not be zero.")
+        return value

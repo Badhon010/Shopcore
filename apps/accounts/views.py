@@ -16,6 +16,9 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from apps.accounts.models import Address
 from apps.accounts.serializers import (
     AddressSerializer,
+    AdminBulkActionSerializer,
+    AdminUserDetailSerializer,
+    AdminUserUpdateSerializer,
     ChangePasswordSerializer,
     CustomTokenObtainPairSerializer,
     EmailVerificationSerializer,
@@ -113,9 +116,13 @@ class MeView(generics.RetrieveUpdateAPIView):
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
-    @extend_schema(summary="Update current user profile")
+    @extend_schema(summary="Update current user profile", responses={200: UserSerializer})
     def patch(self, request, *args, **kwargs):
-        return super().patch(request, *args, **kwargs)
+        instance = self.get_object()
+        serializer = UserProfileUpdateSerializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(UserSerializer(instance).data)
 
 
 class ChangePasswordView(APIView):
@@ -332,3 +339,226 @@ class AdminUserDetailView(generics.RetrieveAPIView):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAdminUser]
     queryset = User.objects.all()
+
+
+class AdminUserUpdateView(generics.UpdateAPIView):
+    """Staff-only: partial update of a user's safe fields."""
+
+    serializer_class = AdminUserUpdateSerializer
+    permission_classes = [permissions.IsAdminUser]
+    queryset = User.objects.all()
+    http_method_names = ["patch"]
+
+    @extend_schema(
+        summary="Admin: update user fields",
+        request=AdminUserUpdateSerializer,
+        responses={200: AdminUserDetailSerializer},
+    )
+    def patch(self, request, *args, **kwargs):
+        user = self.get_object()
+        # Prevent self-demotion
+        if user == request.user and request.data.get("is_staff") is False:
+            return Response(
+                {"error": {"code": "SELF_DEMOTION", "message": "You cannot remove your own staff status.", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer = self.get_serializer(user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated = serializer.save()
+        return Response(AdminUserDetailSerializer(updated).data)
+
+
+class AdminUserActivateView(APIView):
+    """Staff-only: activate a user account."""
+
+    permission_classes = [permissions.IsAdminUser]
+
+    @extend_schema(summary="Admin: activate user", responses={200: AdminUserDetailSerializer})
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response(
+                {"error": {"code": "NOT_FOUND", "message": "User not found.", "details": {}}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        user.is_active = True
+        user.save(update_fields=["is_active"])
+        return Response(AdminUserDetailSerializer(user).data)
+
+
+class AdminUserDeactivateView(APIView):
+    """Staff-only: deactivate a user account. Cannot deactivate self."""
+
+    permission_classes = [permissions.IsAdminUser]
+
+    @extend_schema(summary="Admin: deactivate user", responses={200: AdminUserDetailSerializer})
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response(
+                {"error": {"code": "NOT_FOUND", "message": "User not found.", "details": {}}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        if user == request.user:
+            return Response(
+                {"error": {"code": "SELF_DEACTIVATION", "message": "You cannot deactivate your own account.", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user.is_active = False
+        user.save(update_fields=["is_active"])
+        return Response(AdminUserDetailSerializer(user).data)
+
+
+class AdminUserSuspendView(APIView):
+    """Staff-only: suspend a user account (maps to is_active=False). Cannot suspend self."""
+
+    permission_classes = [permissions.IsAdminUser]
+
+    @extend_schema(summary="Admin: suspend user", responses={200: AdminUserDetailSerializer})
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response(
+                {"error": {"code": "NOT_FOUND", "message": "User not found.", "details": {}}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        if user == request.user:
+            return Response(
+                {"error": {"code": "SELF_SUSPENSION", "message": "You cannot suspend your own account.", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user.is_active = False
+        user.save(update_fields=["is_active"])
+        data = dict(AdminUserDetailSerializer(user).data)
+        data["note"] = "User account has been suspended (is_active set to False)."
+        return Response(data)
+
+
+class AdminUserPromoteStaffView(APIView):
+    """Staff-only: promote a user to staff."""
+
+    permission_classes = [permissions.IsAdminUser]
+
+    @extend_schema(summary="Admin: promote user to staff", responses={200: AdminUserDetailSerializer})
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response(
+                {"error": {"code": "NOT_FOUND", "message": "User not found.", "details": {}}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        user.is_staff = True
+        user.save(update_fields=["is_staff"])
+        return Response(AdminUserDetailSerializer(user).data)
+
+
+class AdminUserRemoveStaffView(APIView):
+    """Staff-only: remove staff status from a user. Cannot remove own staff."""
+
+    permission_classes = [permissions.IsAdminUser]
+
+    @extend_schema(summary="Admin: remove staff status from user", responses={200: AdminUserDetailSerializer})
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response(
+                {"error": {"code": "NOT_FOUND", "message": "User not found.", "details": {}}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        if user == request.user:
+            return Response(
+                {"error": {"code": "SELF_DEMOTION", "message": "You cannot remove your own staff status.", "details": {}}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user.is_staff = False
+        user.save(update_fields=["is_staff"])
+        return Response(AdminUserDetailSerializer(user).data)
+
+
+class AdminUserResetPasswordView(APIView):
+    """Staff-only: trigger a password reset email for a user."""
+
+    permission_classes = [permissions.IsAdminUser]
+
+    @extend_schema(summary="Admin: trigger password reset email for user", responses={204: None})
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response(
+                {"error": {"code": "NOT_FOUND", "message": "User not found.", "details": {}}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        send_password_reset_email(user.email)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminUserForceVerifyEmailView(APIView):
+    """Staff-only: force-verify a user's email address."""
+
+    permission_classes = [permissions.IsAdminUser]
+
+    @extend_schema(summary="Admin: force-verify user email", responses={200: AdminUserDetailSerializer})
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response(
+                {"error": {"code": "NOT_FOUND", "message": "User not found.", "details": {}}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        user.is_email_verified = True
+        user.save(update_fields=["is_email_verified"])
+        return Response(AdminUserDetailSerializer(user).data)
+
+
+class AdminUserBulkActionView(APIView):
+    """Staff-only: apply an action to multiple users at once."""
+
+    permission_classes = [permissions.IsAdminUser]
+
+    @extend_schema(
+        summary="Admin: bulk action on users",
+        request=AdminBulkActionSerializer,
+        responses={200: None},
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = AdminBulkActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        action = serializer.validated_data["action"]
+        ids = serializer.validated_data["ids"]
+
+        ACTION_MAP = {
+            "activate": {"is_active": True},
+            "deactivate": {"is_active": False},
+            "promote_staff": {"is_staff": True},
+            "remove_staff": {"is_staff": False},
+        }
+        update_fields = ACTION_MAP[action]
+        errors = []
+        updated = 0
+
+        for uid in ids:
+            try:
+                user = User.objects.get(pk=uid)
+            except User.DoesNotExist:
+                errors.append({"id": uid, "error": "User not found."})
+                continue
+
+            # Guard: cannot remove own staff or deactivate self
+            if user == request.user:
+                if action in ("remove_staff", "deactivate"):
+                    errors.append({"id": uid, "error": f"Cannot apply '{action}' to your own account."})
+                    continue
+
+            for field, value in update_fields.items():
+                setattr(user, field, value)
+            user.save(update_fields=list(update_fields.keys()))
+            updated += 1
+
+        return Response({"updated": updated, "errors": errors})

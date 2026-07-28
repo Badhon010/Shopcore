@@ -1,103 +1,172 @@
-/* ShopCore admin uses the same semantic HSL token vocabulary as the store. */
+/* ============================================================
+   SHOPCORE ADMIN — DESIGN TOKENS
+   Single source of truth for the admin design system.
+   Admin primary is --primary: 224 76% 48% (deeper blue than store).
+   ============================================================ */
+
 :root,
-[data-theme='light'] {
-  --primary: 224 76% 48%;
-  --primary-hover: 224 76% 40%;
-  --primary-active: 224 76% 34%;
-  --primary-light: 224 82% 95%;
+[data-theme="light"] {
+
+  /* ── Primary — deep blue ───────────────────────────────────── */
+  --primary:            224 76% 48%;
+  --primary-hover:      224 76% 40%;
+  --primary-active:     224 76% 34%;
+  --primary-light:      224 82% 95%;
   --primary-foreground: 0 0% 100%;
 
-  --accent: 173 72% 34%;
-  --accent-hover: 173 72% 28%;
-  --accent-subtle: 173 55% 93%;
+  /* ── Accent — teal ─────────────────────────────────────────── */
+  --accent:            173 72% 34%;
+  --accent-hover:      173 72% 28%;
+  --accent-subtle:     173 55% 93%;
   --accent-foreground: 173 60% 12%;
 
-  --background: 210 30% 98%;
-  --background-subtle: 214 32% 95%;
-  --surface: 0 0% 100%;
-  --surface-elevated: 0 0% 100%;
+  /* ── Secondary ─────────────────────────────────────────────── */
+  --secondary:            210 20% 96%;
+  --secondary-hover:      214 20% 91%;
+  --secondary-foreground: 222 47% 11%;
 
-  --text-primary: 222 47% 11%;
-  --text-secondary: 215 20% 35%;
-  --text-muted: 215 16% 47%;
-  --text-tertiary: 215 16% 47%;
-  --text-inverse: 0 0% 100%;
+  /* ── Surfaces ──────────────────────────────────────────────── */
+  --background:        210 30% 98%;
+  --background-subtle: 214 32% 95%;
+  --surface:           0 0% 100%;
+  --surface-elevated:  0 0% 100%;
+
+  /* ── Text ──────────────────────────────────────────────────── */
+  --text-primary:    222 47% 11%;
+  --text-secondary:  215 20% 35%;
+  --text-muted:      215 16% 47%;
+  --text-tertiary:   215 16% 47%;
+  --text-inverse:    0 0% 100%;
   --text-on-primary: 0 0% 100%;
 
-  --border: 214 22% 88%;
-  --border-light: 214 22% 94%;
+  /* ── Borders ───────────────────────────────────────────────── */
+  --border:        214 22% 88%;
+  --border-light:  214 22% 94%;
   --border-strong: 214 22% 78%;
 
-  --success: 152 60% 36%;
-  --success-subtle: 152 50% 95%;
+  /* ── Status: Success ───────────────────────────────────────── */
+  --success:            152 60% 36%;
+  --success-subtle:     152 50% 95%;
   --success-foreground: 0 0% 100%;
-  --warning: 38 92% 50%;
-  --warning-subtle: 38 92% 95%;
+
+  /* ── Status: Warning ───────────────────────────────────────── */
+  --warning:            38 92% 50%;
+  --warning-subtle:     38 92% 95%;
   --warning-foreground: 222 20% 12%;
-  --danger: 0 72% 51%;
-  --danger-subtle: 0 100% 97%;
+
+  /* ── Status: Danger ────────────────────────────────────────── */
+  --danger:            0 72% 51%;
+  --danger-subtle:     0 100% 97%;
   --danger-foreground: 0 0% 100%;
-  --info: 217 91% 60%;
-  --info-subtle: 217 91% 95%;
+
+  /* ── Status: Info ──────────────────────────────────────────── */
+  --info:            217 91% 60%;
+  --info-subtle:     217 91% 95%;
   --info-foreground: 0 0% 100%;
 
-  --overlay: 0 0% 0%;
-  --disabled: 220 13% 91%;
+  /* ── State ─────────────────────────────────────────────────── */
+  --overlay:             0 0% 0%;
+  --disabled:            220 13% 91%;
   --disabled-foreground: 222 8% 56%;
-  --skeleton: 220 13% 91%;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --radius-xl: 24px;
-  --radius-2xl: 28px;
+  --skeleton:            220 13% 91%;
+
+  /* ── Radius ────────────────────────────────────────────────── */
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   20px;
+  --radius-xl:   24px;
+  --radius-2xl:  28px;
   --radius-full: 9999px;
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.035);
-  --shadow-sm: 0 6px 16px rgba(15, 23, 42, 0.055);
-  --shadow-md: 0 14px 34px rgba(15, 23, 42, 0.09);
-  --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.14);
+
+  /* ── Shadows ───────────────────────────────────────────────── */
+  --shadow-xs:         0 1px 2px rgba(15, 23, 42, 0.035);
+  --shadow-sm:         0 6px 16px rgba(15, 23, 42, 0.055);
+  --shadow-md:         0 14px 34px rgba(15, 23, 42, 0.09);
+  --shadow-lg:         0 24px 60px rgba(15, 23, 42, 0.14);
   --shadow-focus-ring: 0 0 0 4px hsl(var(--primary) / 0.22);
-  --duration-fast: 120ms;
-  --duration-base: 200ms;
-  --duration-slow: 320ms;
+
+  /* ── Motion ────────────────────────────────────────────────── */
+  --duration-fast:    120ms;
+  --duration-base:    200ms;
+  --duration-slow:    320ms;
+  --ease-standard:    cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasized:  cubic-bezier(0.2, 0, 0, 1);
+
+  /* ── Layout ────────────────────────────────────────────────── */
+  --sidebar-width:          240px;
+  --sidebar-width-collapsed: 64px;
+  --topbar-height:           60px;
 }
 
+/* ── Dark mode ─────────────────────────────────────────────── */
 .dark,
-[data-theme='dark'] {
-  --primary: 245 75% 68%;
-  --primary-hover: 245 75% 74%;
-  --primary-active: 245 75% 62%;
-  --primary-light: 245 50% 22%;
+[data-theme="dark"] {
+
+  /* ── Primary (lighter indigo for dark surfaces) ────────────── */
+  --primary:            245 75% 68%;
+  --primary-hover:      245 75% 74%;
+  --primary-active:     245 75% 62%;
+  --primary-light:      245 50% 22%;
   --primary-foreground: 0 0% 100%;
-  --accent: 38 90% 58%;
-  --accent-hover: 38 90% 50%;
-  --accent-subtle: 35 70% 20%;
-  --accent-foreground: 20 40% 12%;
-  --background: 222 47% 7%;
+
+  /* ── Accent ────────────────────────────────────────────────── */
+  --accent:            173 60% 48%;
+  --accent-hover:      173 60% 54%;
+  --accent-subtle:     173 40% 18%;
+  --accent-foreground: 0 0% 100%;
+
+  /* ── Secondary ─────────────────────────────────────────────── */
+  --secondary:            222 20% 18%;
+  --secondary-hover:      222 20% 24%;
+  --secondary-foreground: 0 0% 96%;
+
+  /* ── Surfaces — layered dark, not flat black ───────────────── */
+  --background:        222 47% 7%;
   --background-subtle: 222 40% 10%;
-  --surface: 222 35% 12%;
-  --surface-elevated: 222 30% 16%;
-  --text-primary: 210 40% 98%;
-  --text-secondary: 215 20% 74%;
-  --text-muted: 215 16% 60%;
-  --text-tertiary: 215 16% 60%;
-  --text-inverse: 222 47% 10%;
+  --surface:           222 35% 12%;
+  --surface-elevated:  222 30% 16%;
+
+  /* ── Text ──────────────────────────────────────────────────── */
+  --text-primary:    210 40% 98%;
+  --text-secondary:  215 20% 74%;
+  --text-muted:      215 16% 60%;
+  --text-tertiary:   215 16% 60%;
+  --text-inverse:    222 47% 10%;
   --text-on-primary: 0 0% 100%;
-  --border: 222 15% 22%;
-  --border-light: 222 15% 18%;
+
+  /* ── Borders ───────────────────────────────────────────────── */
+  --border:        222 15% 22%;
+  --border-light:  222 15% 18%;
   --border-strong: 222 15% 30%;
-  --success: 152 50% 46%;
-  --success-subtle: 152 50% 18%;
-  --warning: 38 92% 58%;
-  --warning-subtle: 38 50% 18%;
-  --danger: 0 72% 62%;
-  --danger-subtle: 0 50% 20%;
-  --info: 217 91% 65%;
-  --info-subtle: 217 50% 20%;
-  --disabled: 222 15% 22%;
+
+  /* ── Status: Success ───────────────────────────────────────── */
+  --success:            152 50% 46%;
+  --success-subtle:     152 50% 18%;
+  --success-foreground: 0 0% 100%;
+
+  /* ── Status: Warning ───────────────────────────────────────── */
+  --warning:            38 92% 58%;
+  --warning-subtle:     38 50% 18%;
+  --warning-foreground: 222 20% 12%;
+
+  /* ── Status: Danger ────────────────────────────────────────── */
+  --danger:            0 72% 62%;
+  --danger-subtle:     0 50% 20%;
+  --danger-foreground: 0 0% 100%;
+
+  /* ── Status: Info ──────────────────────────────────────────── */
+  --info:            217 91% 65%;
+  --info-subtle:     217 50% 20%;
+  --info-foreground: 0 0% 100%;
+
+  /* ── State ─────────────────────────────────────────────────── */
+  --disabled:            222 15% 22%;
   --disabled-foreground: 220 8% 55%;
-  --skeleton: 222 15% 22%;
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --skeleton:            222 15% 22%;
+
+  /* ── Shadows (dark-mode: depth via colour, not light-based) ── */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.3),  inset 0 1px 0 rgba(255,255,255,.04);
+  --shadow-sm: 0 2px 6px rgba(0,0,0,.4),  inset 0 1px 0 rgba(255,255,255,.04);
+  --shadow-md: 0 8px 24px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.04);
+  --shadow-lg: 0 16px 40px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.04);
 }

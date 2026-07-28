@@ -1,24 +1,25 @@
-import { Navigate, useLocation } from 'react-router-dom'
-import type { ReactNode } from 'react'
-import { ROUTES } from '@/constants/routes'
+import { Navigate, type ReactNode } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Spinner } from '@/components/feedback/Spinner'
+import { ROUTES } from '@/constants/routes'
 
-export function PublicOnlyRoute({ children }: { children: ReactNode }) {
+interface PublicOnlyRouteProps {
+  children: ReactNode
+}
+
+export function PublicOnlyRoute({ children }: PublicOnlyRouteProps) {
   const { isAuthenticated, isLoading } = useAuth()
-  const location = useLocation()
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-screen items-center justify-center">
         <Spinner size="lg" className="text-primary" />
       </div>
     )
   }
 
   if (isAuthenticated) {
-    const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname
-    return <Navigate to={from || ROUTES.HOME} replace />
+    return <Navigate to={ROUTES.DASHBOARD} replace />
   }
 
   return <>{children}</>

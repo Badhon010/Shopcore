@@ -1,7 +1,8 @@
+import { type ReactNode } from 'react'
+import * as RadixTabs from '@radix-ui/react-tabs'
 import { cn } from '@/utils/cn'
-import type { ReactNode } from 'react'
 
-export interface Tab {
+interface Tab {
   value: string
   label: string
   count?: number
@@ -10,59 +11,47 @@ export interface Tab {
 interface TabsProps {
   tabs: Tab[]
   value: string
-  onChange: (value: string) => void
+  onValueChange: (value: string) => void
+  children?: ReactNode
   className?: string
 }
 
-export function Tabs({ tabs, value, onChange, className }: TabsProps) {
+export function Tabs({ tabs, value, onValueChange, children, className }: TabsProps) {
   return (
-    <div
-      role="tablist"
-      className={cn(
-        'flex gap-0 border-b border-border',
-        className
-      )}
-    >
-      {tabs.map((tab) => (
-        <button
-          key={tab.value}
-          role="tab"
-          aria-selected={value === tab.value}
-          onClick={() => onChange(tab.value)}
-          className={cn(
-            'flex items-center gap-2 px-4 py-3 text-body-sm font-medium transition-colors',
-            'border-b-2 -mb-px',
-            value === tab.value
-              ? 'border-primary text-primary'
-              : 'border-transparent text-text-secondary hover:text-text-primary'
-          )}
-        >
-          {tab.label}
-          {tab.count !== undefined && (
-            <span
-              className={cn(
-                'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
-                value === tab.value
-                  ? 'bg-primary-light text-primary'
-                  : 'bg-bg-subtle text-text-muted'
-              )}
-            >
-              {tab.count}
-            </span>
-          )}
-        </button>
-      ))}
-    </div>
+    <RadixTabs.Root value={value} onValueChange={onValueChange}>
+      <RadixTabs.List
+        className={cn(
+          'flex items-center gap-1 border-b border-border',
+          className
+        )}
+      >
+        {tabs.map((tab) => (
+          <RadixTabs.Trigger
+            key={tab.value}
+            value={tab.value}
+            className={cn(
+              'relative flex items-center gap-1.5 pb-2.5 pt-0.5 text-sm font-medium text-text-muted transition-colors',
+              'hover:text-text-primary focus-visible:outline-none focus-visible:text-text-primary',
+              'data-[state=active]:text-text-primary',
+              'after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-primary after:scale-x-0 after:transition-transform',
+              'data-[state=active]:after:scale-x-100'
+            )}
+          >
+            {tab.label}
+            {tab.count !== undefined && (
+              <span className={cn(
+                'rounded-full px-1.5 py-0.5 text-xs font-medium',
+                'bg-secondary text-secondary-foreground'
+              )}>
+                {tab.count}
+              </span>
+            )}
+          </RadixTabs.Trigger>
+        ))}
+      </RadixTabs.List>
+      {children}
+    </RadixTabs.Root>
   )
 }
 
-interface TabContentProps {
-  value: string
-  activeValue: string
-  children: ReactNode
-}
-
-export function TabContent({ value, activeValue, children }: TabContentProps) {
-  if (value !== activeValue) return null
-  return <div role="tabpanel">{children}</div>
-}
+export const TabContent = RadixTabs.Content

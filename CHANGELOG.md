@@ -8,7 +8,47 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Backend added
+### Backend fixed (2026-07-28)
+
+- **Webhook `raw_body` / `request.body` ordering:** `WebhookView.post()` now
+  reads `raw_body = request.body` before accessing `request.data`. Previously
+  DRF's stream was consumed by `request.data` first, causing every webhook call
+  to raise `RawPostDataException` and return HTTP 400.
+
+- **`verify_signature` added to gateway contract:** `PaymentGateway` base class
+  now exposes a concrete (overridable) `verify_signature(raw_body, headers)`
+  method. `WebhookView` calls it before `handle_webhook`, catching `ValueError`
+  and returning `{"error": {"code": "INVALID_SIGNATURE"}}` with HTTP 400.
+  `ManualGateway` inherits the no-op default. No existing gateway behaviour changed.
+
+- **Test suite extended to 377 tests, all passing (was 366 / 377):**
+  - `TestWarehouseListView.test_list_warehouses` — accessed `response.data`
+    as a flat list; fixed to `response.data["results"]` (view uses pagination).
+  - `TestAdminProductVariantListView.test_list_variants_staff_only` — expected
+    count 2; fixed to 3 (signal auto-creates one default variant on product creation).
+  - `TestAdminProductVariantListView.test_list_variants_forbidden_for_anonymous` —
+    expected HTTP 403; fixed to HTTP 401 (DRF returns 401 for unauthenticated requests).
+  - `TestAdminBannerListView.test_create_banner` and
+    `TestAdminBannerDetailView.test_update_banner` — used truncated JPEG byte
+    sequences that Pillow rejected; replaced with `PIL.Image`-generated valid JPEGs.
+  - `TestExportProductsView.test_export_products_xlsx` and
+    `test_export_products_invalid_format_falls_back_to_csv` — DRF's
+    `URL_FORMAT_OVERRIDE` intercepted `?format=xlsx/pdf` as renderer negotiation
+    (returning HTTP 404). Added `REST_FRAMEWORK["URL_FORMAT_OVERRIDE"] = None`
+    to `config/settings/test.py` so the export views consume the `format`
+    query param themselves.
+
+### Maintenance (2026-07-28)
+
+- **`requirements.txt` cleaned up:** Removed multiple duplicate entries that had
+  accumulated (every package appeared 4–5 times). Production file now contains
+  exactly one entry per dependency with organised section comments.
+  Dev-only packages (`pytest`, `factory-boy`, `ruff`, `black`, `isort`,
+  `django-debug-toolbar`, `pre-commit`) live only in `requirements-dev.txt`.
+
+---
+
+### Backend added (earlier unreleased)
 
 - **Notifications REST API:** New `Notification` model (`title`, `body`,
   `notification_type`, `is_read`, `action_url`, `created_at`) distinct from the

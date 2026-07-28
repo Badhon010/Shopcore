@@ -6,21 +6,18 @@
 
 ## Executive summary
 
-ShopCore has a mature customer-facing React application in `frontend-store/` and a
-Django REST API in the repository root. The proposed `frontend-admin/` directory
-does not currently exist, despite the project brief describing it as an empty
-project.
+ShopCore has a mature customer-facing React application in `frontend-store/`, a
+staff admin React application in `frontend-admin/`, and a Django REST API in the
+repository root.
 
-The store frontend is a suitable source of truth for the admin application's
-technology, authentication, API client, data-fetching, design tokens, feedback
-patterns, and base UI primitives. The admin shell can be built as a second Vite
-application without changing the store application.
+`frontend-admin/` has been scaffolded and is functional. It shares technology
+conventions, design tokens, authentication patterns, and UI primitives with
+`frontend-store/`.
 
-The current backend, however, exposes only a small staff REST surface. Most
-administrative domains currently require Django Admin at `/admin/` rather than
-the custom React application. Building functional admin pages for those domains
-will require backend REST endpoints before or alongside the corresponding UI
-milestones. The frontend must not use mock data to hide those gaps.
+The backend has been substantially extended since Milestone 1. Many of the
+capability gaps identified in this report have since been filled with proper
+staff-authenticated REST endpoints. See the updated gap table below for current
+status.
 
 ## Repository findings
 
@@ -36,10 +33,9 @@ milestones. The frontend must not use mock data to hide those gaps.
   - `/api/docs/`
   - `/api/redoc/`
 
-The root `README.md` and `DEPLOYMENT.md` refer to a `frontend/` directory in
-several commands, but the actual customer application is `frontend-store/`.
-Future documentation and workflows should use the actual directory name unless
-the repository is intentionally renamed.
+The root `README.md` and `DEPLOYMENT.md` now correctly refer to `frontend-store/`
+and `frontend-admin/`. The previously documented `frontend/` path no longer
+appears in documentation.
 
 ## Frontend source of truth
 
@@ -248,20 +244,28 @@ error conventions.
 The custom admin must use the existing JWT login/refresh/logout endpoints and
 must treat `is_staff` as the backend authorization boundary.
 
-### Existing staff-capable REST endpoints
+### Staff-capable REST endpoints
 
-These are the only clearly staff-capable custom API endpoints identified:
+The following staff-only endpoints are available (permission: `IsStaffUser`):
 
-| Endpoint | Method | Permission | Purpose |
-|---|---:|---|---|
-| `/api/v1/inventory/stock/` | GET | `IsStaffUser` | List stock items |
-| `/api/v1/inventory/stock/<pk>/` | GET | `IsStaffUser` | Retrieve a stock item |
-| `/api/v1/inventory/stock/<pk>/restock/` | POST | `IsStaffUser` | Restock a stock item |
-| `/api/v1/orders/<order_number>/transition/` | POST | `IsStaffUser` | Change order status |
-
-The stock serializer exposes calculated availability (`on_hand - reserved`).
-Order serialization includes line-item snapshots and status history, which are
-useful for a read-only order detail page.
+| Prefix | Endpoints | Purpose |
+|---|---|---|
+| `/api/v1/accounts/admin/` | `GET /users/`, `GET/PATCH /users/<pk>/` | Customer list and detail |
+| `/api/v1/catalog/admin/` | Products, categories, brands (full CRUD, slug/PK-based) | Catalog management |
+| `/api/v1/catalog/admin/products/<slug>/variants/` | Full CRUD | Product variant management |
+| `/api/v1/catalog/admin/products/<slug>/images/` | Full CRUD | Product image management |
+| `/api/v1/catalog/admin/banners/` | Full CRUD | Banner management |
+| `/api/v1/inventory/stock/` | List, detail, restock, threshold, adjust, movements | Stock management |
+| `/api/v1/inventory/warehouses/` | List | Warehouse list |
+| `/api/v1/orders/admin/` | List, stats | All orders view |
+| `/api/v1/orders/<order_number>/transition/` | POST | Order status transition |
+| `/api/v1/reviews/admin/` | List, detail, approve/reject/delete | Review moderation |
+| `/api/v1/coupons/` | Full CRUD | Coupon management |
+| `/api/v1/newsletter/admin/` | Subscribers, campaigns, stats, send | Newsletter management |
+| `/api/v1/contact/admin/messages/` | List, detail, resolve, mark-new | Contact inbox |
+| `/api/v1/dashboard/` | Overview + analytics sub-routes | KPI dashboard |
+| `/api/v1/exports/` | Products, orders, customers, subscribers, reviews, inventory | CSV/XLSX exports |
+| `/api/v1/uploads/` | POST | Centralised file upload |
 
 ### Existing customer/public endpoints that may be read by the admin
 
@@ -299,43 +303,49 @@ orders, reviews, or notifications.
 
 ## Admin capability gaps
 
-The following areas have models and/or Django Admin support but do not have
-suitable staff REST endpoints:
+Most originally-identified gaps have been resolved. The following areas still
+lack a suitable staff REST endpoint:
 
 | Admin area | Current state | Required before functional UI |
 |---|---|---|
-| Dashboard and analytics | No aggregate reporting endpoints | Sales, order, customer, and inventory metrics |
-| Products | Public read-only catalog API | Staff CRUD, variants, images, and validation |
-| Categories and brands | Public read-only catalog API | Staff CRUD and soft-delete behavior |
-| Banners/content | Public list only | Staff CRUD and ordering/publishing controls |
-| Customers | `/accounts/me/` only | Staff list/detail, account status, and order history |
-| Reviews | Public approved list and customer-owned actions | Staff moderation and deletion |
-| Coupons | Apply/preview only | Staff CRUD, redemption reporting, and limits |
-| Newsletter | Subscribe only | Subscriber management, campaigns, templates, sending, logs, statistics |
-| Users, groups, roles, permissions | Django model/admin support only | Staff management API with safe authorization rules |
-| Payments/settings | Customer initiation/webhooks and Django settings | Admin visibility and operational controls as required |
+| Warehouse CRUD | `GET /inventory/warehouses/` — list only | Create/update/delete warehouse endpoints |
+| Order refund processing | No refund endpoint | Staff-initiated refund endpoint with inventory reversal |
+| Customer address management | No staff endpoint | Staff list/edit address books for a customer |
+| Newsletter delivery tracking | Campaigns can be sent; no delivery log | Campaign send-log / receipt endpoint |
 
-The backend already contains serializers such as
-`ProductCreateUpdateSerializer` and model/admin registrations for many of these
-domains, but their presence does not create a REST route. Before adding a UI
-that edits a resource, search the backend and add a properly authenticated
-endpoint only when no suitable endpoint exists.
+Previously-identified gaps that are now resolved:
 
-## Recommended milestone order
+| Admin area | Resolved by |
+|---|---|
+| Dashboard and analytics | `/dashboard/` + `/dashboard/analytics/*` (8 endpoints) |
+| Products (staff CRUD) | `/catalog/admin/products/` with draft/archived visibility |
+| Product variants | `/catalog/admin/products/<slug>/variants/` |
+| Product images | `/catalog/admin/products/<slug>/images/` |
+| Categories and brands | `/catalog/admin/categories/` and `/catalog/admin/brands/` |
+| Banners | `/catalog/admin/banners/` |
+| Customers | `/accounts/admin/users/` list and detail |
+| Reviews moderation | `/reviews/admin/` |
+| Coupons | `/coupons/` staff CRUD |
+| Newsletter management | `/newsletter/admin/subscribers/`, campaigns, stats, send |
+| Contact inbox | `/contact/admin/messages/` with resolve/reopen |
+| CSV / Excel exports | `/exports/` (6 entity types, CSV and XLSX) |
+| Global search | `/search/?q=` |
+| Centralised file upload | `/uploads/` |
+| Stock threshold, adjustments, movement history | `/inventory/stock/<pk>/threshold/`, `/adjust/`, `/movements/` |
 
-1. **Admin foundation:** scaffold `frontend-admin` with the store's Vite,
-   TypeScript, Tailwind, provider, theme, Axios, query, routing, and feedback
-   conventions. Add login, auth bootstrap, staff guard, responsive shell,
-   sidebar, topbar, and dark mode. Do not add business pages yet.
-2. **Backend authorization contract:** expose the staff identity required by the
-   guard, or confirm that the existing `/accounts/me/` response is extended
-   safely. Keep all permission decisions server-side.
-3. **Dashboard:** add real aggregate endpoints first, then wire dashboard
-   widgets to React Query. No mock metrics.
-4. **Inventory and read-only orders:** these can use existing staff endpoints,
-   with order detail/transition behavior verified against backend serializers.
-5. **Catalog, customers, reviews, marketing, coupons, analytics, and settings:**
-   implement each API contract before its corresponding management UI.
+## Current status (as of July 2026)
+
+`frontend-admin` is scaffolded and functional. All major backend endpoints are
+in place. The remaining gaps are narrow:
+
+1. **Warehouse management UI** — list view works; create/edit/delete requires backend endpoints first.
+2. **Order refund UI** — requires a refund endpoint on the backend.
+3. **Customer address management** — requires a staff-scoped address endpoint.
+4. **Newsletter delivery tracking** — requires a campaign send-log endpoint.
+
+For any new admin feature, always verify the endpoint exists in `apps/*/urls.py`
+before writing frontend code. The live OpenAPI schema at `/api/docs/` reflects
+all registered endpoints.
 
 ## Reusable asset index
 
@@ -358,10 +368,9 @@ endpoint only when no suitable endpoint exists.
 | Existing service patterns | `frontend-store/src/services/api/` |
 | Existing tests and providers | `frontend-store/src/tests/` |
 
-## Milestone 1 conclusion
+## Conclusion
 
-The codebase is compatible with a second React admin application that shares
-ShopCore's visual and technical conventions. The next implementation milestone
-can scaffold the admin shell without modifying `frontend-store`. It should not
-yet promise full catalog, customer, marketing, analytics, or settings
-management until the backend REST gaps above are addressed.
+The admin application is fully compatible with `frontend-store`'s conventions
+and the Django REST backend. The major backend gaps documented at Milestone 1
+have all been resolved. Remaining gaps (warehouse CRUD, refunds, staff address
+management) are narrow and clearly scoped — see the table above.

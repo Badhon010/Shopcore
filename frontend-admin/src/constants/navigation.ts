@@ -1,68 +1,74 @@
-import type { LucideIcon } from 'lucide-react'
 import {
-  BarChart3,
-  Bell,
-  Boxes,
-  ClipboardList,
   LayoutDashboard,
-  Megaphone,
-  PackageSearch,
-  Settings2,
-  Star,
+  Package,
+  FolderOpen,
   Tag,
+  Layers,
+  Image,
+  ShoppingCart,
   Users,
+  Ticket,
+  Star,
+  Megaphone,
+  Mail,
+  BarChart2,
+  Bell,
+  Settings,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { ROUTES } from './routes'
 
-export interface NavigationItem {
+export interface NavItem {
   label: string
+  href: string
   icon: LucideIcon
-  available: boolean
-  to?: string
-  children?: NavigationItem[]
+  badge?: number
 }
 
-export interface NavigationSection {
+export interface NavGroup {
   label: string
-  items: NavigationItem[]
+  items: NavItem[]
 }
 
-export const navigationSections: NavigationSection[] = [
+export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Overview',
     items: [
-      { label: 'Dashboard', icon: LayoutDashboard, available: true, to: '/' },
+      { label: 'Dashboard', href: ROUTES.DASHBOARD, icon: LayoutDashboard },
+      { label: 'Analytics',  href: ROUTES.ANALYTICS,  icon: BarChart2 },
     ],
   },
   {
     label: 'Catalog',
     items: [
-      { label: 'Products', icon: Boxes, available: true, to: '/catalog/products' },
-      { label: 'Categories', icon: Tag, available: true, to: '/catalog/categories' },
-      { label: 'Brands', icon: Star, available: true, to: '/catalog/brands' },
-      { label: 'Inventory', icon: PackageSearch, available: true, to: '/catalog/inventory' },
+      { label: 'Products',   href: ROUTES.PRODUCTS,   icon: Package },
+      { label: 'Categories', href: ROUTES.CATEGORIES,  icon: FolderOpen },
+      { label: 'Brands',     href: ROUTES.BRANDS,      icon: Tag },
+      { label: 'Inventory',  href: ROUTES.INVENTORY,   icon: Layers },
+      { label: 'Banners',    href: ROUTES.BANNERS,     icon: Image },
     ],
   },
   {
     label: 'Commerce',
     items: [
-      { label: 'Orders', icon: ClipboardList, available: true, to: '/orders' },
-      { label: 'Customers', icon: Users, available: true, to: '/customers' },
-      { label: 'Coupons', icon: Tag, available: true, to: '/coupons' },
+      { label: 'Orders',    href: ROUTES.ORDERS,    icon: ShoppingCart },
+      { label: 'Customers', href: ROUTES.CUSTOMERS, icon: Users },
+      { label: 'Coupons',   href: ROUTES.COUPONS,   icon: Ticket },
     ],
   },
   {
     label: 'Engagement',
     items: [
-      { label: 'Reviews', icon: Star, available: true, to: '/reviews' },
-      { label: 'Marketing', icon: Megaphone, available: true, to: '/marketing' },
-      { label: 'Notifications', icon: Bell, available: true, to: '/notifications' },
+      { label: 'Reviews',    href: ROUTES.REVIEWS,    icon: Star },
+      { label: 'Marketing',  href: ROUTES.MARKETING,  icon: Megaphone },
+      { label: 'Contact',    href: ROUTES.CONTACT,    icon: Mail },
     ],
   },
   {
-    label: 'System',
+    label: 'Account',
     items: [
-      { label: 'Analytics', icon: BarChart3, available: true, to: '/analytics' },
-      { label: 'Settings', icon: Settings2, available: true, to: '/settings' },
+      { label: 'Notifications', href: ROUTES.NOTIFICATIONS, icon: Bell },
+      { label: 'Settings',      href: ROUTES.SETTINGS,      icon: Settings },
     ],
   },
 ]

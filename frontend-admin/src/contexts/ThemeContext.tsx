@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 
@@ -9,52 +9,51 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
-const THEME_STORAGE_KEY = 'shopcore-admin-theme'
+
+const THEME_KEY = 'shopcore-admin-theme'
 
 function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-function resolveTheme(theme: ThemeMode): 'light' | 'dark' {
-  return theme === 'system' ? getSystemTheme() : theme
+function resolveTheme(mode: ThemeMode): 'light' | 'dark' {
+  if (mode === 'system') return getSystemTheme()
+  return mode
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeMode>(() => {
     try {
-      const stored = localStorage.getItem(THEME_STORAGE_KEY)
+      const stored = localStorage.getItem(THEME_KEY)
       if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
-    } catch {
-      // Fall back to the system preference when storage is unavailable.
-    }
+    } catch { /* ignore */ }
     return 'system'
   })
 
   const resolvedTheme = resolveTheme(theme)
 
   const applyTheme = useCallback((mode: ThemeMode) => {
-    document.documentElement.classList.toggle('dark', resolveTheme(mode) === 'dark')
+    const resolved = resolveTheme(mode)
+    if (resolved === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
   }, [])
 
-  useEffect(() => {
-    applyTheme(theme)
-  }, [applyTheme, theme])
+  useEffect(() => { applyTheme(theme) }, [theme, applyTheme])
 
   useEffect(() => {
     if (theme !== 'system') return
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    const handleChange = () => applyTheme('system')
-    mediaQuery.addEventListener('change', handleChange)
-    return () => mediaQuery.removeEventListener('change', handleChange)
-  }, [applyTheme, theme])
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const handler = () => applyTheme('system')
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [theme, applyTheme])
 
   const setTheme = useCallback((newTheme: ThemeMode) => {
     setThemeState(newTheme)
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, newTheme)
-    } catch {
-      // A theme still applies for this session if storage is unavailable.
-    }
+    try { localStorage.setItem(THEME_KEY, newTheme) } catch { /* ignore */ }
   }, [])
 
   return (
@@ -65,7 +64,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useTheme(): ThemeContextValue {
-  const context = useContext(ThemeContext)
-  if (!context) throw new Error('useTheme must be used within ThemeProvider')
-  return context
+  const ctx = useContext(ThemeContext)
+  if (!ctx) throw new Error('useTheme must be used within ThemeProvider')
+  return ctx
 }

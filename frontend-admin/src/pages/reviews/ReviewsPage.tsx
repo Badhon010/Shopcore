@@ -17,18 +17,22 @@ import type { ApiError } from '@/types/api'
 
 function StarRating({ rating }: { rating: number }) {
   return (
-    <span className="flex items-center gap-0.5 text-warning" aria-label={`${rating} out of 5 stars`}>
+    <span className="flex items-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
       {Array.from({ length: 5 }).map((_, i) => (
-        <span key={i} className={i < rating ? 'text-warning' : 'text-border'} aria-hidden>★</span>
+        <Star
+          key={i}
+          className={`h-3.5 w-3.5 ${i < rating ? 'fill-warning text-warning' : 'fill-border text-border'}`}
+          aria-hidden
+        />
       ))}
     </span>
   )
 }
 
 const TABS = [
-  { value: 'pending', label: 'Pending' },
+  { value: 'pending',  label: 'Pending' },
   { value: 'approved', label: 'Approved' },
-  { value: 'all', label: 'All' },
+  { value: 'all',      label: 'All' },
 ]
 
 export function ReviewsPage() {
@@ -52,6 +56,29 @@ export function ReviewsPage() {
         is_approved: isApproved,
       }),
   })
+
+  // Fetch counts for the other tabs so badges are always visible
+  const { data: pendingMeta } = useQuery({
+    queryKey: ['admin-reviews-count', 'pending'],
+    queryFn: () => reviewsService.getReviews({ page: 1, page_size: 1, is_approved: false }),
+    staleTime: 30_000,
+  })
+  const { data: approvedMeta } = useQuery({
+    queryKey: ['admin-reviews-count', 'approved'],
+    queryFn: () => reviewsService.getReviews({ page: 1, page_size: 1, is_approved: true }),
+    staleTime: 30_000,
+  })
+  const { data: allMeta } = useQuery({
+    queryKey: ['admin-reviews-count', 'all'],
+    queryFn: () => reviewsService.getReviews({ page: 1, page_size: 1 }),
+    staleTime: 30_000,
+  })
+
+  const tabCounts: Record<string, number | undefined> = {
+    pending:  pendingMeta?.count,
+    approved: approvedMeta?.count,
+    all:      allMeta?.count,
+  }
 
   const invalidate = () => { void queryClient.invalidateQueries({ queryKey: ['admin-reviews'] }) }
 
@@ -169,7 +196,7 @@ export function ReviewsPage() {
           <Tabs
             tabs={TABS.map((t) => ({
               ...t,
-              count: t.value === tab ? data?.count : undefined,
+              count: tabCounts[t.value],
             }))}
             value={tab}
             onChange={(v) => { setTab(v); setPage(1) }}
