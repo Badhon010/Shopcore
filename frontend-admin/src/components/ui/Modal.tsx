@@ -29,6 +29,7 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
           className={cn(
             'fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2',
             'admin-surface shadow-lg data-[state=open]:animate-scale-in',
+            'flex max-h-[90vh] flex-col overflow-hidden',
             SIZE_CLASSES[size],
             className
           )}
@@ -36,7 +37,7 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
           onInteractOutside={onClose}
         >
           {(title || description) && (
-            <div className="flex items-start justify-between gap-4 border-b border-border p-5">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border p-5">
               <div>
                 {title && (
                   <Dialog.Title className="text-base font-semibold text-text-primary">
@@ -58,7 +59,7 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
               </button>
             </div>
           )}
-          <div className="p-5">{children}</div>
+          <div className="overflow-y-auto p-5">{children}</div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

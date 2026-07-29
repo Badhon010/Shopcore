@@ -23,19 +23,19 @@ export function DashboardPage() {
     staleTime: 60_000,
   })
 
-  const { data: revenueData, isLoading: revenueLoading } = useQuery({
+  const { data: revenueData, isLoading: revenueLoading, error: revenueError } = useQuery({
     queryKey: ['dashboard-revenue', 'week'],
     queryFn: () => dashboardService.getRevenue({ period: 'week' }),
     staleTime: 60_000,
   })
 
-  const { data: bestSellers, isLoading: sellersLoading } = useQuery({
+  const { data: bestSellers, isLoading: sellersLoading, error: sellersError } = useQuery({
     queryKey: ['dashboard-best-sellers'],
     queryFn: () => dashboardService.getBestSellers(),
     staleTime: 60_000,
   })
 
-  const { data: recentOrders, isLoading: ordersLoading } = useQuery({
+  const { data: recentOrders, isLoading: ordersLoading, error: ordersError } = useQuery({
     queryKey: ['dashboard-recent-orders'],
     queryFn: () => ordersService.listOrders({ page: 1, page_size: 5, ordering: '-created_at' }),
     staleTime: 60_000,
@@ -105,6 +105,8 @@ export function DashboardPage() {
           </CardHeader>
           {revenueLoading ? (
             <Skeleton className="h-48 w-full" />
+          ) : revenueError ? (
+            <div className="flex h-48 items-center justify-center text-sm text-text-muted">Backend unreachable — start the Django server to see revenue data.</div>
           ) : revenueData && revenueData.length > 0 ? (
             <ResponsiveContainer width="100%" height={180}>
               <LineChart data={revenueData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -119,7 +121,7 @@ export function DashboardPage() {
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex h-48 items-center justify-center text-sm text-text-muted">No data</div>
+            <div className="flex h-48 items-center justify-center text-sm text-text-muted">No revenue data yet</div>
           )}
         </Card>
 
@@ -130,6 +132,8 @@ export function DashboardPage() {
           </CardHeader>
           {sellersLoading ? (
             <Skeleton rows={5} height="28px" />
+          ) : sellersError ? (
+            <div className="flex h-48 items-center justify-center text-sm text-text-muted">Backend unreachable — start the Django server to see top products.</div>
           ) : bestSellers && bestSellers.length > 0 ? (
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={bestSellers.slice(0, 5)} layout="vertical" margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
@@ -143,7 +147,7 @@ export function DashboardPage() {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex h-48 items-center justify-center text-sm text-text-muted">No data</div>
+            <div className="flex h-48 items-center justify-center text-sm text-text-muted">No sales data yet</div>
           )}
         </Card>
       </div>
@@ -156,6 +160,8 @@ export function DashboardPage() {
         </div>
         {ordersLoading ? (
           <Skeleton rows={5} className="m-4" height="40px" />
+        ) : ordersError ? (
+          <p className="px-5 py-8 text-center text-sm text-text-muted">Backend unreachable — start the Django server to see recent orders.</p>
         ) : (
           <div className="divide-y divide-border-light">
             {recentOrders?.results.length === 0 && (
@@ -169,7 +175,7 @@ export function DashboardPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-text-primary">#{order.order_number}</p>
-                    <p className="text-xs text-text-muted">{order.user?.email ?? '—'} · {formatDate(order.created_at)}</p>
+                    <p className="text-xs text-text-muted">{order.user_email ?? order.user?.email ?? '—'} · {formatDate(order.created_at)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">

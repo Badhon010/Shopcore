@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, Tag } from 'lucide-react'
+import { Plus, Pencil, Trash2, Tag, Image as ImageIcon, X } from 'lucide-react'
 import { catalogService } from '@/services/api/catalog.service'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Button } from '@/components/ui/Button'
@@ -11,18 +11,28 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Modal } from '@/components/ui/Modal'
 import { FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/Input'
+import { Textarea } from '@/components/ui/Textarea'
 import { useDebounce } from '@/utils/useDebounce'
 import { useToast } from '@/contexts/ToastContext'
-import { formatDate } from '@/utils/format'
 import type { Brand } from '@/types/models'
+
+interface BrandForm {
+  name: string
+  description: string
+}
+
+const DEFAULT_FORM: BrandForm = { name: '', description: '' }
 
 export function BrandsPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [editTarget, setEditTarget] = useState<Brand | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Brand | null>(null)
-  const [showCreate, setShowCreate] = useState(false)
-  const [formName, setFormName] = useState('')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [form, setForm] = useState<BrandForm>(DEFAULT_FORM)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const debouncedSearch = useDebounce(search)
   const { toast } = useToast()
   const qc = useQueryClient()
@@ -32,24 +42,56 @@ export function BrandsPage() {
     queryFn: () => catalogService.listBrands({ page, search: debouncedSearch }),
   })
 
-  const createMutation = useMutation({
-    mutationFn: (name: string) => catalogService.createBrand({ name }),
-    onSuccess: () => {
-      toast({ title: 'Brand created', variant: 'success' })
-      void qc.invalidateQueries({ queryKey: ['admin-brands'] })
-      setShowCreate(false); setFormName('')
-    },
-    onError: () => toast({ title: 'Failed to create brand', variant: 'destructive' }),
-  })
+  function openCreate() {
+    setEditTarget(null)
+    setForm(DEFAULT_FORM)
+    setLogoFile(null)
+    setLogoPreview(null)
+    setModalOpen(true)
+  }
 
-  const updateMutation = useMutation({
-    mutationFn: ({ pk, name }: { pk: string; name: string }) => catalogService.updateBrand(pk, { name }),
-    onSuccess: () => {
-      toast({ title: 'Brand updated', variant: 'success' })
-      void qc.invalidateQueries({ queryKey: ['admin-brands'] })
-      setEditTarget(null)
+  function openEdit(brand: Brand) {
+    setEditTarget(brand)
+    setForm({ name: brand.name, description: brand.description ?? '' })
+    setLogoFile(null)
+    setLogoPreview(brand.logo ?? null)
+    setModalOpen(true)
+  }
+
+  function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setLogoFile(file)
+    setLogoPreview(URL.createObjectURL(file))
+  }
+
+  function buildPayload(): FormData | Partial<Brand> {
+    if (logoFile) {
+      const fd = new FormData()
+      fd.append('name', form.name.trim())
+      if (form.description.trim()) fd.append('description', form.description.trim())
+      fd.append('logo', logoFile)
+      return fd
+    }
+    return {
+      name: form.name.trim(),
+      ...(form.description.trim() ? { description: form.description.trim() } : {}),
+    }
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: () => {
+      const payload = buildPayload()
+      return editTarget
+        ? catalogService.updateBrand(String(editTarget.id), payload)
+        : catalogService.createBrand(payload)
     },
-    onError: () => toast({ title: 'Failed to update brand', variant: 'destructive' }),
+    onSuccess: () => {
+      toast({ title: editTarget ? 'Brand updated' : 'Brand created', variant: 'success' })
+      void qc.invalidateQueries({ queryKey: ['admin-brands'] })
+      setModalOpen(false)
+    },
+    onError: () => toast({ title: `Failed to ${editTarget ? 'update' : 'create'} brand`, variant: 'destructive' }),
   })
 
   const deleteMutation = useMutation({
@@ -72,17 +114,19 @@ export function BrandsPage() {
           ) : (
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-bg-subtle"><Tag className="h-4 w-4 text-text-muted" /></div>
           )}
-          <span className="font-medium text-text-primary">{row.name}</span>
+          <div>
+            <span className="font-medium text-text-primary">{row.name}</span>
+            {row.description && <p className="text-xs text-text-muted line-clamp-1">{row.description}</p>}
+          </div>
         </div>
       ),
     },
     { key: 'slug', header: 'Slug', render: (row) => <span className="font-mono text-xs text-text-muted">{row.slug}</span> },
-    { key: 'created', header: 'Created', render: (row) => <span className="text-text-muted">{formatDate(row.created_at)}</span> },
     {
       key: 'actions', header: '', width: '80px', align: 'right',
       render: (row) => (
         <div className="flex items-center justify-end gap-1">
-          <IconButton icon={<Pencil />} label="Edit" size="sm" onClick={() => { setEditTarget(row); setFormName(row.name) }} />
+          <IconButton icon={<Pencil />} label="Edit" size="sm" onClick={() => openEdit(row)} />
           <IconButton icon={<Trash2 />} label="Delete" size="sm" className="text-danger hover:bg-danger-subtle" onClick={() => setDeleteTarget(row)} />
         </div>
       ),
@@ -98,7 +142,7 @@ export function BrandsPage() {
           <h1 className="text-lg font-semibold text-text-primary">Brands</h1>
           <p className="text-sm text-text-muted">{data?.count ?? 0} total brands</p>
         </div>
-        <Button onClick={() => { setShowCreate(true); setFormName('') }}><Plus className="h-4 w-4" /> Add brand</Button>
+        <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add brand</Button>
       </div>
 
       <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Search brands…" className="w-64" />
@@ -112,27 +156,71 @@ export function BrandsPage() {
         )}
       </div>
 
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New brand" size="sm">
+      {/* Create / Edit modal */}
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editTarget ? 'Edit brand' : 'New brand'} size="md">
         <div className="space-y-4">
-          <FormField label="Name" required><Input autoFocus value={formName} onChange={(e) => setFormName(e.target.value)} /></FormField>
-          <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button isLoading={createMutation.isPending} onClick={() => createMutation.mutate(formName)} disabled={!formName.trim()}>Create</Button>
+          {/* Logo upload */}
+          <div>
+            <p className="mb-1.5 text-sm font-medium text-text-primary">Logo</p>
+            {logoPreview ? (
+              <div className="relative flex items-center gap-3">
+                <img src={logoPreview} alt="Logo preview" className="h-16 w-16 rounded-xl border border-border object-contain bg-white p-1" />
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    className="rounded-full bg-surface border border-border px-3 py-0.5 text-xs font-medium text-primary hover:bg-primary-light transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Replace
+                  </button>
+                  {logoFile && (
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-xs text-danger hover:underline"
+                      onClick={() => { setLogoFile(null); setLogoPreview(editTarget?.logo ?? null) }}
+                    >
+                      <X className="h-3 w-3" /> Undo
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="flex h-20 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border text-text-muted hover:border-primary hover:text-primary transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <ImageIcon className="h-5 w-5" />
+                <span className="text-sm font-medium">Click to upload logo</span>
+                <span className="text-xs">PNG, JPEG, WebP</span>
+              </button>
+            )}
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleLogoChange} />
+          </div>
+
+          <FormField label="Name" htmlFor="brand-name" required>
+            <Input id="brand-name" autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Nike" />
+          </FormField>
+
+          <FormField label="Description" htmlFor="brand-desc">
+            <Textarea id="brand-desc" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Brief brand description (optional)" rows={3} />
+          </FormField>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button isLoading={saveMutation.isPending} onClick={() => saveMutation.mutate()} disabled={!form.name.trim()}>
+              {editTarget ? 'Save changes' : 'Create'}
+            </Button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Edit brand" size="sm">
-        <div className="space-y-4">
-          <FormField label="Name" required><Input autoFocus value={formName} onChange={(e) => setFormName(e.target.value)} /></FormField>
-          <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setEditTarget(null)}>Cancel</Button>
-            <Button isLoading={updateMutation.isPending} onClick={() => editTarget && updateMutation.mutate({ pk: String(editTarget.id), name: formName })} disabled={!formName.trim()}>Save</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <ConfirmDialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={() => deleteTarget && deleteMutation.mutate(String(deleteTarget.id))} title="Delete brand?" description={`"${deleteTarget?.name}" will be deleted.`} confirmLabel="Delete" isLoading={deleteMutation.isPending} />
+      <ConfirmDialog
+        open={!!deleteTarget} onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(String(deleteTarget.id))}
+        title="Delete brand?" description={`"${deleteTarget?.name}" will be deleted.`}
+        confirmLabel="Delete" isLoading={deleteMutation.isPending}
+      />
     </div>
   )
 }

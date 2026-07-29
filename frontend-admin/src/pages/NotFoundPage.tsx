@@ -9,7 +9,7 @@ export function NotFoundPage() {
       <h1 className="mt-3 text-heading-lg font-semibold text-text-primary">Page not found</h1>
       <p className="mt-2 text-body-md text-text-secondary">That admin route does not exist.</p>
       <Button asChild className="mt-6">
-        <Link to={ROUTES.HOME}>Return to workspace</Link>
+        <Link to={ROUTES.DASHBOARD}>Return to dashboard</Link>
       </Button>
     </div>
   )

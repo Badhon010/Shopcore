@@ -41,7 +41,15 @@ export function OrdersPage() {
     },
     {
       key: 'customer', header: 'Customer',
-      render: (row) => <span className="text-text-secondary">{row.user?.email ?? row.shipping_address?.full_name ?? '—'}</span>,
+      render: (row) => {
+        const name =
+          row.user_email ??
+          row.user?.email ??
+          row.shipping_address_snapshot?.full_name ??
+          row.shipping_address?.full_name ??
+          '—'
+        return <span className="text-text-secondary">{name}</span>
+      },
     },
     {
       key: 'status', header: 'Status',

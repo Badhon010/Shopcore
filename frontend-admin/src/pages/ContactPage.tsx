@@ -6,6 +6,7 @@ import { DataTable, type Column } from '@/components/ui/DataTable'
 import { SearchBar } from '@/components/ui/SearchBar'
 import { Pagination } from '@/components/ui/Pagination'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Modal } from '@/components/ui/Modal'
@@ -14,7 +15,7 @@ import { useToast } from '@/contexts/ToastContext'
 import { formatDateTime } from '@/utils/format'
 import type { ContactMessage } from '@/types/models'
 
-const STATUS_VARIANT = { NEW: 'info', RESOLVED: 'success' } as const
+const STATUS_VARIANT = { NEW: 'info', IN_PROGRESS: 'warning', RESOLVED: 'success' } as const
 
 export function ContactPage() {
   const [page, setPage] = useState(1)
@@ -32,19 +33,37 @@ export function ContactPage() {
 
   const resolveMutation = useMutation({
     mutationFn: (pk: string) => contactService.resolveMessage(pk),
-    onSuccess: () => { toast({ title: 'Message resolved', variant: 'success' }); void qc.invalidateQueries({ queryKey: ['admin-contact'] }) },
+    onSuccess: () => {
+      toast({ title: 'Message resolved', variant: 'success' })
+      void qc.invalidateQueries({ queryKey: ['admin-contact'] })
+    },
+    onError: () => toast({ title: 'Action failed', variant: 'destructive' }),
+  })
+
+  const markNewMutation = useMutation({
+    mutationFn: (pk: string) => contactService.markNew(pk),
+    onSuccess: () => {
+      toast({ title: 'Message reopened', variant: 'success' })
+      void qc.invalidateQueries({ queryKey: ['admin-contact'] })
+    },
     onError: () => toast({ title: 'Action failed', variant: 'destructive' }),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (pk: string) => contactService.deleteMessage(pk),
-    onSuccess: () => { toast({ title: 'Message deleted', variant: 'success' }); void qc.invalidateQueries({ queryKey: ['admin-contact'] }); setDeleteTarget(null) },
+    onSuccess: () => {
+      toast({ title: 'Message deleted', variant: 'success' })
+      void qc.invalidateQueries({ queryKey: ['admin-contact'] })
+      setDeleteTarget(null)
+      setViewTarget(null)
+    },
     onError: () => toast({ title: 'Action failed', variant: 'destructive' }),
   })
 
   const columns: Column<ContactMessage>[] = [
     {
-      key: 'from', header: 'From',
+      key: 'from',
+      header: 'From',
       render: (row) => (
         <button className="text-left hover:underline" onClick={() => setViewTarget(row)}>
           <p className="font-medium text-text-primary">{row.name}</p>
@@ -52,15 +71,60 @@ export function ContactPage() {
         </button>
       ),
     },
-    { key: 'subject', header: 'Subject', render: (row) => <p className="truncate max-w-xs text-text-secondary">{row.subject}</p> },
-    { key: 'status', header: 'Status', render: (row) => <Badge variant={STATUS_VARIANT[row.status as keyof typeof STATUS_VARIANT] ?? 'default'}>{row.status}</Badge> },
-    { key: 'received', header: 'Received', render: (row) => <span className="text-text-muted">{formatDateTime(row.created_at)}</span> },
     {
-      key: 'actions', header: '', width: '80px', align: 'right',
+      key: 'subject',
+      header: 'Subject',
+      render: (row) => (
+        <p className="max-w-xs truncate text-text-secondary">{row.subject ?? '(no subject)'}</p>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (row) => (
+        <Badge variant={STATUS_VARIANT[row.status as keyof typeof STATUS_VARIANT] ?? 'default'}>
+          {row.status}
+        </Badge>
+      ),
+    },
+    {
+      key: 'received',
+      header: 'Received',
+      render: (row) => (
+        <span className="text-text-muted">{formatDateTime(row.created_at)}</span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: '100px',
+      align: 'right',
       render: (row) => (
         <div className="flex items-center justify-end gap-1">
-          {row.status === 'NEW' && <IconButton icon={<CheckCircle />} label="Resolve" size="sm" className="text-success hover:bg-success-subtle" onClick={() => resolveMutation.mutate(String(row.id))} />}
-          <IconButton icon={<Trash2 />} label="Delete" size="sm" className="text-danger hover:bg-danger-subtle" onClick={() => setDeleteTarget(row)} />
+          {row.status === 'NEW' || row.status === 'IN_PROGRESS' ? (
+            <IconButton
+              icon={<CheckCircle />}
+              label="Mark resolved"
+              size="sm"
+              className="text-success hover:bg-success-subtle"
+              onClick={() => resolveMutation.mutate(String(row.id))}
+            />
+          ) : (
+            <IconButton
+              icon={<RotateCcw />}
+              label="Reopen"
+              size="sm"
+              className="text-warning hover:bg-warning-subtle"
+              onClick={() => markNewMutation.mutate(String(row.id))}
+            />
+          )}
+          <IconButton
+            icon={<Trash2 />}
+            label="Delete"
+            size="sm"
+            className="text-danger hover:bg-danger-subtle"
+            onClick={() => setDeleteTarget(row)}
+          />
         </div>
       ),
     },
@@ -75,41 +139,115 @@ export function ContactPage() {
         <p className="text-sm text-text-muted">{data?.count ?? 0} messages</p>
       </div>
 
-      <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Search messages…" className="w-64" />
+      <SearchBar
+        value={search}
+        onChange={(v) => {
+          setSearch(v)
+          setPage(1)
+        }}
+        placeholder="Search messages…"
+        className="w-64"
+      />
 
       <div className="admin-surface overflow-hidden">
         <DataTable
-          columns={columns} data={data?.results ?? []}
-          isLoading={isLoading} error={error ? 'Failed to load messages.' : null} onRetry={refetch}
+          columns={columns}
+          data={data?.results ?? []}
+          isLoading={isLoading}
+          error={error ? 'Failed to load messages.' : null}
+          onRetry={refetch}
           rowKey={(r) => r.id}
-          emptyTitle="No messages" emptyDescription="All contact form submissions appear here."
+          emptyTitle="No messages"
+          emptyDescription="All contact form submissions appear here."
         />
-        {totalPages > 1 && <div className="flex justify-end border-t border-border p-4"><Pagination page={page} totalPages={totalPages} onPageChange={setPage} /></div>}
+        {totalPages > 1 && (
+          <div className="flex justify-end border-t border-border p-4">
+            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+          </div>
+        )}
       </div>
 
       {/* Message detail modal */}
-      <Modal open={!!viewTarget} onClose={() => setViewTarget(null)} title={viewTarget?.subject ?? 'Message'} size="md">
+      <Modal
+        open={!!viewTarget}
+        onClose={() => setViewTarget(null)}
+        title={viewTarget?.subject ?? '(no subject)'}
+        size="md"
+      >
         {viewTarget && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><p className="text-xs text-text-muted">From</p><p className="font-medium text-text-primary">{viewTarget.name}</p></div>
-              <div><p className="text-xs text-text-muted">Email</p><p className="text-text-secondary">{viewTarget.email}</p></div>
-              <div className="col-span-2"><p className="text-xs text-text-muted">Received</p><p className="text-text-secondary">{formatDateTime(viewTarget.created_at)}</p></div>
+              <div>
+                <p className="text-xs text-text-muted">From</p>
+                <p className="font-medium text-text-primary">{viewTarget.name}</p>
+              </div>
+              <div>
+                <p className="text-xs text-text-muted">Email</p>
+                <p className="text-text-secondary">{viewTarget.email}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-xs text-text-muted">Received</p>
+                <p className="text-text-secondary">{formatDateTime(viewTarget.created_at)}</p>
+              </div>
             </div>
-            <div className="rounded-lg border border-border bg-bg-subtle p-4">
+
+            <div className="rounded-xl border border-border bg-background-subtle p-4">
               <p className="whitespace-pre-wrap text-sm text-text-primary">{viewTarget.message}</p>
             </div>
-            <div className="flex justify-end gap-3">
-              {viewTarget.status === 'NEW' && (
-                <IconButton icon={<CheckCircle />} label="Resolve" onClick={() => { resolveMutation.mutate(String(viewTarget.id)); setViewTarget(null) }} />
-              )}
-              <Badge variant={STATUS_VARIANT[viewTarget.status as keyof typeof STATUS_VARIANT] ?? 'default'}>{viewTarget.status}</Badge>
+
+            <div className="flex items-center justify-between gap-3">
+              <Badge
+                variant={
+                  STATUS_VARIANT[viewTarget.status as keyof typeof STATUS_VARIANT] ?? 'default'
+                }
+              >
+                {viewTarget.status}
+              </Badge>
+              <div className="flex gap-2">
+                <IconButton
+                  icon={<Trash2 />}
+                  label="Delete message"
+                  className="text-danger hover:bg-danger-subtle"
+                  onClick={() => setDeleteTarget(viewTarget)}
+                />
+                {viewTarget.status === 'RESOLVED' ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      markNewMutation.mutate(String(viewTarget.id))
+                      setViewTarget(null)
+                    }}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" /> Reopen
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      resolveMutation.mutate(String(viewTarget.id))
+                      setViewTarget(null)
+                    }}
+                  >
+                    <CheckCircle className="h-3.5 w-3.5" /> Mark resolved
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         )}
       </Modal>
 
-      <ConfirmDialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={() => deleteTarget && deleteMutation.mutate(String(deleteTarget.id))} title="Delete message?" description="This contact message will be permanently deleted." confirmLabel="Delete" isLoading={deleteMutation.isPending} />
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(String(deleteTarget.id))}
+        title="Delete message?"
+        description="This contact message will be permanently deleted."
+        confirmLabel="Delete"
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   )
 }

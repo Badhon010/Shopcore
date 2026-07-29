@@ -1,69 +1,186 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, AlertTriangle } from 'lucide-react'
+import { AlertTriangle, SlidersHorizontal, Settings2, History } from 'lucide-react'
 import { inventoryService } from '@/services/api/inventory.service'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { SearchBar } from '@/components/ui/SearchBar'
 import { Pagination } from '@/components/ui/Pagination'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { IconButton } from '@/components/ui/IconButton'
 import { Modal } from '@/components/ui/Modal'
 import { FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/Input'
 import { useDebounce } from '@/utils/useDebounce'
 import { useToast } from '@/contexts/ToastContext'
+import { formatDateTime } from '@/utils/format'
 import type { StockItem } from '@/types/models'
+import type { ApiError } from '@/types/api'
 
 export function InventoryPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [lowStockOnly, setLowStockOnly] = useState(false)
-  const [restockTarget, setRestockTarget] = useState<StockItem | null>(null)
-  const [restockQty, setRestockQty] = useState('0')
+
+  // Adjust modal
+  const [adjustTarget, setAdjustTarget] = useState<StockItem | null>(null)
+  const [adjustDelta, setAdjustDelta] = useState('')
+  const [adjustReason, setAdjustReason] = useState('')
+
+  // Threshold modal
+  const [thresholdTarget, setThresholdTarget] = useState<StockItem | null>(null)
+  const [thresholdValue, setThresholdValue] = useState('')
+
+  // Movements modal
+  const [movementsTarget, setMovementsTarget] = useState<StockItem | null>(null)
+  const [movementsPage, setMovementsPage] = useState(1)
+
   const debouncedSearch = useDebounce(search)
   const { toast } = useToast()
   const qc = useQueryClient()
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['inventory', page, debouncedSearch, lowStockOnly],
-    queryFn: () => inventoryService.listStock({ page, search: debouncedSearch, low_stock_only: lowStockOnly || undefined }),
+    queryFn: () =>
+      inventoryService.listStock({
+        page,
+        search: debouncedSearch,
+        low_stock_only: lowStockOnly || undefined,
+      }),
   })
 
-  const restockMutation = useMutation({
-    mutationFn: ({ pk, qty }: { pk: string; qty: number }) => inventoryService.restock(pk, qty),
+  const { data: movements, isLoading: movementsLoading } = useQuery({
+    queryKey: ['stock-movements', movementsTarget?.id, movementsPage],
+    queryFn: () =>
+      inventoryService.getMovements(String(movementsTarget!.id), { page: movementsPage }),
+    enabled: !!movementsTarget,
+  })
+
+  const adjustMutation = useMutation({
+    mutationFn: ({ pk, delta, reason }: { pk: string; delta: number; reason?: string }) =>
+      inventoryService.adjust(pk, { quantity_delta: delta, reason }),
     onSuccess: () => {
-      toast({ title: 'Stock updated', variant: 'success' })
+      toast({ title: 'Stock adjusted', variant: 'success' })
       void qc.invalidateQueries({ queryKey: ['inventory'] })
-      setRestockTarget(null)
+      setAdjustTarget(null)
     },
-    onError: () => toast({ title: 'Restock failed', variant: 'destructive' }),
+    onError: (err) => {
+      const apiErr = err as unknown as ApiError
+      toast({ title: 'Adjustment failed', description: apiErr.message, variant: 'destructive' })
+    },
+  })
+
+  const thresholdMutation = useMutation({
+    mutationFn: ({ pk, threshold }: { pk: string; threshold: number }) =>
+      inventoryService.updateThreshold(pk, threshold),
+    onSuccess: () => {
+      toast({ title: 'Threshold updated', variant: 'success' })
+      void qc.invalidateQueries({ queryKey: ['inventory'] })
+      setThresholdTarget(null)
+    },
+    onError: () => toast({ title: 'Failed to update threshold', variant: 'destructive' }),
   })
 
   const columns: Column<StockItem>[] = [
-    { key: 'product', header: 'Product / SKU', render: (row) => <div><p className="font-medium text-text-primary">{row.product_name}</p><p className="text-xs text-text-muted font-mono">{row.sku}</p></div> },
     {
-      key: 'qty', header: 'Quantity', align: 'right',
+      key: 'product',
+      header: 'Product / SKU',
+      render: (row) => (
+        <div>
+          <p className="font-medium text-text-primary">{row.product_name}</p>
+          <p className="font-mono text-xs text-text-muted">{row.variant_sku}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'on_hand',
+      header: 'On hand',
+      align: 'right',
       render: (row) => (
         <div className="flex items-center justify-end gap-2">
-          {row.quantity === 0 ? (
+          {row.is_out_of_stock ? (
             <Badge variant="danger">Out of stock</Badge>
-          ) : row.quantity <= (row.low_stock_threshold ?? 5) ? (
-            <Badge variant="warning">{row.quantity}</Badge>
+          ) : row.is_low_stock ? (
+            <Badge variant="warning">{row.quantity_on_hand}</Badge>
           ) : (
-            <span className="font-medium text-text-primary">{row.quantity}</span>
+            <span className="font-medium text-text-primary">{row.quantity_on_hand}</span>
           )}
         </div>
       ),
     },
-    { key: 'threshold', header: 'Low stock at', align: 'right', render: (row) => <span className="text-text-muted">{row.low_stock_threshold ?? 5}</span> },
-    { key: 'warehouse', header: 'Warehouse', render: (row) => <span className="text-text-secondary">{row.warehouse ?? '—'}</span> },
     {
-      key: 'actions', header: '', width: '80px', align: 'right',
-      render: (row) => <Button size="sm" variant="secondary" onClick={() => { setRestockTarget(row); setRestockQty('0') }}><RefreshCw className="h-3.5 w-3.5" /> Restock</Button>,
+      key: 'reserved',
+      header: 'Reserved',
+      align: 'right',
+      render: (row) => <span className="text-text-muted">{row.quantity_reserved}</span>,
+    },
+    {
+      key: 'available',
+      header: 'Available',
+      align: 'right',
+      render: (row) => (
+        <span className="font-medium text-text-secondary">{row.quantity_available}</span>
+      ),
+    },
+    {
+      key: 'threshold',
+      header: 'Alert at',
+      align: 'right',
+      render: (row) => <span className="text-text-muted">{row.low_stock_threshold}</span>,
+    },
+    {
+      key: 'warehouse',
+      header: 'Warehouse',
+      render: (row) => <span className="text-text-secondary">{row.warehouse ?? '—'}</span>,
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: '120px',
+      align: 'right',
+      render: (row) => (
+        <div className="flex items-center justify-end gap-1">
+          <IconButton
+            icon={<SlidersHorizontal />}
+            label="Adjust stock"
+            size="sm"
+            className="text-primary hover:bg-primary-light"
+            onClick={() => {
+              setAdjustTarget(row)
+              setAdjustDelta('')
+              setAdjustReason('')
+            }}
+          />
+          <IconButton
+            icon={<Settings2 />}
+            label="Set low-stock threshold"
+            size="sm"
+            className="text-text-muted hover:bg-background-subtle"
+            onClick={() => {
+              setThresholdTarget(row)
+              setThresholdValue(String(row.low_stock_threshold))
+            }}
+          />
+          <IconButton
+            icon={<History />}
+            label="Movement history"
+            size="sm"
+            className="text-text-muted hover:bg-background-subtle"
+            onClick={() => {
+              setMovementsTarget(row)
+              setMovementsPage(1)
+            }}
+          />
+        </div>
+      ),
     },
   ]
 
   const totalPages = Math.ceil((data?.count ?? 0) / 20)
+  const movementsTotalPages = Math.ceil((movements?.count ?? 0) / 20)
+
+  const adjustDeltaNum = parseInt(adjustDelta)
+  const adjustValid = adjustDelta !== '' && !isNaN(adjustDeltaNum) && adjustDeltaNum !== 0
 
   return (
     <div className="space-y-5">
@@ -73,14 +190,38 @@ export function InventoryPage() {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Search SKU or product…" className="w-64" />
-        <Button variant={lowStockOnly ? 'primary' : 'secondary'} size="sm" onClick={() => { setLowStockOnly((p) => !p); setPage(1) }}>
+        <SearchBar
+          value={search}
+          onChange={(v) => {
+            setSearch(v)
+            setPage(1)
+          }}
+          placeholder="Search SKU or product…"
+          className="w-64"
+        />
+        <Button
+          variant={lowStockOnly ? 'primary' : 'secondary'}
+          size="sm"
+          onClick={() => {
+            setLowStockOnly((p) => !p)
+            setPage(1)
+          }}
+        >
           <AlertTriangle className="h-3.5 w-3.5" /> Low stock only
         </Button>
       </div>
 
       <div className="admin-surface overflow-hidden">
-        <DataTable columns={columns} data={data?.results ?? []} isLoading={isLoading} error={error ? 'Failed to load inventory.' : null} onRetry={refetch} rowKey={(r) => r.sku} emptyTitle="No inventory items" />
+        <DataTable
+          columns={columns}
+          data={data?.results ?? []}
+          isLoading={isLoading}
+          error={error ? 'Failed to load inventory.' : null}
+          onRetry={refetch}
+          rowKey={(r) => r.variant_sku}
+          emptyTitle="No inventory items"
+          emptyDescription="Stock items appear here once products with variants are created."
+        />
         {totalPages > 1 && (
           <div className="flex justify-end border-t border-border p-4">
             <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
@@ -88,20 +229,161 @@ export function InventoryPage() {
         )}
       </div>
 
-      <Modal open={!!restockTarget} onClose={() => setRestockTarget(null)} title={`Restock: ${restockTarget?.product_name}`} size="sm">
+      {/* ── Adjust stock modal ─────────────────────────────── */}
+      <Modal
+        open={!!adjustTarget}
+        onClose={() => setAdjustTarget(null)}
+        title={`Adjust stock — ${adjustTarget?.product_name}`}
+        size="sm"
+      >
         <div className="space-y-4">
-          <p className="text-sm text-text-secondary">Current quantity: <strong>{restockTarget?.quantity}</strong></p>
-          <FormField label="Quantity to add" required>
-            <Input type="number" min="1" value={restockQty} onChange={(e) => setRestockQty(e.target.value)} />
-          </FormField>
-          <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setRestockTarget(null)}>Cancel</Button>
-            <Button
-              isLoading={restockMutation.isPending}
-              disabled={!restockQty || parseInt(restockQty) <= 0}
-              onClick={() => restockTarget && restockMutation.mutate({ pk: String(restockTarget.id), qty: parseInt(restockQty) })}
-            >Save</Button>
+          <div className="rounded-xl border border-border bg-background-subtle p-3 text-sm">
+            <p className="text-text-secondary">
+              On hand:{' '}
+              <strong className="text-text-primary">{adjustTarget?.quantity_on_hand}</strong>
+              {'  ·  '}Available:{' '}
+              <strong className="text-text-primary">{adjustTarget?.quantity_available}</strong>
+            </p>
           </div>
+          <FormField
+            label="Quantity delta"
+            hint="Positive to add stock (e.g. +50). Negative to remove (e.g. -10)."
+            required
+          >
+            <Input
+              type="number"
+              placeholder="e.g. 50 or -10"
+              value={adjustDelta}
+              onChange={(e) => setAdjustDelta(e.target.value)}
+              autoFocus
+            />
+          </FormField>
+          <FormField label="Reason (optional)">
+            <Input
+              placeholder="e.g. Supplier delivery, Damaged goods…"
+              value={adjustReason}
+              onChange={(e) => setAdjustReason(e.target.value)}
+            />
+          </FormField>
+          <div className="flex justify-end gap-3 pt-1">
+            <Button variant="secondary" onClick={() => setAdjustTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              isLoading={adjustMutation.isPending}
+              disabled={!adjustValid}
+              onClick={() =>
+                adjustTarget &&
+                adjustMutation.mutate({
+                  pk: String(adjustTarget.id),
+                  delta: adjustDeltaNum,
+                  reason: adjustReason.trim() || undefined,
+                })
+              }
+            >
+              Save adjustment
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Threshold modal ────────────────────────────────── */}
+      <Modal
+        open={!!thresholdTarget}
+        onClose={() => setThresholdTarget(null)}
+        title={`Low-stock threshold — ${thresholdTarget?.product_name}`}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">
+            A warning badge appears on this SKU when quantity on hand drops to or below this
+            number.
+          </p>
+          <FormField label="Alert threshold" required>
+            <Input
+              type="number"
+              min="0"
+              value={thresholdValue}
+              onChange={(e) => setThresholdValue(e.target.value)}
+              autoFocus
+            />
+          </FormField>
+          <div className="flex justify-end gap-3 pt-1">
+            <Button variant="secondary" onClick={() => setThresholdTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              isLoading={thresholdMutation.isPending}
+              disabled={thresholdValue === '' || parseInt(thresholdValue) < 0}
+              onClick={() =>
+                thresholdTarget &&
+                thresholdMutation.mutate({
+                  pk: String(thresholdTarget.id),
+                  threshold: parseInt(thresholdValue),
+                })
+              }
+            >
+              Save
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Movement history modal ─────────────────────────── */}
+      <Modal
+        open={!!movementsTarget}
+        onClose={() => setMovementsTarget(null)}
+        title={`Movement history — ${movementsTarget?.product_name}`}
+        size="lg"
+      >
+        <div className="space-y-3">
+          {movementsLoading ? (
+            <div className="py-10 text-center text-sm text-text-muted">Loading…</div>
+          ) : !movements?.results.length ? (
+            <div className="py-10 text-center text-sm text-text-muted">
+              No movement history for this SKU.
+            </div>
+          ) : (
+            <div className="divide-y divide-border-light overflow-hidden rounded-xl border border-border">
+              {movements.results.map((mv) => (
+                <div key={mv.id} className="flex items-start justify-between px-4 py-3 text-sm">
+                  <div>
+                    <p className="font-medium text-text-primary">
+                      <span
+                        className={mv.quantity_delta > 0 ? 'text-success' : 'text-danger'}
+                      >
+                        {mv.quantity_delta > 0 ? '+' : ''}
+                        {mv.quantity_delta}
+                      </span>
+                      {mv.reason ? (
+                        <span className="ml-1.5 font-normal text-text-secondary">
+                          — {mv.reason}
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="mt-0.5 text-xs text-text-muted">
+                      {mv.quantity_before} → {mv.quantity_after}
+                      {mv.created_by ? ` · ${mv.created_by}` : ''}
+                      {' · '}
+                      {formatDateTime(mv.created_at)}
+                    </p>
+                  </div>
+                  <Badge variant={mv.quantity_delta > 0 ? 'success' : 'danger'}>
+                    {mv.movement_type}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+          {movementsTotalPages > 1 && (
+            <div className="flex justify-end pt-1">
+              <Pagination
+                page={movementsPage}
+                totalPages={movementsTotalPages}
+                onPageChange={setMovementsPage}
+              />
+            </div>
+          )}
         </div>
       </Modal>
     </div>

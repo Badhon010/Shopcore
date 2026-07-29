@@ -1,10 +1,10 @@
 @import './tokens.css';
+@import '@fontsource-variable/inter';
+
+/* ── Font ──────────────────────────────────────────────────── */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* ── Font ──────────────────────────────────────────────────── */
-@import '@fontsource-variable/inter';
 
 /* ── Base ──────────────────────────────────────────────────── */
 @layer base {

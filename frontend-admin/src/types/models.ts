@@ -39,10 +39,14 @@ export interface Brand {
 
 export interface ProductImage {
   id: string
+  /** Absolute URL built by the serializer — prefer this for display */
+  url?: string
   image: string
+  thumbnail?: string
   alt_text?: string
   is_primary: boolean
   ordering: number
+  display_order?: number
 }
 
 export interface ProductVariantOption {
@@ -72,9 +76,22 @@ export interface AdminProduct {
   brand?: number | null
   brand_name?: string
   status: ProductStatus
-  price: string
+  /** List endpoint returns base_price; detail endpoint may return price */
+  base_price?: string
+  /** Legacy / detail-endpoint alias — prefer base_price on list */
+  price?: string
   original_price?: string
+  compare_at_price?: string
+  sku?: string
+  weight_kg?: string
+  meta_title?: string
+  meta_description?: string
   is_featured: boolean
+  average_rating?: number
+  review_count?: number
+  /** Single primary image returned by the list endpoint */
+  primary_image?: ProductImage | null
+  /** Full images array returned by the detail endpoint */
   images?: ProductImage[]
   variants?: ProductVariant[]
   created_at: string
@@ -118,6 +135,9 @@ export interface OrderItem {
 export interface Order {
   id: string
   order_number: string
+  /** Flat email returned by the admin list/detail serializer */
+  user_email?: string
+  /** Nested user object — may be absent on list endpoints */
   user?: {
     id: string
     email: string
@@ -128,9 +148,21 @@ export interface Order {
   items: OrderItem[]
   subtotal: string
   discount?: string
+  discount_total?: string
   shipping_cost?: string
   tax?: string
+  tax_total?: string
   grand_total: string
+  /** Serialised snapshot returned by admin endpoints */
+  shipping_address_snapshot?: {
+    full_name: string
+    address_line_1: string
+    city: string
+    state_province: string
+    postal_code: string
+    country: string
+  }
+  /** Legacy field — prefer shipping_address_snapshot */
   shipping_address?: {
     full_name: string
     address_line_1: string
@@ -141,7 +173,9 @@ export interface Order {
     country: string
   }
   coupon_code?: string
+  coupon_code_snapshot?: string
   notes?: string
+  placed_at?: string
   created_at: string
   updated_at?: string
 }
@@ -189,53 +223,62 @@ export interface Warehouse {
 // ── Reviews ──────────────────────────────────────────────────
 export interface Review {
   id: string
-  product_name: string
-  product_slug?: string
+  product: number
+  product_name?: string
   user_email?: string
-  user_name?: string
   rating: number
   title?: string
   body: string
+  is_verified_purchase?: boolean
   is_approved: boolean
   created_at: string
+  updated_at?: string
 }
 
 // ── Coupons ──────────────────────────────────────────────────
-export type CouponDiscountType = 'percentage' | 'fixed'
-
 export interface Coupon {
   id: string
   code: string
   description?: string
-  discount_type: CouponDiscountType
+  discount_type: 'PERCENTAGE' | 'FIXED'
   discount_value: string
   minimum_order_amount?: string
-  usage_limit?: number
-  usage_count: number
+  max_discount_amount?: string
+  usage_limit_total?: number
   usage_limit_per_user?: number
+  times_used: number
   is_active: boolean
   valid_from?: string
-  valid_to?: string
+  valid_until?: string
   created_at: string
 }
 
 // ── Newsletter ────────────────────────────────────────────────
-export type CampaignStatus = 'DRAFT' | 'SENT' | 'SCHEDULED'
+export type CampaignStatus = 'draft' | 'sent' | 'sending' | 'failed'
 
 export interface NewsletterSubscriber {
   id: string
   email: string
-  is_active: boolean
+  active: boolean
   subscribed_at: string
 }
 
 export interface NewsletterCampaign {
   id: string
+  title: string
   subject: string
-  body: string
+  html_body: string
+  plain_body?: string
+  preview_text?: string
   status: CampaignStatus
   sent_at?: string
+  recipient_count?: number
+  open_count?: number
+  click_count?: number
+  open_rate?: number
+  click_rate?: number
   created_at: string
+  updated_at?: string
 }
 
 export interface NewsletterStats {
@@ -243,6 +286,7 @@ export interface NewsletterStats {
   active_subscribers: number
   total_campaigns: number
   sent_campaigns: number
+  avg_open_rate?: number
 }
 
 // ── Notifications ─────────────────────────────────────────────

@@ -6,6 +6,7 @@ import { AdminOnlyRoute } from '@/routes/AdminOnlyRoute'
 import { PublicOnlyRoute } from '@/routes/PublicOnlyRoute'
 import { Spinner } from '@/components/feedback/Spinner'
 import { ROUTES } from '@/constants/routes'
+import { UnauthorizedPage } from '@/pages/UnauthorizedPage'
 
 // Lazy page imports
 const LoginPage         = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })))
@@ -20,13 +21,13 @@ const OrdersPage        = lazy(() => import('@/pages/orders/OrdersPage').then((m
 const OrderDetailPage   = lazy(() => import('@/pages/orders/OrderDetailPage').then((m) => ({ default: m.OrderDetailPage })))
 const CustomersPage     = lazy(() => import('@/pages/customers/CustomersPage').then((m) => ({ default: m.CustomersPage })))
 const CustomerDetailPage= lazy(() => import('@/pages/customers/CustomerDetailPage').then((m) => ({ default: m.CustomerDetailPage })))
-const CouponsPage       = lazy(() => import('@/pages/CouponsPage').then((m) => ({ default: m.CouponsPage })))
-const ReviewsPage       = lazy(() => import('@/pages/ReviewsPage').then((m) => ({ default: m.ReviewsPage })))
-const MarketingPage     = lazy(() => import('@/pages/MarketingPage').then((m) => ({ default: m.MarketingPage })))
+const CouponsPage       = lazy(() => import('@/pages/coupons/CouponsPage').then((m) => ({ default: m.CouponsPage })))
+const ReviewsPage       = lazy(() => import('@/pages/reviews/ReviewsPage').then((m) => ({ default: m.ReviewsPage })))
+const MarketingPage     = lazy(() => import('@/pages/marketing/MarketingPage').then((m) => ({ default: m.MarketingPage })))
 const ContactPage       = lazy(() => import('@/pages/ContactPage').then((m) => ({ default: m.ContactPage })))
-const AnalyticsPage     = lazy(() => import('@/pages/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })))
-const NotificationsPage = lazy(() => import('@/pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })))
-const SettingsPage      = lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
+const AnalyticsPage     = lazy(() => import('@/pages/analytics/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })))
+const NotificationsPage = lazy(() => import('@/pages/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })))
+const SettingsPage      = lazy(() => import('@/pages/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 
 function PageFallback() {
   return (
@@ -57,18 +58,6 @@ function NotFoundPage() {
   )
 }
 
-function UnauthorizedPage() {
-  return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
-      <p className="text-5xl font-bold text-text-muted">403</p>
-      <h1 className="mt-3 text-lg font-semibold text-text-primary">Access denied</h1>
-      <p className="mt-1 text-sm text-text-secondary">You don't have permission to access this area.</p>
-      <a href={ROUTES.LOGIN} className="mt-6 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover">
-        Return to login
-      </a>
-    </div>
-  )
-}
 
 function RouterErrorBoundary() {
   const error = useRouteError()
@@ -96,22 +85,6 @@ export const router = createBrowserRouter([
     element: <UnauthorizedPage />,
   },
 
-  // ── Admin routes ─────────────────────────────────────
-  {
-    path: '/',
-    errorElement: <RouterErrorBoundary />,
-    element: (
-      <AdminOnlyRoute>
-        <AdminLayout>
-          <Suspense fallback={<PageFallback />}>
-            <Navigate to={ROUTES.DASHBOARD} replace />
-          </Suspense>
-        </AdminLayout>
-      </AdminOnlyRoute>
-    ),
-    children: [],
-  },
-
   // Dashboard
   {
     path: ROUTES.DASHBOARD,
@@ -120,31 +93,31 @@ export const router = createBrowserRouter([
   },
 
   // Catalog
-  { path: ROUTES.PRODUCTS,                                errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(ProductsPage)}</AdminLayout></AdminOnlyRoute> },
-  { path: '/catalog/products/:slug',                      errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(ProductDetailPage)}</AdminLayout></AdminOnlyRoute> },
-  { path: ROUTES.CATEGORIES,                             errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(CategoriesPage)}</AdminLayout></AdminOnlyRoute> },
-  { path: ROUTES.BRANDS,                                 errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(BrandsPage)}</AdminLayout></AdminOnlyRoute> },
-  { path: ROUTES.INVENTORY,                              errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(InventoryPage)}</AdminLayout></AdminOnlyRoute> },
-  { path: ROUTES.BANNERS,                                errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(BannersPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.PRODUCTS,         errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(ProductsPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: '/catalog/products/:slug', errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(ProductDetailPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.CATEGORIES,       errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(CategoriesPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.BRANDS,           errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(BrandsPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.INVENTORY,        errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(InventoryPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.BANNERS,          errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(BannersPage)}</AdminLayout></AdminOnlyRoute> },
 
   // Orders
-  { path: ROUTES.ORDERS,                                 errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(OrdersPage)}</AdminLayout></AdminOnlyRoute> },
-  { path: '/orders/:orderNumber',                        errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(OrderDetailPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.ORDERS,           errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(OrdersPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: '/orders/:orderNumber',  errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(OrderDetailPage)}</AdminLayout></AdminOnlyRoute> },
 
   // Customers
-  { path: ROUTES.CUSTOMERS,                              errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(CustomersPage)}</AdminLayout></AdminOnlyRoute> },
-  { path: '/customers/:id',                              errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(CustomerDetailPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.CUSTOMERS,        errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(CustomersPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: '/customers/:id',        errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(CustomerDetailPage)}</AdminLayout></AdminOnlyRoute> },
 
   // Engagement
-  { path: ROUTES.COUPONS,                                errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(CouponsPage)}</AdminLayout></AdminOnlyRoute> },
-  { path: ROUTES.REVIEWS,                                errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(ReviewsPage)}</AdminLayout></AdminOnlyRoute> },
-  { path: ROUTES.MARKETING,                              errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(MarketingPage)}</AdminLayout></AdminOnlyRoute> },
-  { path: ROUTES.CONTACT,                                errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(ContactPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.COUPONS,          errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(CouponsPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.REVIEWS,          errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(ReviewsPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.MARKETING,        errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(MarketingPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.CONTACT,          errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(ContactPage)}</AdminLayout></AdminOnlyRoute> },
 
   // Analytics & Settings
-  { path: ROUTES.ANALYTICS,                              errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(AnalyticsPage)}</AdminLayout></AdminOnlyRoute> },
-  { path: ROUTES.NOTIFICATIONS,                          errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(NotificationsPage)}</AdminLayout></AdminOnlyRoute> },
-  { path: ROUTES.SETTINGS,                               errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(SettingsPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.ANALYTICS,        errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(AnalyticsPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.NOTIFICATIONS,    errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(NotificationsPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.SETTINGS,         errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(SettingsPage)}</AdminLayout></AdminOnlyRoute> },
 
   // 404 catch-all
   { path: '*', element: <NotFoundPage /> },

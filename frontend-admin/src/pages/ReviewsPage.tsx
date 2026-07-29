@@ -66,9 +66,9 @@ export function ReviewsPage() {
         <div className="max-w-xs">
           <div className="flex items-center gap-2 mb-1">
             <StarRating rating={row.rating} />
-            <span className="text-xs text-text-muted">{row.user?.email ?? 'Anonymous'}</span>
+            <span className="text-xs text-text-muted">{row.user_email ?? 'Anonymous'}</span>
           </div>
-          {row.comment && <p className="text-sm text-text-secondary line-clamp-2">{row.comment}</p>}
+          {row.body && <p className="text-sm text-text-secondary line-clamp-2">{row.body}</p>}
         </div>
       ),
     },

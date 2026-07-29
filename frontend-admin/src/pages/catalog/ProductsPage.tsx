@@ -52,22 +52,25 @@ export function ProductsPage() {
     {
       key: 'name',
       header: 'Product',
-      render: (row) => (
-        <div className="flex items-center gap-3">
-          {row.images?.[0]?.image_url ? (
-            <img src={row.images[0].image_url} alt={row.name} className="h-9 w-9 rounded-lg object-cover border border-border" />
-          ) : (
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-bg-subtle"><Package className="h-4 w-4 text-text-muted" /></div>
-          )}
-          <div>
-            <p className="font-medium text-text-primary">{row.name}</p>
-            <p className="text-xs text-text-muted">{row.slug}</p>
+      render: (row) => {
+        const imgSrc = row.primary_image?.url ?? row.primary_image?.image ?? row.images?.[0]?.url ?? row.images?.[0]?.image
+        return (
+          <div className="flex items-center gap-3">
+            {imgSrc ? (
+              <img src={imgSrc} alt={row.name} className="h-9 w-9 rounded-lg object-cover border border-border" />
+            ) : (
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-bg-subtle"><Package className="h-4 w-4 text-text-muted" /></div>
+            )}
+            <div>
+              <p className="font-medium text-text-primary">{row.name}</p>
+              <p className="text-xs text-text-muted">{row.slug}</p>
+            </div>
           </div>
-        </div>
-      ),
+        )
+      },
     },
-    { key: 'category', header: 'Category', render: (row) => <span className="text-text-secondary">{row.category?.name ?? '—'}</span> },
-    { key: 'price', header: 'Price', align: 'right', render: (row) => formatCurrency(row.base_price) },
+    { key: 'category', header: 'Category', render: (row) => <span className="text-text-secondary">{row.category_name ?? '—'}</span> },
+    { key: 'price', header: 'Price', align: 'right', render: (row) => formatCurrency(row.base_price ?? row.price ?? '0') },
     {
       key: 'status', header: 'Status',
       render: (row) => <Badge variant={STATUS_VARIANT[row.status as keyof typeof STATUS_VARIANT] ?? 'default'}>{row.status}</Badge>,

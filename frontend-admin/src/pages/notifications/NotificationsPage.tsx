@@ -3,7 +3,6 @@ import { Bell } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/feedback/EmptyState'
-import { Skeleton } from '@/components/feedback/Skeleton'
 import { notificationsService } from '@/services/api/notifications.service'
 import { useToast } from '@/contexts/ToastContext'
 import { formatRelativeTime } from '@/utils/format'
@@ -16,13 +15,13 @@ export function NotificationsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-notifications'],
-    queryFn: () => notificationsService.getNotifications({ page_size: 50 }),
+    queryFn: () => notificationsService.listNotifications({ page_size: 50 }),
   })
 
   const markReadMutation = useMutation({
-    mutationFn: (id: number) => notificationsService.markRead(id),
+    mutationFn: (pk: string) => notificationsService.markRead(pk),
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['admin-notifications'] }) },
-    onError: (e: ApiError) => toast({ title: e.message, variant: 'error' }),
+    onError: (e: ApiError) => toast({ title: e.message, variant: 'destructive' }),
   })
 
   const markAllMutation = useMutation({
@@ -31,7 +30,7 @@ export function NotificationsPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin-notifications'] })
       toast({ title: 'All notifications marked as read', variant: 'success' })
     },
-    onError: (e: ApiError) => toast({ title: e.message, variant: 'error' }),
+    onError: (e: ApiError) => toast({ title: e.message, variant: 'destructive' }),
   })
 
   const notifications = data?.results ?? []
@@ -41,8 +40,8 @@ export function NotificationsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-heading-lg font-bold text-text-primary">Notifications</h1>
-          <p className="mt-0.5 text-body-sm text-text-secondary">
+          <h1 className="text-lg font-bold text-text-primary">Notifications</h1>
+          <p className="mt-0.5 text-sm text-text-secondary">
             {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
           </p>
         </div>
@@ -58,15 +57,15 @@ export function NotificationsPage() {
         )}
       </div>
 
-      <Card noPadding>
+      <Card padding="none">
         {isLoading ? (
           <div className="divide-y divide-border">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="flex items-start gap-4 px-6 py-4">
-                <Skeleton className="mt-1 h-2 w-2 shrink-0 rounded-full" />
+                <div className="mt-2 h-2 w-2 shrink-0 animate-pulse rounded-full bg-skeleton" />
                 <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-24" />
+                  <div className="h-4 w-3/4 animate-pulse rounded bg-skeleton" />
+                  <div className="h-3 w-24 animate-pulse rounded bg-skeleton" />
                 </div>
               </div>
             ))}
@@ -74,7 +73,7 @@ export function NotificationsPage() {
         ) : notifications.length === 0 ? (
           <div className="px-6 pb-6 pt-2">
             <EmptyState
-              icon={Bell}
+              icon={<Bell className="h-6 w-6" />}
               title="No notifications"
               description="System notifications will appear here."
               className="border-0 shadow-none"
@@ -98,18 +97,19 @@ export function NotificationsPage() {
                   aria-hidden
                 />
                 <div className="flex-1">
-                  <p
-                    className={cn(
-                      'text-body-sm',
-                      n.is_read ? 'text-text-secondary' : 'font-medium text-text-primary'
-                    )}
-                  >
-                    {n.message}
+                  <p className={cn(
+                    'text-sm',
+                    n.is_read ? 'text-text-secondary' : 'font-medium text-text-primary'
+                  )}>
+                    {n.title}
                   </p>
+                  {n.body && (
+                    <p className="mt-0.5 text-xs text-text-secondary line-clamp-2">{n.body}</p>
+                  )}
                   <div className="mt-1 flex items-center gap-3">
-                    <span className="text-caption text-text-muted">{formatRelativeTime(n.created_at)}</span>
-                    {n.link && (
-                      <a href={n.link} className="text-caption font-medium text-primary hover:underline">
+                    <span className="text-xs text-text-muted">{formatRelativeTime(n.created_at)}</span>
+                    {n.action_url && (
+                      <a href={n.action_url} className="text-xs font-medium text-primary hover:underline">
                         View →
                       </a>
                     )}
@@ -119,8 +119,8 @@ export function NotificationsPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="shrink-0 text-caption text-text-muted"
-                    onClick={() => markReadMutation.mutate(n.id)}
+                    className="shrink-0 text-xs text-text-muted"
+                    onClick={() => markReadMutation.mutate(String(n.id))}
                     isLoading={markReadMutation.isPending}
                   >
                     Mark read

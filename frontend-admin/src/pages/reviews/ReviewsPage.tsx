@@ -30,10 +30,12 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 const TABS = [
-  { value: 'pending',  label: 'Pending' },
+  { value: 'pending', label: 'Pending' },
   { value: 'approved', label: 'Approved' },
-  { value: 'all',      label: 'All' },
+  { value: 'all', label: 'All' },
 ]
+
+const PAGE_SIZE = 20
 
 export function ReviewsPage() {
   const [page, setPage] = useState(1)
@@ -49,110 +51,129 @@ export function ReviewsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['admin-reviews', page, search, tab],
     queryFn: () =>
-      reviewsService.getReviews({
+      reviewsService.listReviews({
         page,
-        page_size: 20,
+        page_size: PAGE_SIZE,
         search: search || undefined,
         is_approved: isApproved,
       }),
   })
 
-  // Fetch counts for the other tabs so badges are always visible
+  // Fetch counts for tab badges
   const { data: pendingMeta } = useQuery({
     queryKey: ['admin-reviews-count', 'pending'],
-    queryFn: () => reviewsService.getReviews({ page: 1, page_size: 1, is_approved: false }),
+    queryFn: () => reviewsService.listReviews({ page: 1, page_size: 1, is_approved: false }),
     staleTime: 30_000,
   })
   const { data: approvedMeta } = useQuery({
     queryKey: ['admin-reviews-count', 'approved'],
-    queryFn: () => reviewsService.getReviews({ page: 1, page_size: 1, is_approved: true }),
+    queryFn: () => reviewsService.listReviews({ page: 1, page_size: 1, is_approved: true }),
     staleTime: 30_000,
   })
   const { data: allMeta } = useQuery({
     queryKey: ['admin-reviews-count', 'all'],
-    queryFn: () => reviewsService.getReviews({ page: 1, page_size: 1 }),
+    queryFn: () => reviewsService.listReviews({ page: 1, page_size: 1 }),
     staleTime: 30_000,
   })
 
   const tabCounts: Record<string, number | undefined> = {
-    pending:  pendingMeta?.count,
+    pending: pendingMeta?.count,
     approved: approvedMeta?.count,
-    all:      allMeta?.count,
+    all: allMeta?.count,
   }
 
-  const invalidate = () => { void queryClient.invalidateQueries({ queryKey: ['admin-reviews'] }) }
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ['admin-reviews'] })
+  }
 
   const approveMutation = useMutation({
-    mutationFn: (id: number) => reviewsService.approveReview(id),
+    mutationFn: (id: string) => reviewsService.approveReview(id),
     onSuccess: () => { invalidate(); toast({ title: 'Review approved', variant: 'success' }) },
-    onError: (e: ApiError) => toast({ title: e.message, variant: 'error' }),
+    onError: (e: ApiError) => toast({ title: e.message, variant: 'destructive' }),
   })
 
   const rejectMutation = useMutation({
-    mutationFn: (id: number) => reviewsService.rejectReview(id),
+    mutationFn: (id: string) => reviewsService.rejectReview(id),
     onSuccess: () => { invalidate(); toast({ title: 'Review rejected', variant: 'success' }) },
-    onError: (e: ApiError) => toast({ title: e.message, variant: 'error' }),
+    onError: (e: ApiError) => toast({ title: e.message, variant: 'destructive' }),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => reviewsService.deleteReview(id),
+    mutationFn: (id: string) => reviewsService.deleteReview(id),
     onSuccess: () => {
       invalidate()
       toast({ title: 'Review deleted', variant: 'success' })
       setDeleteTarget(null)
     },
-    onError: (e: ApiError) => toast({ title: e.message, variant: 'error' }),
+    onError: (e: ApiError) => toast({ title: e.message, variant: 'destructive' }),
   })
+
+  const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE)
 
   const columns: Column<Review>[] = [
     {
       key: 'rating',
       header: 'Rating',
-      headerClassName: 'w-28',
-      cell: (r) => <StarRating rating={r.rating} />,
+      width: '112px',
+      render: (r) => <StarRating rating={r.rating} />,
     },
     {
       key: 'review',
       header: 'Review',
-      cell: (r) => (
+      render: (r) => (
         <div>
-          <p className="font-medium text-text-primary">{r.title}</p>
-          <p className="mt-0.5 text-caption text-text-secondary">{truncate(r.body, 80)}</p>
+          {r.title && <p className="font-medium text-text-primary">{r.title}</p>}
+          <p className="mt-0.5 text-xs text-text-secondary">{truncate(r.body, 80)}</p>
         </div>
       ),
     },
     {
+      key: 'product',
+      header: 'Product',
+      render: (r) => <span className="text-sm text-text-secondary">{r.product_name ?? '—'}</span>,
+    },
+    {
       key: 'customer',
       header: 'Customer',
-      cell: (r) => <span className="text-body-sm text-text-secondary">{r.user_email}</span>,
+      render: (r) => <span className="text-sm text-text-secondary">{r.user_email ?? 'Anonymous'}</span>,
     },
     {
       key: 'verified',
       header: 'Verified',
-      cell: (r) => (
-        <Badge variant={r.is_verified_purchase ? 'success' : 'secondary'} size="sm">
+      render: (r) => (
+        <Badge variant={r.is_verified_purchase ? 'success' : 'secondary'}>
           {r.is_verified_purchase ? 'Verified' : 'Unverified'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (r) => (
+        <Badge variant={r.is_approved ? 'success' : 'warning'}>
+          {r.is_approved ? 'Approved' : 'Pending'}
         </Badge>
       ),
     },
     {
       key: 'date',
       header: 'Date',
-      cell: (r) => <span className="text-body-sm text-text-muted">{formatDate(r.created_at)}</span>,
+      render: (r) => <span className="text-sm text-text-muted">{formatDate(r.created_at)}</span>,
     },
     {
       key: 'actions',
       header: '',
-      headerClassName: 'w-32',
-      cell: (r) => (
-        <div className="flex items-center gap-1">
+      width: '100px',
+      align: 'right',
+      render: (r) => (
+        <div className="flex items-center justify-end gap-1">
           {!r.is_approved && (
             <Button
               variant="ghost"
               size="icon-sm"
-              className="text-success hover:bg-success-subtle hover:text-success"
+              className="text-success hover:bg-success-subtle"
               aria-label="Approve"
-              onClick={(e) => { e.stopPropagation(); approveMutation.mutate(r.id) }}
+              onClick={(e) => { e.stopPropagation(); approveMutation.mutate(String(r.id)) }}
             >
               <Check className="h-3.5 w-3.5" />
             </Button>
@@ -161,9 +182,9 @@ export function ReviewsPage() {
             <Button
               variant="ghost"
               size="icon-sm"
-              className="text-warning hover:bg-warning-subtle hover:text-warning"
+              className="text-warning hover:bg-warning-subtle"
               aria-label="Reject"
-              onClick={(e) => { e.stopPropagation(); rejectMutation.mutate(r.id) }}
+              onClick={(e) => { e.stopPropagation(); rejectMutation.mutate(String(r.id)) }}
             >
               <X className="h-3.5 w-3.5" />
             </Button>
@@ -171,7 +192,7 @@ export function ReviewsPage() {
           <Button
             variant="ghost"
             size="icon-sm"
-            className="text-danger hover:bg-danger-subtle hover:text-danger"
+            className="text-danger hover:bg-danger-subtle"
             aria-label="Delete"
             onClick={(e) => { e.stopPropagation(); setDeleteTarget(r) }}
           >
@@ -185,57 +206,55 @@ export function ReviewsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-heading-lg font-bold text-text-primary">Reviews</h1>
-        <p className="mt-0.5 text-body-sm text-text-secondary">
+        <h1 className="text-lg font-bold text-text-primary">Reviews</h1>
+        <p className="mt-0.5 text-sm text-text-secondary">
           Moderate customer product reviews
         </p>
       </div>
 
-      <Card noPadding>
+      <Card padding="none">
         <div className="border-b border-border">
           <Tabs
-            tabs={TABS.map((t) => ({
-              ...t,
-              count: tabCounts[t.value],
-            }))}
+            tabs={TABS.map((t) => ({ ...t, count: tabCounts[t.value] }))}
             value={tab}
-            onChange={(v) => { setTab(v); setPage(1) }}
+            onValueChange={(v) => { setTab(v); setPage(1) }}
             className="px-4"
           />
         </div>
+
         <div className="flex items-center gap-3 border-b border-border p-4">
           <SearchBar
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            onClear={() => { setSearch(''); setPage(1) }}
+            onChange={(v) => { setSearch(v); setPage(1) }}
             placeholder="Search by email or product…"
-            containerClassName="w-full max-w-xs"
+            className="w-full max-w-xs"
           />
         </div>
+
         <DataTable
           columns={columns}
           data={data?.results ?? []}
           isLoading={isLoading}
-          keyExtractor={(r) => r.id}
-          emptyIcon={Star}
+          rowKey={(r) => r.id}
           emptyTitle={tab === 'pending' ? 'No pending reviews' : 'No reviews found'}
           emptyDescription={tab === 'pending' ? 'All reviews have been moderated.' : undefined}
         />
-        {data && data.count > 20 && (
+
+        {totalPages > 1 && (
           <div className="border-t border-border px-4 py-4">
-            <Pagination page={page} pageSize={20} total={data.count} onPageChange={setPage} />
+            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         )}
       </Card>
 
       <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(String(deleteTarget.id))}
         title="Delete Review"
-        description={`Delete "${deleteTarget?.title}"? This cannot be undone.`}
+        description={`Delete "${deleteTarget?.title ?? 'this review'}"? This cannot be undone.`}
         confirmLabel="Delete Review"
         isLoading={deleteMutation.isPending}
-        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
       />
     </div>
   )
