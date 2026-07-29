@@ -10,6 +10,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Tabs } from '@/components/ui/Tabs'
 import { reviewsService } from '@/services/api/reviews.service'
+import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { formatDate, truncate } from '@/utils/format'
 import type { Review } from '@/types/models'
@@ -44,6 +45,7 @@ export function ReviewsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Review | null>(null)
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const { isAuthenticated } = useAuth()
 
   const isApproved =
     tab === 'pending' ? false : tab === 'approved' ? true : undefined
@@ -57,6 +59,7 @@ export function ReviewsPage() {
         search: search || undefined,
         is_approved: isApproved,
       }),
+    enabled: isAuthenticated,
   })
 
   // Fetch counts for tab badges
@@ -64,16 +67,19 @@ export function ReviewsPage() {
     queryKey: ['admin-reviews-count', 'pending'],
     queryFn: () => reviewsService.listReviews({ page: 1, page_size: 1, is_approved: false }),
     staleTime: 30_000,
+    enabled: isAuthenticated,
   })
   const { data: approvedMeta } = useQuery({
     queryKey: ['admin-reviews-count', 'approved'],
     queryFn: () => reviewsService.listReviews({ page: 1, page_size: 1, is_approved: true }),
     staleTime: 30_000,
+    enabled: isAuthenticated,
   })
   const { data: allMeta } = useQuery({
     queryKey: ['admin-reviews-count', 'all'],
     queryFn: () => reviewsService.listReviews({ page: 1, page_size: 1 }),
     staleTime: 30_000,
+    enabled: isAuthenticated,
   })
 
   const tabCounts: Record<string, number | undefined> = {

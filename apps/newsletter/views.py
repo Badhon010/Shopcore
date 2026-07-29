@@ -125,6 +125,8 @@ class AdminNewsletterStatsView(APIView):
                 "inactive_subscribers": inactive,
                 "new_this_month": this_month,
                 "new_last_month": last_month,
+                "total_campaigns": campaigns_sent + campaigns_draft,
+                "sent_campaigns": campaigns_sent,
                 "campaigns_sent": campaigns_sent,
                 "campaigns_draft": campaigns_draft,
                 "avg_open_rate": avg_open_rate,
@@ -204,17 +206,23 @@ class AdminCampaignViewSet(ModelViewSet):
                         exc_info=True,
                     )
 
-            campaign.status = NewsletterCampaign.Status.SENT
-            campaign.sent_at = timezone.now()
-            campaign.recipient_count = sent_count
-            campaign.save(update_fields=["status", "sent_at", "recipient_count", "updated_at"])
+            if sent_count == 0 and len(active_subscribers) > 0:
+                failed = True
+                campaign.status = NewsletterCampaign.Status.FAILED
+                campaign.save(update_fields=["status", "updated_at"])
+                logger.error("Campaign %s failed to send to any of the %d subscribers", campaign.id, len(active_subscribers))
+            else:
+                campaign.status = NewsletterCampaign.Status.SENT
+                campaign.sent_at = timezone.now()
+                campaign.recipient_count = sent_count
+                campaign.save(update_fields=["status", "sent_at", "recipient_count", "updated_at"])
 
-            logger.info(
-                "Campaign %s sent to %d/%d subscribers",
-                campaign.id,
-                sent_count,
-                len(active_subscribers),
-            )
+                logger.info(
+                    "Campaign %s sent to %d/%d subscribers",
+                    campaign.id,
+                    sent_count,
+                    len(active_subscribers),
+                )
 
         except Exception:
             failed = True
@@ -224,7 +232,7 @@ class AdminCampaignViewSet(ModelViewSet):
 
         if failed:
             return Response(
-                {"detail": "Campaign failed to send. Check server logs."},
+                {"detail": "Campaign failed to send. Check email configuration and server logs."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 

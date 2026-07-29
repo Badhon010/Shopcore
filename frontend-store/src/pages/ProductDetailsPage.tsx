@@ -147,7 +147,7 @@ export function ProductDetailsPage() {
   return (
     <>
       <Helmet>
-        <title>{product.name} — ShopCore</title>
+        <title>{`${product.name} — ShopCore`}</title>
         <meta name="description" content={product.short_description ?? product.description.slice(0, 160)} />
         <meta property="og:title" content={product.name} />
         <meta property="og:description" content={product.short_description ?? product.description.slice(0, 160)} />

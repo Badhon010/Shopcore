@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useAuth } from '@/contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { ShoppingCart } from 'lucide-react'
 import { ordersService } from '@/services/api/orders.service'
@@ -23,10 +24,12 @@ export function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const debouncedSearch = useDebounce(search)
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-orders', page, debouncedSearch, statusFilter],
     queryFn: () => ordersService.listOrders({ page, search: debouncedSearch, status: statusFilter || undefined }),
+    enabled: isAuthenticated,
   })
 
   const columns: Column<Order>[] = [

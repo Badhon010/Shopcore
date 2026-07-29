@@ -77,7 +77,7 @@ export function SearchResultsPage() {
   return (
     <>
       <Helmet>
-        <title>{q ? `"${q}" — Search` : 'Search'} — ShopCore</title>
+        <title>{`${q ? `"${q}" — Search` : 'Search'} — ShopCore`}</title>
       </Helmet>
       <PageContainer className="py-8">
         <h1 className="sr-only">Search results</h1>

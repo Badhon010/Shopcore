@@ -197,6 +197,15 @@ class DashboardStatsView(APIView):
 
         return Response(
             {
+                # Top-level flattened aliases for DashboardKPIs
+                "total_revenue": total_revenue,
+                "revenue_change_pct": _growth_pct(cur_rev, prv_rev),
+                "total_orders": total_orders,
+                "orders_change_pct": _growth_pct(cur_orders, prv_orders),
+                "total_customers": total_customers,
+                "customers_change_pct": _growth_pct(cur_customers, prv_customers),
+                "low_stock_count": low_stock_count,
+                "pending_orders": status_breakdown.get("PENDING", 0),
                 "period_days": days,
                 "generated_at": now,
                 "revenue": {

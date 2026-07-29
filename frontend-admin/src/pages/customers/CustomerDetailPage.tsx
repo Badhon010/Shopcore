@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { useAuth } from '@/contexts/AuthContext'
 import { ArrowLeft, Mail, Calendar } from 'lucide-react'
 import { customersService } from '@/services/api/customers.service'
 import { ordersService } from '@/services/api/orders.service'
@@ -21,16 +22,18 @@ export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
+  const { isAuthenticated } = useAuth()
+
   const { data: customer, isLoading } = useQuery({
     queryKey: ['admin-customer', id],
     queryFn: () => customersService.getCustomer(id!),
-    enabled: !!id,
+    enabled: isAuthenticated && !!id,
   })
 
   const { data: orders } = useQuery({
     queryKey: ['customer-orders', id],
     queryFn: () => ordersService.listOrders({ page: 1, page_size: 10, search: customer?.email }),
-    enabled: !!customer?.email,
+    enabled: isAuthenticated && !!customer?.email,
   })
 
   if (isLoading) return <div className="space-y-5"><Skeleton className="h-6 w-48" /><Skeleton className="h-64 w-full" /></div>

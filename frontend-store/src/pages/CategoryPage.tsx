@@ -103,7 +103,7 @@ export function CategoryPage() {
   return (
     <>
       <Helmet>
-        <title>{category?.name ?? 'Category'} — ShopCore</title>
+        <title>{`${category?.name ?? 'Category'} — ShopCore`}</title>
         <meta name="description" content={category?.description ?? `Browse ${category?.name} products.`} />
       </Helmet>
       <PageContainer className="py-6">

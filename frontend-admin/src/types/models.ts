@@ -49,18 +49,25 @@ export interface ProductImage {
   display_order?: number
 }
 
-export interface ProductVariantOption {
-  name: string
+export interface ProductVariantAttributeValue {
+  id: string
+  attribute_name: string
+  attribute_slug: string
   value: string
+  display_order: number
 }
 
 export interface ProductVariant {
   id: string
   sku: string
-  options: ProductVariantOption[]
-  price: string
-  original_price?: string
-  is_available: boolean
+  /** Attribute values that define this variant (e.g. Size: M, Colour: Red) */
+  attribute_values: ProductVariantAttributeValue[]
+  /** Optional price that overrides the product base price for this variant */
+  price_override?: string | null
+  /** Resolved price to display — either price_override or product base_price */
+  effective_price: string
+  is_active: boolean
+  stock_quantity: number
 }
 
 export interface AdminProduct {

@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { useDebounce } from '@/utils/useDebounce'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import type { Brand } from '@/types/models'
 
 interface BrandForm {
@@ -36,10 +37,12 @@ export function BrandsPage() {
   const debouncedSearch = useDebounce(search)
   const { toast } = useToast()
   const qc = useQueryClient()
+  const { isAuthenticated } = useAuth()
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-brands', page, debouncedSearch],
     queryFn: () => catalogService.listBrands({ page, search: debouncedSearch }),
+    enabled: isAuthenticated,
   })
 
   function openCreate() {

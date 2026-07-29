@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
@@ -25,6 +25,7 @@ import { Skeleton } from '@/components/feedback/Skeleton'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { applyServerErrors } from '@/services/api/axiosClient'
 import { formatCurrency } from '@/utils/format'
 import { ROUTES } from '@/constants/routes'
@@ -67,12 +68,11 @@ type DetailFormValues = z.infer<typeof detailSchema>
 // ── Variant form schema ───────────────────────────────────────
 const variantSchema = z.object({
   sku: z.string().min(1, 'SKU is required'),
-  price: z.coerce.number({ invalid_type_error: 'Price is required' }).positive('Price must be positive'),
-  original_price: z.preprocess(
+  price_override: z.preprocess(
     (v) => (v === '' || v == null ? null : Number(v)),
-    z.number().positive().nullable().optional()
+    z.number().positive('Must be a positive number').nullable().optional()
   ),
-  is_available: z.boolean().default(true),
+  is_active: z.boolean().default(true),
 })
 type VariantFormValues = z.infer<typeof variantSchema>
 
@@ -83,6 +83,7 @@ export function ProductDetailPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const qc = useQueryClient()
+  const { isAuthenticated } = useAuth()
 
   const [activeTab, setActiveTab] = useState('details')
 
@@ -100,7 +101,7 @@ export function ProductDetailPage() {
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ['admin-product', slug],
     queryFn: () => catalogService.getProduct(slug!),
-    enabled: !isNew && !!slug,
+    enabled: isAuthenticated && !isNew && !!slug,
   })
 
   // ── Fetch categories & brands for selectors ────────────────
@@ -108,25 +109,27 @@ export function ProductDetailPage() {
     queryKey: ['admin-categories-all'],
     queryFn: () => catalogService.listCategories({ page_size: 200 } as never),
     staleTime: 5 * 60_000,
+    enabled: isAuthenticated,
   })
 
   const { data: brandsData } = useQuery({
     queryKey: ['admin-brands-all'],
     queryFn: () => catalogService.listBrands({ page_size: 200 } as never),
     staleTime: 5 * 60_000,
+    enabled: isAuthenticated,
   })
 
   // ── Fetch variants & images (existing products only) ───────
   const { data: variants, isLoading: variantsLoading } = useQuery({
     queryKey: ['admin-variants', slug],
     queryFn: () => catalogService.listVariants(slug!),
-    enabled: !isNew && !!slug,
+    enabled: isAuthenticated && !isNew && !!slug,
   })
 
   const { data: images, isLoading: imagesLoading } = useQuery({
     queryKey: ['admin-images', slug],
     queryFn: () => catalogService.listImages(slug!),
-    enabled: !isNew && !!slug,
+    enabled: isAuthenticated && !isNew && !!slug,
   })
 
   // ── Detail form ────────────────────────────────────────────
@@ -134,6 +137,7 @@ export function ProductDetailPage() {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting, isDirty },
     setError,
   } = useForm<DetailFormValues>({
@@ -200,12 +204,12 @@ export function ProductDetailPage() {
   // ── Variant form ───────────────────────────────────────────
   const variantForm = useForm<VariantFormValues>({
     resolver: zodResolver(variantSchema),
-    defaultValues: { is_available: true },
+    defaultValues: { is_active: true },
   })
 
   function openCreateVariant() {
     setEditVariant(null)
-    variantForm.reset({ sku: '', price: undefined as never, original_price: null, is_available: true })
+    variantForm.reset({ sku: '', price_override: null, is_active: true })
     setVariantModalOpen(true)
   }
 
@@ -213,9 +217,8 @@ export function ProductDetailPage() {
     setEditVariant(v)
     variantForm.reset({
       sku: v.sku,
-      price: parseFloat(v.price),
-      original_price: v.original_price ? parseFloat(v.original_price) : null,
-      is_available: v.is_available,
+      price_override: v.price_override ? parseFloat(v.price_override) : null,
+      is_active: v.is_active,
     })
     setVariantModalOpen(true)
   }
@@ -224,9 +227,8 @@ export function ProductDetailPage() {
     mutationFn: (values: VariantFormValues) => {
       const payload = {
         sku: values.sku,
-        price: String(values.price),
-        original_price: values.original_price ? String(values.original_price) : undefined,
-        is_available: values.is_available,
+        price_override: values.price_override != null ? String(values.price_override) : null,
+        is_active: values.is_active,
       }
       return editVariant
         ? catalogService.updateVariant(slug!, String(editVariant.id), payload)
@@ -303,9 +305,9 @@ export function ProductDetailPage() {
       key: 'options',
       header: 'Options',
       render: (row) =>
-        row.options?.length ? (
+        row.attribute_values?.length ? (
           <span className="text-sm text-text-secondary">
-            {row.options.map((o) => `${o.name}: ${o.value}`).join(' · ')}
+            {row.attribute_values.map((av) => `${av.attribute_name}: ${av.value}`).join(' · ')}
           </span>
         ) : (
           <span className="text-sm text-text-muted">Default</span>
@@ -316,15 +318,15 @@ export function ProductDetailPage() {
       header: 'Price',
       align: 'right',
       render: (row) => (
-        <span className="font-medium text-text-primary">{formatCurrency(row.price)}</span>
+        <span className="font-medium text-text-primary">{formatCurrency(row.effective_price)}</span>
       ),
     },
     {
       key: 'available',
       header: 'Available',
       render: (row) => (
-        <Badge variant={row.is_available ? 'success' : 'default'}>
-          {row.is_available ? 'Yes' : 'No'}
+        <Badge variant={row.is_active ? 'success' : 'default'}>
+          {row.is_active ? 'Yes' : 'No'}
         </Badge>
       ),
     },
@@ -532,25 +534,50 @@ export function ProductDetailPage() {
                 error={errors.category?.message}
                 required
               >
-                <Select id="category" error={!!errors.category} {...register('category')}>
-                  <option value="">Select a category…</option>
-                  {categoriesData?.results.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
+                <Controller
+                  name="category"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      id="category"
+                      error={!!errors.category}
+                      value={field.value ?? ''}
+                      onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    >
+                      <option value="">Select a category…</option>
+                      {categoriesData?.results.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                />
               </FormField>
 
               <FormField label="Brand" htmlFor="brand">
-                <Select id="brand" {...register('brand')}>
-                  <option value="">No brand</option>
-                  {brandsData?.results.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </Select>
+                <Controller
+                  name="brand"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      id="brand"
+                      value={field.value ?? ''}
+                      onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    >
+                      <option value="">No brand</option>
+                      {brandsData?.results.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                />
               </FormField>
 
               <FormField label="Status" htmlFor="status" required>
@@ -752,37 +779,30 @@ export function ProductDetailPage() {
             />
           </FormField>
 
-          <div className="grid grid-cols-2 gap-4">
-            <FormField label="Price" error={variantForm.formState.errors.price?.message} required>
-              <Input
-                type="number"
-                step="0.01"
-                min="0.01"
-                placeholder="0.00"
-                error={!!variantForm.formState.errors.price}
-                {...variantForm.register('price')}
-              />
-            </FormField>
-            <FormField label="Original price (optional)">
-              <Input
-                type="number"
-                step="0.01"
-                min="0.01"
-                placeholder="0.00"
-                {...variantForm.register('original_price')}
-              />
-            </FormField>
-          </div>
+          <FormField
+            label="Price override (optional)"
+            error={variantForm.formState.errors.price_override?.message}
+            hint="Leave blank to use the product base price."
+          >
+            <Input
+              type="number"
+              step="0.01"
+              min="0.01"
+              placeholder="0.00"
+              error={!!variantForm.formState.errors.price_override}
+              {...variantForm.register('price_override')}
+            />
+          </FormField>
 
           <div className="flex items-center gap-2">
             <input
-              id="variant-available"
+              id="variant-active"
               type="checkbox"
               className="h-4 w-4 rounded accent-primary"
-              {...variantForm.register('is_available')}
+              {...variantForm.register('is_active')}
             />
-            <label htmlFor="variant-available" className="cursor-pointer text-sm text-text-primary">
-              Available for purchase
+            <label htmlFor="variant-active" className="cursor-pointer text-sm text-text-primary">
+              Active (available for purchase)
             </label>
           </div>
 

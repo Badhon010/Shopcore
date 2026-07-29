@@ -13,6 +13,7 @@ import { FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/Input'
 import { useDebounce } from '@/utils/useDebounce'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { formatDateTime } from '@/utils/format'
 import type { StockItem } from '@/types/models'
 import type { ApiError } from '@/types/api'
@@ -38,6 +39,7 @@ export function InventoryPage() {
   const debouncedSearch = useDebounce(search)
   const { toast } = useToast()
   const qc = useQueryClient()
+  const { isAuthenticated } = useAuth()
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['inventory', page, debouncedSearch, lowStockOnly],
@@ -47,13 +49,14 @@ export function InventoryPage() {
         search: debouncedSearch,
         low_stock_only: lowStockOnly || undefined,
       }),
+    enabled: isAuthenticated,
   })
 
   const { data: movements, isLoading: movementsLoading } = useQuery({
     queryKey: ['stock-movements', movementsTarget?.id, movementsPage],
     queryFn: () =>
       inventoryService.getMovements(String(movementsTarget!.id), { page: movementsPage }),
-    enabled: !!movementsTarget,
+    enabled: isAuthenticated && !!movementsTarget,
   })
 
   const adjustMutation = useMutation({

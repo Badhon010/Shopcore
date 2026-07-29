@@ -27,7 +27,7 @@ export function OrderDetailsPage() {
   return (
     <>
       <Helmet>
-        <title>Order #{order.order_number} — ShopCore</title>
+        <title>{`Order #${order.order_number} — ShopCore`}</title>
       </Helmet>
       <div>
         <div className="flex items-center gap-2 mb-6">

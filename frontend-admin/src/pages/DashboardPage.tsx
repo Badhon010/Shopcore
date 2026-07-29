@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   DollarSign, ShoppingCart, Users, AlertTriangle,
   Package, TrendingUp,
@@ -17,28 +18,34 @@ import { ErrorState } from '@/components/feedback/ErrorState'
 import { formatCurrency, formatDate } from '@/utils/format'
 
 export function DashboardPage() {
+  const { isAuthenticated } = useAuth()
+
   const { data: kpis, isLoading: kpiLoading, error: kpiError } = useQuery({
     queryKey: ['dashboard-kpis'],
     queryFn: () => dashboardService.getOverview(),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   })
 
   const { data: revenueData, isLoading: revenueLoading, error: revenueError } = useQuery({
     queryKey: ['dashboard-revenue', 'week'],
     queryFn: () => dashboardService.getRevenue({ period: 'week' }),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   })
 
   const { data: bestSellers, isLoading: sellersLoading, error: sellersError } = useQuery({
     queryKey: ['dashboard-best-sellers'],
     queryFn: () => dashboardService.getBestSellers(),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   })
 
   const { data: recentOrders, isLoading: ordersLoading, error: ordersError } = useQuery({
     queryKey: ['dashboard-recent-orders'],
     queryFn: () => ordersService.listOrders({ page: 1, page_size: 5, ordering: '-created_at' }),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   })
 
   if (kpiError) {

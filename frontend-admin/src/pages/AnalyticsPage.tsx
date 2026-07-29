@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis,
   Tooltip, ResponsiveContainer, CartesianGrid, Legend,
@@ -14,20 +15,24 @@ type Period = AnalyticsParams['period']
 
 export function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>('week')
+  const { isAuthenticated } = useAuth()
 
   const { data: revenueData, isLoading: revLoading } = useQuery({
     queryKey: ['analytics-revenue', period],
     queryFn: () => dashboardService.getRevenue({ period }),
+    enabled: isAuthenticated,
   })
 
   const { data: orderData, isLoading: ordLoading } = useQuery({
     queryKey: ['analytics-orders', period],
     queryFn: () => dashboardService.getOrderVolume({ period }),
+    enabled: isAuthenticated,
   })
 
   const { data: bestSellers, isLoading: sellersLoading } = useQuery({
     queryKey: ['analytics-best-sellers'],
     queryFn: () => dashboardService.getBestSellers(),
+    enabled: isAuthenticated,
   })
 
   return (

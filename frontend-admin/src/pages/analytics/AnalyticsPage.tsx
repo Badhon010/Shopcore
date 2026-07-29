@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   AlertTriangle,
   BarChart3,
@@ -74,58 +75,69 @@ function SectionSkeleton({ rows = 4 }: { rows?: number }) {
 // ── Main page ────────────────────────────────────────────────
 
 export function AnalyticsPage() {
+  const { isAuthenticated } = useAuth()
+
   const statsQuery = useQuery({
     queryKey: ['analytics-order-stats'],
     queryFn: () => ordersService.getOrderStats(),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   })
 
   const productsQuery = useQuery({
     queryKey: ['analytics-products-total'],
     queryFn: () => catalogService.listProducts({ page_size: 1 }),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   })
 
   const publishedProductsQuery = useQuery({
     queryKey: ['analytics-products-published'],
     queryFn: () => catalogService.listProducts({ status: 'PUBLISHED', page_size: 1 }),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   })
 
   const draftProductsQuery = useQuery({
     queryKey: ['analytics-products-draft'],
     queryFn: () => catalogService.listProducts({ status: 'DRAFT', page_size: 1 }),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   })
 
   const archivedProductsQuery = useQuery({
     queryKey: ['analytics-products-archived'],
     queryFn: () => catalogService.listProducts({ status: 'ARCHIVED', page_size: 1 }),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   })
 
   const lowStockQuery = useQuery({
     queryKey: ['analytics-low-stock'],
     queryFn: () => inventoryService.listStock({ low_stock_only: true, page_size: 1 }),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   })
 
   const reviewsQuery = useQuery({
     queryKey: ['analytics-reviews-total'],
     queryFn: () => reviewsService.listReviews({ page_size: 1 }),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   })
 
   const pendingReviewsQuery = useQuery({
     queryKey: ['analytics-reviews-pending'],
     queryFn: () => reviewsService.listReviews({ is_approved: false, page_size: 1 }),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   })
 
   const customersQuery = useQuery({
     queryKey: ['analytics-customers'],
     queryFn: () => customersService.listCustomers({ page_size: 1 }),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   })
 
   const stats = statsQuery.data

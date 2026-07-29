@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/Textarea'
 import { Select } from '@/components/ui/Select'
 import { useDebounce } from '@/utils/useDebounce'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import type { Category } from '@/types/models'
 
 interface CategoryForm {
@@ -38,10 +39,12 @@ export function CategoriesPage() {
   const debouncedSearch = useDebounce(search)
   const { toast } = useToast()
   const qc = useQueryClient()
+  const { isAuthenticated } = useAuth()
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-categories', page, debouncedSearch],
     queryFn: () => catalogService.listCategories({ page, search: debouncedSearch }),
+    enabled: isAuthenticated,
   })
 
   function openCreate() {
@@ -127,7 +130,6 @@ export function CategoriesPage() {
     },
     { key: 'slug', header: 'Slug', render: (row) => <span className="font-mono text-xs text-text-muted">{row.slug}</span> },
     { key: 'description', header: 'Description', render: (row) => <span className="text-sm text-text-muted line-clamp-1">{row.description ?? '—'}</span> },
-    { key: 'products', header: 'Products', render: (row) => <span className="text-text-muted">{row.product_count ?? '—'}</span> },
     {
       key: 'actions', header: '', width: '80px', align: 'right',
       render: (row) => (

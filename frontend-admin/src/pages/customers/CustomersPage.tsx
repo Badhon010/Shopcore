@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useAuth } from '@/contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { customersService } from '@/services/api/customers.service'
 import { DataTable, type Column } from '@/components/ui/DataTable'
@@ -16,10 +17,12 @@ export function CustomersPage() {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-customers', page, debouncedSearch],
     queryFn: () => customersService.listCustomers({ page, search: debouncedSearch }),
+    enabled: isAuthenticated,
   })
 
   const columns: Column<User>[] = [

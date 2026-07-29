@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { notificationsService } from '@/services/api/notifications.service'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { formatRelativeTime } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import type { ApiError } from '@/types/api'
@@ -12,10 +13,12 @@ import type { ApiError } from '@/types/api'
 export function NotificationsPage() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const { isAuthenticated } = useAuth()
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-notifications'],
     queryFn: () => notificationsService.listNotifications({ page_size: 50 }),
+    enabled: isAuthenticated,
   })
 
   const markReadMutation = useMutation({

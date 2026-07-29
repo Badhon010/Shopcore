@@ -73,7 +73,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handler = () => {
       setUser(null)
-      AUTH_QUERY_KEYS.forEach((key) => queryClient.removeQueries({ queryKey: key }))
+      // Clear all cached queries so admin data queries don't keep refetching
+      // with an expired token after the session ends.
+      queryClient.clear()
     }
     window.addEventListener('auth:session-expired', handler)
     return () => window.removeEventListener('auth:session-expired', handler)

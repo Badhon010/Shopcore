@@ -173,7 +173,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <div className="border-t border-border p-2">
           {!collapsed ? (
             <div className="flex items-center gap-2 rounded-lg p-2 hover:bg-bg-subtle">
-              <Avatar name={user?.full_name ?? user?.email} size="md" />
+              <Avatar name={user?.full_name || user?.email} size="md" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium text-text-primary">{user?.full_name || 'Admin'}</p>
                 <p className="truncate text-[11px] text-text-muted">{user?.email}</p>
@@ -187,7 +187,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-1.5">
-              <Avatar name={user?.full_name ?? user?.email} size="sm" />
+              <Avatar name={user?.full_name || user?.email} size="sm" />
               <IconButton
                 icon={<LogOut className="h-3.5 w-3.5" />}
                 label="Log out"
@@ -249,7 +249,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               aria-label="Settings"
               className="flex h-8 w-8 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-bg-subtle hover:text-text-primary focus-visible:outline-none focus-visible:shadow-focus-ring"
             >
-              <Avatar name={user?.full_name ?? user?.email} size="sm" />
+              <Avatar name={user?.full_name || user?.email} size="sm" />
             </NavLink>
           </div>
         </header>

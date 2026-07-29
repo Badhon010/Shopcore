@@ -12,6 +12,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import type { Banner } from '@/types/models'
 
 interface BannerForm {
@@ -44,10 +45,12 @@ export function BannersPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const qc = useQueryClient()
+  const { isAuthenticated } = useAuth()
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-banners', page],
     queryFn: () => catalogService.listBanners({ page }),
+    enabled: isAuthenticated,
   })
 
   function openCreate() {

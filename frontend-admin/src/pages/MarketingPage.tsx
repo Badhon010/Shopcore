@@ -16,6 +16,7 @@ import { Tabs } from '@/components/ui/Tabs'
 import { StatCard } from '@/components/ui/StatCard'
 import { StatCardSkeleton } from '@/components/feedback/Skeleton'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { formatDate } from '@/utils/format'
 import type { NewsletterCampaign, NewsletterSubscriber } from '@/types/models'
 
@@ -33,21 +34,24 @@ export function MarketingPage() {
   const [isExporting, setIsExporting] = useState(false)
   const { toast } = useToast()
   const qc = useQueryClient()
+  const { isAuthenticated } = useAuth()
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['newsletter-stats'],
     queryFn: () => newsletterService.getStats(),
+    enabled: isAuthenticated,
   })
 
   const { data: campaigns, isLoading: campaignsLoading } = useQuery({
     queryKey: ['newsletter-campaigns'],
     queryFn: () => newsletterService.listCampaigns({ page: 1 }),
+    enabled: isAuthenticated,
   })
 
   const { data: subscribers, isLoading: subscribersLoading } = useQuery({
     queryKey: ['newsletter-subscribers'],
     queryFn: () => newsletterService.listSubscribers({ page: 1 }),
-    enabled: tab === 'subscribers',
+    enabled: isAuthenticated && tab === 'subscribers',
   })
 
   const createMutation = useMutation({

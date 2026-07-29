@@ -7,6 +7,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { Skeleton } from '@/components/feedback/Skeleton'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { formatRelativeTime } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
@@ -16,10 +17,12 @@ export function NotificationsPage() {
   const [page, setPage] = useState(1)
   const { toast } = useToast()
   const qc = useQueryClient()
+  const { isAuthenticated } = useAuth()
 
   const { data, isLoading } = useQuery({
     queryKey: ['notifications', page],
     queryFn: () => notificationsService.listNotifications({ page, page_size: PAGE_SIZE }),
+    enabled: isAuthenticated,
   })
 
   const markReadMutation = useMutation({

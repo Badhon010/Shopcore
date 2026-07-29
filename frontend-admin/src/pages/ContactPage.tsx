@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Modal } from '@/components/ui/Modal'
 import { useDebounce } from '@/utils/useDebounce'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { formatDateTime } from '@/utils/format'
 import type { ContactMessage } from '@/types/models'
 
@@ -25,10 +26,12 @@ export function ContactPage() {
   const debouncedSearch = useDebounce(search)
   const { toast } = useToast()
   const qc = useQueryClient()
+  const { isAuthenticated } = useAuth()
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-contact', page, debouncedSearch],
     queryFn: () => contactService.listMessages({ page, search: debouncedSearch }),
+    enabled: isAuthenticated,
   })
 
   const resolveMutation = useMutation({

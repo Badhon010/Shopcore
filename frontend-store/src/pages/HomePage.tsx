@@ -200,7 +200,7 @@ export function HomePage() {
   return (
     <>
       <Helmet>
-        <title>{env.VITE_APP_NAME} — Premium Store</title>
+        <title>{`${env.VITE_APP_NAME} — Premium Store`}</title>
         <meta name="description" content="Discover premium quality goods, thoughtfully curated for the modern life." />
         <meta property="og:title" content={`${env.VITE_APP_NAME} — Premium Store`} />
         <meta property="og:type" content="website" />

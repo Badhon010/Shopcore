@@ -14,6 +14,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { newsletterService } from '@/services/api/newsletter.service'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { formatDate, formatRelativeTime } from '@/utils/format'
 import type { NewsletterSubscriber, NewsletterCampaign, CampaignStatus } from '@/types/models'
 
@@ -195,12 +196,14 @@ export function MarketingPage() {
 
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const { isAuthenticated } = useAuth()
 
   // ── Queries ─────────────────────────────────────────────────────────────────
   const statsQuery = useQuery({
     queryKey: ['newsletter-stats'],
     queryFn: () => newsletterService.getStats(),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   })
 
   const subscribersQuery = useQuery({
@@ -211,7 +214,7 @@ export function MarketingPage() {
       search: subSearch || undefined,
       ...(subFilter !== 'all' && { active: subFilter === 'active' }),
     } as never),
-    enabled: tab === 'subscribers',
+    enabled: isAuthenticated && tab === 'subscribers',
   })
 
   const campaignsQuery = useQuery({
@@ -222,7 +225,7 @@ export function MarketingPage() {
       search: campSearch || undefined,
       status: campFilter || undefined,
     } as never),
-    enabled: tab === 'campaigns',
+    enabled: isAuthenticated && tab === 'campaigns',
   })
 
   // ── Mutations ────────────────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Select } from '@/components/ui/Select'
 import { useDebounce } from '@/utils/useDebounce'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, formatDate } from '@/utils/format'
 import { ROUTES } from '@/constants/routes'
 import type { AdminProduct } from '@/types/models'
@@ -32,10 +33,12 @@ export function ProductsPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const qc = useQueryClient()
+  const { isAuthenticated } = useAuth()
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-products', page, debouncedSearch, statusFilter],
     queryFn: () => catalogService.listProducts({ page, search: debouncedSearch, status: statusFilter || undefined }),
+    enabled: isAuthenticated,
   })
 
   const deleteMutation = useMutation({

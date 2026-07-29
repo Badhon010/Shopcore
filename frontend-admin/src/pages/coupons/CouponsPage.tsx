@@ -17,6 +17,7 @@ import { FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/Input'
 import { couponsService } from '@/services/api/coupons.service'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { formatDate, formatCurrency } from '@/utils/format'
 import type { Coupon } from '@/types/models'
 import type { ApiError } from '@/types/api'
@@ -51,6 +52,7 @@ export function CouponsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Coupon | null>(null)
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const { isAuthenticated } = useAuth()
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-coupons', page, search, activeFilter],
@@ -61,6 +63,7 @@ export function CouponsPage() {
         search: search || undefined,
         is_active: activeFilter === 'all' ? undefined : activeFilter === 'active',
       }),
+    enabled: isAuthenticated,
   })
 
   const form = useForm<CouponFormData>({

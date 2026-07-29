@@ -9,16 +9,17 @@ import { Select } from '@/components/ui/Select'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { Skeleton } from '@/components/feedback/Skeleton'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, formatDateTime } from '@/utils/format'
 import { ROUTES } from '@/constants/routes'
 import { useState } from 'react'
 
 const TRANSITIONS: Record<string, string[]> = {
-  PENDING:    ['CONFIRMED', 'CANCELLED'],
-  CONFIRMED:  ['PROCESSING', 'CANCELLED'],
+  PENDING: ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED: ['PROCESSING', 'CANCELLED'],
   PROCESSING: ['SHIPPED', 'CANCELLED'],
-  SHIPPED:    ['DELIVERED'],
-  DELIVERED:  ['REFUNDED'],
+  SHIPPED: ['DELIVERED'],
+  DELIVERED: ['REFUNDED'],
 }
 
 const STATUS_VARIANT = {
@@ -33,10 +34,12 @@ export function OrderDetailPage() {
   const qc = useQueryClient()
   const [nextStatus, setNextStatus] = useState('')
 
+  const { isAuthenticated } = useAuth()
+
   const { data: order, isLoading } = useQuery({
     queryKey: ['admin-order', orderNumber],
     queryFn: () => ordersService.getOrder(orderNumber!),
-    enabled: !!orderNumber,
+    enabled: isAuthenticated && !!orderNumber,
   })
 
   const transitionMutation = useMutation({
