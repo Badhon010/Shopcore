@@ -147,7 +147,7 @@ export function ReviewsPage() {
       key: 'verified',
       header: 'Verified',
       render: (r) => (
-        <Badge variant={r.is_verified_purchase ? 'success' : 'secondary'}>
+        <Badge variant={r.is_verified_purchase ? 'success' : 'default'}>
           {r.is_verified_purchase ? 'Verified' : 'Unverified'}
         </Badge>
       ),

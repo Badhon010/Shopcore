@@ -7,7 +7,7 @@ import { ErrorState } from '@/components/feedback/ErrorState'
 
 export interface Column<T> {
   key: string
-  header: string
+  header: ReactNode
   render: (row: T) => ReactNode
   sortable?: boolean
   align?: 'left' | 'right' | 'center'
@@ -22,6 +22,7 @@ interface DataTableProps<T> {
   onRetry?: () => void
   emptyTitle?: string
   emptyDescription?: string
+  emptyIcon?: ReactNode
   emptyAction?: { label: string; onClick: () => void }
   onSort?: (key: string, dir: 'asc' | 'desc') => void
   sortKey?: string
@@ -38,6 +39,7 @@ export function DataTable<T>({
   onRetry,
   emptyTitle = 'No results',
   emptyDescription,
+  emptyIcon,
   emptyAction,
   onSort,
   sortKey,
@@ -98,6 +100,7 @@ export function DataTable<T>({
             <tr>
               <td colSpan={columns.length}>
                 <EmptyState
+                  icon={emptyIcon}
                   title={emptyTitle}
                   description={emptyDescription}
                   action={emptyAction}

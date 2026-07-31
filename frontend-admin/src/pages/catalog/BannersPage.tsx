@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Pencil, Image as ImageIcon } from 'lucide-react'
+import {
+  Plus, Trash2, Pencil, Image as ImageIcon,
+  Eye, EyeOff, ArrowUp, ArrowDown,
+} from 'lucide-react'
 import { catalogService } from '@/services/api/catalog.service'
-import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { Modal } from '@/components/ui/Modal'
@@ -11,6 +13,7 @@ import { Input } from '@/components/ui/Input'
 import { Pagination } from '@/components/ui/Pagination'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Badge } from '@/components/ui/Badge'
+import { Skeleton } from '@/components/feedback/Skeleton'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Banner } from '@/types/models'
@@ -20,7 +23,6 @@ interface BannerForm {
   subtitle: string
   cta_text: string
   cta_link: string
-  display_order: string
   is_active: boolean
 }
 
@@ -29,10 +31,120 @@ const DEFAULT_FORM: BannerForm = {
   subtitle: '',
   cta_text: '',
   cta_link: '',
-  display_order: '0',
   is_active: true,
 }
 
+// ── Sortable banner card ──────────────────────────────────────────────────────
+interface SortableBannerCardProps {
+  banner: Banner
+  onEdit: (b: Banner) => void
+  onDelete: (b: Banner) => void
+  onToggleActive: (b: Banner) => void
+  onMove: (b: Banner, dir: -1 | 1) => void
+  isTogglingId: string | null
+  isFirst: boolean
+  isLast: boolean
+}
+
+function SortableBannerCard({
+  banner,
+  onEdit,
+  onDelete,
+  onToggleActive,
+  onMove,
+  isTogglingId,
+  isFirst,
+  isLast,
+}: SortableBannerCardProps) {
+  return (
+    <div
+      className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-sm"
+    >
+      {/* Drag handle */}
+      <div className="flex shrink-0 flex-col gap-1">
+        <IconButton
+          icon={<ArrowUp />}
+          label="Move up"
+          size="sm"
+          className="text-text-muted hover:bg-background-subtle"
+          disabled={isFirst}
+          onClick={() => onMove(banner, -1)}
+        />
+        <IconButton
+          icon={<ArrowDown />}
+          label="Move down"
+          size="sm"
+          className="text-text-muted hover:bg-background-subtle"
+          disabled={isLast}
+          onClick={() => onMove(banner, 1)}
+        />
+      </div>
+
+      {/* Banner image */}
+      {banner.image ? (
+        <img
+          src={banner.image}
+          alt={banner.title}
+          className="h-14 w-24 shrink-0 rounded-lg border border-border object-cover"
+        />
+      ) : (
+        <div className="flex h-14 w-24 shrink-0 items-center justify-center rounded-lg border border-border bg-background-subtle">
+          <ImageIcon className="h-5 w-5 text-text-muted" />
+        </div>
+      )}
+
+      {/* Text info */}
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-text-primary">{banner.title}</p>
+        {banner.subtitle && (
+          <p className="truncate text-xs text-text-muted">{banner.subtitle}</p>
+        )}
+        {banner.cta_text && (
+          <p className="mt-0.5 text-xs text-text-muted">
+            CTA: <span className="text-text-secondary">{banner.cta_text}</span>
+          </p>
+        )}
+      </div>
+
+      {/* Status badge */}
+      <Badge variant={banner.is_active ? 'success' : 'default'} className="shrink-0">
+        {banner.is_active ? 'Active' : 'Inactive'}
+      </Badge>
+
+      {/* Actions */}
+      <div className="flex shrink-0 items-center gap-1">
+        <IconButton
+          icon={banner.is_active ? <EyeOff /> : <Eye />}
+          label={banner.is_active ? 'Deactivate' : 'Activate'}
+          size="sm"
+          className={
+            banner.is_active
+              ? 'text-text-muted hover:bg-warning-subtle hover:text-warning'
+              : 'text-text-muted hover:bg-success-subtle hover:text-success'
+          }
+          disabled={isTogglingId === String(banner.id)}
+          onClick={() => onToggleActive(banner)}
+        />
+        <IconButton
+          icon={<Pencil />}
+          label="Edit"
+          size="sm"
+          className="text-text-muted hover:bg-background-subtle"
+          onClick={() => onEdit(banner)}
+        />
+        <IconButton
+          icon={<Trash2 />}
+          label="Delete"
+          size="sm"
+          className="text-danger hover:bg-danger-subtle"
+          onClick={() => onDelete(banner)}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
 export function BannersPage() {
   const [page, setPage] = useState(1)
   const [deleteTarget, setDeleteTarget] = useState<Banner | null>(null)
@@ -42,6 +154,9 @@ export function BannersPage() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [titleError, setTitleError] = useState('')
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+  // Local ordering state so drag is instant without waiting for server
+  const [localOrder, setLocalOrder] = useState<string[] | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const qc = useQueryClient()
@@ -53,6 +168,15 @@ export function BannersPage() {
     enabled: isAuthenticated,
   })
 
+  // Derive displayed banners: apply local ordering if user has dragged
+  const serverBanners = data?.results ?? []
+  const displayedBanners = localOrder
+    ? localOrder
+        .map((id) => serverBanners.find((b) => String(b.id) === id))
+        .filter((b): b is Banner => b !== undefined)
+    : serverBanners
+
+  // Reset localOrder when server data changes (after mutations)
   function openCreate() {
     setEditTarget(null)
     setForm(DEFAULT_FORM)
@@ -69,7 +193,6 @@ export function BannersPage() {
       subtitle: banner.subtitle ?? '',
       cta_text: banner.cta_text ?? '',
       cta_link: banner.cta_link ?? '',
-      display_order: String(banner.display_order ?? 0),
       is_active: banner.is_active,
     })
     setImageFile(null)
@@ -91,6 +214,60 @@ export function BannersPage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  // ── Drag end: update display_order on server ──────────────────────────────
+  function persistOrder(newIds: string[]) {
+    setLocalOrder(newIds)
+
+    // Patch each banner whose display_order changed
+    newIds.forEach((id, idx) => {
+      const banner = serverBanners.find((b) => String(b.id) === id)
+      if (banner && banner.display_order !== idx) {
+        catalogService
+          .updateBanner(id, { display_order: idx } as Partial<Banner>)
+          .catch(() => {
+            toast({ title: 'Failed to save order', variant: 'destructive' })
+          })
+      }
+    })
+
+    // Refresh after a short delay so the server order is reflected
+    setTimeout(() => {
+      void qc.invalidateQueries({ queryKey: ['admin-banners'] })
+      setLocalOrder(null)
+    }, 1200)
+  }
+
+  function handleMove(banner: Banner, dir: -1 | 1) {
+    const ids = displayedBanners.map((b) => String(b.id))
+    const index = ids.indexOf(String(banner.id))
+    const nextIndex = index + dir
+    if (index < 0 || nextIndex < 0 || nextIndex >= ids.length) return
+
+    const newIds = [...ids]
+    const moved = newIds.splice(index, 1)[0]
+    if (!moved) return
+    newIds.splice(nextIndex, 0, moved)
+    persistOrder(newIds)
+  }
+
+  // ── Toggle active ─────────────────────────────────────────────────────────
+  function handleToggleActive(banner: Banner) {
+    const id = String(banner.id)
+    setTogglingId(id)
+    catalogService
+      .updateBanner(id, { is_active: !banner.is_active } as Partial<Banner>)
+      .then(() => {
+        toast({
+          title: banner.is_active ? 'Banner deactivated' : 'Banner activated',
+          variant: 'success',
+        })
+        void qc.invalidateQueries({ queryKey: ['admin-banners'] })
+      })
+      .catch(() => toast({ title: 'Failed to update banner', variant: 'destructive' }))
+      .finally(() => setTogglingId(null))
+  }
+
+  // ── Save (create / edit) ──────────────────────────────────────────────────
   const saveMutation = useMutation({
     mutationFn: () => {
       if (!form.title.trim()) {
@@ -104,7 +281,6 @@ export function BannersPage() {
       if (form.subtitle.trim()) fd.append('subtitle', form.subtitle.trim())
       if (form.cta_text.trim()) fd.append('cta_text', form.cta_text.trim())
       if (form.cta_link.trim()) fd.append('cta_link', form.cta_link.trim())
-      fd.append('display_order', form.display_order || '0')
       fd.append('is_active', String(form.is_active))
       if (imageFile) fd.append('image', imageFile)
 
@@ -115,6 +291,7 @@ export function BannersPage() {
     onSuccess: () => {
       toast({ title: editTarget ? 'Banner updated' : 'Banner created', variant: 'success' })
       void qc.invalidateQueries({ queryKey: ['admin-banners'] })
+      setLocalOrder(null)
       setModalOpen(false)
     },
     onError: (err) => {
@@ -128,75 +305,11 @@ export function BannersPage() {
     onSuccess: () => {
       toast({ title: 'Banner deleted', variant: 'success' })
       void qc.invalidateQueries({ queryKey: ['admin-banners'] })
+      setLocalOrder(null)
       setDeleteTarget(null)
     },
     onError: () => toast({ title: 'Failed to delete banner', variant: 'destructive' }),
   })
-
-  const columns: Column<Banner>[] = [
-    {
-      key: 'image',
-      header: 'Banner',
-      render: (row) => (
-        <div className="flex items-center gap-3">
-          {row.image ? (
-            <img
-              src={row.image}
-              alt={row.title}
-              className="h-10 w-20 rounded-lg border border-border object-cover"
-            />
-          ) : (
-            <div className="flex h-10 w-20 items-center justify-center rounded-lg bg-background-subtle">
-              <ImageIcon className="h-4 w-4 text-text-muted" />
-            </div>
-          )}
-          <div>
-            <p className="font-medium text-text-primary">{row.title}</p>
-            {row.subtitle && <p className="text-xs text-text-muted">{row.subtitle}</p>}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'is_active',
-      header: 'Status',
-      render: (row) => (
-        <Badge variant={row.is_active ? 'success' : 'default'}>
-          {row.is_active ? 'Active' : 'Inactive'}
-        </Badge>
-      ),
-    },
-    {
-      key: 'order',
-      header: 'Order',
-      align: 'right',
-      render: (row) => <span className="text-text-muted">{row.display_order ?? '—'}</span>,
-    },
-    {
-      key: 'actions',
-      header: '',
-      width: '80px',
-      align: 'right',
-      render: (row) => (
-        <div className="flex items-center justify-end gap-1">
-          <IconButton
-            icon={<Pencil />}
-            label="Edit"
-            size="sm"
-            className="text-text-muted hover:bg-background-subtle"
-            onClick={() => openEdit(row)}
-          />
-          <IconButton
-            icon={<Trash2 />}
-            label="Delete"
-            size="sm"
-            className="text-danger hover:bg-danger-subtle"
-            onClick={() => setDeleteTarget(row)}
-          />
-        </div>
-      ),
-    },
-  ]
 
   const totalPages = Math.ceil((data?.count ?? 0) / 20)
   const canSave = form.title.trim().length > 0 && (!editTarget ? !!imageFile : true)
@@ -206,26 +319,69 @@ export function BannersPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-lg font-semibold text-text-primary">Banners</h1>
-          <p className="text-sm text-text-muted">{data?.count ?? 0} banners</p>
+          <p className="text-sm text-text-muted">
+            {data?.count ?? 0} banners · use arrows to reorder
+          </p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4" /> Add banner
         </Button>
       </div>
 
-      <div className="admin-surface overflow-hidden">
-        <DataTable
-          columns={columns}
-          data={data?.results ?? []}
-          isLoading={isLoading}
-          error={error ? 'Failed to load banners.' : null}
-          onRetry={refetch}
-          rowKey={(r) => r.id}
-          emptyTitle="No banners"
-          emptyDescription="Add a banner to display promotions on your storefront."
-        />
+      {/* ── Sortable banner list ────────────────────────────── */}
+      <div className="admin-surface p-4">
+        {isLoading && (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-20 w-full rounded-xl" />
+            ))}
+          </div>
+        )}
+
+        {error && (
+          <div className="flex flex-col items-center gap-3 py-10 text-center">
+            <p className="text-sm text-text-muted">Failed to load banners.</p>
+            <Button variant="secondary" size="sm" onClick={() => void refetch()}>
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {!isLoading && !error && displayedBanners.length === 0 && (
+          <div className="flex flex-col items-center gap-3 py-12 text-center">
+            <ImageIcon className="h-8 w-8 text-text-muted" />
+            <div>
+              <p className="font-medium text-text-primary">No banners yet</p>
+              <p className="text-sm text-text-muted">
+                Add a banner to display promotions on your storefront.
+              </p>
+            </div>
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="h-3.5 w-3.5" /> Add banner
+            </Button>
+          </div>
+        )}
+
+        {!isLoading && !error && displayedBanners.length > 0 && (
+          <div className="space-y-2">
+            {displayedBanners.map((banner, index) => (
+              <SortableBannerCard
+                key={banner.id}
+                banner={banner}
+                onEdit={openEdit}
+                onDelete={setDeleteTarget}
+                onToggleActive={handleToggleActive}
+                onMove={handleMove}
+                isTogglingId={togglingId}
+                isFirst={index === 0}
+                isLast={index === displayedBanners.length - 1}
+              />
+            ))}
+          </div>
+        )}
+
         {totalPages > 1 && (
-          <div className="flex justify-end border-t border-border p-4">
+          <div className="mt-4 flex justify-end border-t border-border pt-4">
             <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         )}
@@ -329,27 +485,17 @@ export function BannersPage() {
             </FormField>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <FormField label="Display order" hint="Lower numbers appear first.">
-              <Input
-                type="number"
-                min="0"
-                value={form.display_order}
-                onChange={(e) => setForm((f) => ({ ...f, display_order: e.target.value }))}
+          <FormField label="Visibility">
+            <label className="flex cursor-pointer items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded accent-primary"
+                checked={form.is_active}
+                onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))}
               />
-            </FormField>
-            <FormField label="Visibility">
-              <label className="flex cursor-pointer items-center gap-2 pt-2.5">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded accent-primary"
-                  checked={form.is_active}
-                  onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))}
-                />
-                <span className="text-sm text-text-primary">Active (shown on store)</span>
-              </label>
-            </FormField>
-          </div>
+              <span className="text-sm text-text-primary">Active (shown on store)</span>
+            </label>
+          </FormField>
 
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="secondary" onClick={() => setModalOpen(false)}>

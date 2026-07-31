@@ -19,6 +19,7 @@ interface AuthContextValue {
   isLoading: boolean
   login: (payload: LoginPayload) => Promise<void>
   logout: () => void
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -99,8 +100,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [queryClient])
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const me = await authService.me()
+      setUser(me)
+    } catch {
+      // ignore — if the token expired the session-expired event will handle it
+    }
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

@@ -1,42 +1,34 @@
 import { axiosClient } from './axiosClient'
 import { endpoints } from './endpoints'
 
-type ExportFormat = 'csv' | 'xlsx'
+// Export this type so pages can import it
+export type ExportFormat = 'csv' | 'xlsx'
 
-function downloadBlob(data: Blob, filename: string) {
-  const url = window.URL.createObjectURL(data)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  window.URL.revokeObjectURL(url)
-}
-
-async function downloadExport(url: string, params: Record<string, unknown>, filename: string) {
+async function fetchBlob(url: string, params: Record<string, unknown>): Promise<Blob> {
   const res = await axiosClient.get(url, {
     params,
     responseType: 'blob',
   })
-  downloadBlob(res.data as Blob, filename)
+  return res.data as Blob
 }
 
 export const exportsService = {
-  async exportProducts(format: ExportFormat = 'csv', filters?: Record<string, unknown>) {
-    await downloadExport(endpoints.exports.products(), { format, ...filters }, `products.${format}`)
+  async exportProducts(format: ExportFormat = 'csv'): Promise<Blob> {
+    return fetchBlob(endpoints.exports.products(), { format })
   },
-  async exportOrders(format: ExportFormat = 'csv', filters?: Record<string, unknown>) {
-    await downloadExport(endpoints.exports.orders(), { format, ...filters }, `orders.${format}`)
+  async exportOrders(format: ExportFormat = 'csv'): Promise<Blob> {
+    return fetchBlob(endpoints.exports.orders(), { format })
   },
-  async exportCustomers(format: ExportFormat = 'csv', filters?: Record<string, unknown>) {
-    await downloadExport(endpoints.exports.customers(), { format, ...filters }, `customers.${format}`)
+  async exportCustomers(format: ExportFormat = 'csv'): Promise<Blob> {
+    return fetchBlob(endpoints.exports.customers(), { format })
   },
-  async exportSubscribers(format: ExportFormat = 'csv', filters?: Record<string, unknown>) {
-    await downloadExport(endpoints.exports.subscribers(), { format, ...filters }, `subscribers.${format}`)
+  async exportSubscribers(format: ExportFormat = 'csv'): Promise<Blob> {
+    return fetchBlob(endpoints.exports.subscribers(), { format })
   },
-  async exportReviews(format: ExportFormat = 'csv', filters?: Record<string, unknown>) {
-    await downloadExport(endpoints.exports.reviews(), { format, ...filters }, `reviews.${format}`)
+  async exportReviews(format: ExportFormat = 'csv'): Promise<Blob> {
+    return fetchBlob(endpoints.exports.reviews(), { format })
   },
-  async exportInventory(format: ExportFormat = 'csv', filters?: Record<string, unknown>) {
-    await downloadExport(endpoints.exports.inventory(), { format, ...filters }, `inventory.${format}`)
+  async exportInventory(format: ExportFormat = 'csv'): Promise<Blob> {
+    return fetchBlob(endpoints.exports.inventory(), { format })
   },
 }

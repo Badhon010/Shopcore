@@ -13,10 +13,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.catalog.filters import ProductFilterSet
-from apps.catalog.models import Banner, Brand, Category, Product, ProductImage, ProductVariant
+from apps.catalog.models import Attribute, Banner, Brand, Category, Product, ProductImage, ProductVariant
 from apps.catalog.selectors import get_category_tree, get_product_detail, get_product_list
 from apps.catalog.serializers import (
     AdminProductListSerializer,
+    AttributeSerializer,
     BannerSerializer,
     BannerWriteSerializer,
     BrandSerializer,
@@ -398,3 +399,20 @@ class AdminBannerDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return Banner.objects.all()
+
+
+# ── Admin: Attributes ──────────────────────────────────────────────────────────
+
+
+@extend_schema(tags=["Admin – Attributes"])
+class AdminAttributeListView(generics.ListAPIView):
+    """Admin: list all product attributes with their values (staff only)."""
+
+    permission_classes = [IsStaffUser]
+    serializer_class = AttributeSerializer
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ["name", "slug"]
+    ordering = ["name"]
+
+    def get_queryset(self):
+        return Attribute.objects.prefetch_related("values").order_by("name")

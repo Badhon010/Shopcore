@@ -36,7 +36,7 @@ const couponSchema = z.object({
 })
 type CouponFormData = z.infer<typeof couponSchema>
 
-function toDateInput(iso: string | undefined): string {
+function toDateInput(iso: string | null | undefined): string {
   if (!iso) return ''
   try { return new Date(iso).toISOString().slice(0, 10) } catch { return '' }
 }
@@ -108,6 +108,8 @@ export function CouponsPage() {
       const payload = {
         ...d,
         code: d.code.toUpperCase(),
+        valid_from: d.valid_from || null,
+        valid_until: d.valid_until || null,
         minimum_order_amount: d.minimum_order_amount || null,
         max_discount_amount: d.max_discount_amount || null,
         usage_limit_total: d.usage_limit_total ? parseInt(d.usage_limit_total) : null,

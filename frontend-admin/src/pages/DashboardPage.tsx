@@ -8,6 +8,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis,
   Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
+import { Link } from 'react-router-dom'
 import { dashboardService } from '@/services/api/dashboard.service'
 import { ordersService } from '@/services/api/orders.service'
 import { StatCard } from '@/components/ui/StatCard'
@@ -43,6 +44,7 @@ export function DashboardPage() {
 
   const { data: recentOrders, isLoading: ordersLoading, error: ordersError } = useQuery({
     queryKey: ['dashboard-recent-orders'],
+    // ordering is supported by the backend filter backends
     queryFn: () => ordersService.listOrders({ page: 1, page_size: 5, ordering: '-created_at' }),
     staleTime: 60_000,
     enabled: isAuthenticated,
@@ -163,7 +165,8 @@ export function DashboardPage() {
       <Card padding="none">
         <div className="flex items-center justify-between border-b border-border p-5">
           <CardTitle>Recent Orders</CardTitle>
-          <a href="/orders" className="text-xs font-medium text-primary hover:underline">View all</a>
+          {/* Fix L-6: use React Router Link instead of bare <a> to avoid full page reload */}
+          <Link to="/orders" className="text-xs font-medium text-primary hover:underline">View all</Link>
         </div>
         {ordersLoading ? (
           <Skeleton rows={5} className="m-4" height="40px" />

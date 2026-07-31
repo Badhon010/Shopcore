@@ -8,6 +8,7 @@ export interface AdminOrderParams extends ListParams {
   payment_status?: string
   date_from?: string
   date_to?: string
+  ordering?: string
 }
 
 export const ordersService = {
@@ -24,12 +25,17 @@ export const ordersService = {
   },
 
   async getOrder(orderNumber: string): Promise<Order> {
-    const res = await axiosClient.get<Order>(endpoints.orders.detail(orderNumber))
+    const res = await axiosClient.get<Order>(endpoints.orders.adminDetail(orderNumber))
     return res.data
   },
 
   async transitionOrder(orderNumber: string, status: string): Promise<Order> {
     const res = await axiosClient.post<Order>(endpoints.orders.transition(orderNumber), { status })
+    return res.data
+  },
+
+  async cancelOrder(orderNumber: string): Promise<Order> {
+    const res = await axiosClient.post<Order>(endpoints.orders.cancel(orderNumber))
     return res.data
   },
 }

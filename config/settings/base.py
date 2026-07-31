@@ -246,6 +246,9 @@ REST_FRAMEWORK = {
     },
     "EXCEPTION_HANDLER": "apps.common.exception_handler.custom_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Export endpoints use ?format=csv/xlsx as a business parameter. Disable
+    # DRF's URL format override so renderer negotiation does not intercept it.
+    "URL_FORMAT_OVERRIDE": None,
 }
 
 # ---------------------------------------------------------------------------

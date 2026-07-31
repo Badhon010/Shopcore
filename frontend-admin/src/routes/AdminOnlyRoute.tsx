@@ -1,4 +1,5 @@
-import { Navigate, useLocation, type ReactNode } from 'react-router-dom'
+import type { ReactNode } from 'react'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Spinner } from '@/components/feedback/Spinner'
 import { ROUTES } from '@/constants/routes'

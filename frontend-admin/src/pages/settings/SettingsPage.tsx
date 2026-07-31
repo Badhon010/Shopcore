@@ -51,7 +51,7 @@ const THEME_OPTIONS: Array<{ value: ThemeMode; label: string; icon: typeof Sun; 
 
 export function SettingsPage() {
   const [tab, setTab] = useState('profile')
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const { theme, setTheme } = useTheme()
   const { toast } = useToast()
 
@@ -67,7 +67,11 @@ export function SettingsPage() {
 
   const profileMutation = useMutation({
     mutationFn: (d: ProfileFormData) => axiosClient.patch(endpoints.auth.me(), d),
-    onSuccess: () => toast({ title: 'Profile updated', variant: 'success' }),
+    onSuccess: async () => {
+      // Refresh user in AuthContext so the header/sidebar update immediately
+      await refreshUser()
+      toast({ title: 'Profile updated', variant: 'success' })
+    },
     onError: (e: ApiError) => {
       applyServerErrors(profileForm.setError, e.fieldErrors)
       toast({ title: e.message, variant: 'destructive' })
@@ -85,6 +89,8 @@ export function SettingsPage() {
       axiosClient.post(endpoints.auth.changePassword(), {
         old_password: d.old_password,
         new_password: d.new_password,
+        // Backend ChangePasswordSerializer requires the confirmation field
+        new_password_confirm: d.new_password,
       }),
     onSuccess: () => {
       toast({ title: 'Password changed successfully', variant: 'success' })

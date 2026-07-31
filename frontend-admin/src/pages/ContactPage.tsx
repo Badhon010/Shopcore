@@ -7,6 +7,7 @@ import { SearchBar } from '@/components/ui/SearchBar'
 import { Pagination } from '@/components/ui/Pagination'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { Select } from '@/components/ui/Select'
 import { IconButton } from '@/components/ui/IconButton'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Modal } from '@/components/ui/Modal'
@@ -17,10 +18,16 @@ import { formatDateTime } from '@/utils/format'
 import type { ContactMessage } from '@/types/models'
 
 const STATUS_VARIANT = { NEW: 'info', IN_PROGRESS: 'warning', RESOLVED: 'success' } as const
+const STATUS_LABEL: Record<string, string> = {
+  NEW: 'New',
+  IN_PROGRESS: 'In Progress',
+  RESOLVED: 'Resolved',
+}
 
 export function ContactPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<ContactMessage | null>(null)
   const [viewTarget, setViewTarget] = useState<ContactMessage | null>(null)
   const debouncedSearch = useDebounce(search)
@@ -29,8 +36,12 @@ export function ContactPage() {
   const { isAuthenticated } = useAuth()
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['admin-contact', page, debouncedSearch],
-    queryFn: () => contactService.listMessages({ page, search: debouncedSearch }),
+    queryKey: ['admin-contact', page, debouncedSearch, statusFilter],
+    queryFn: () => contactService.listMessages({
+      page,
+      search: debouncedSearch || undefined,
+      ...(statusFilter ? { status: statusFilter } : {}),
+    } as never),
     enabled: isAuthenticated,
   })
 
@@ -86,7 +97,7 @@ export function ContactPage() {
       header: 'Status',
       render: (row) => (
         <Badge variant={STATUS_VARIANT[row.status as keyof typeof STATUS_VARIANT] ?? 'default'}>
-          {row.status}
+          {STATUS_LABEL[row.status] ?? row.status}
         </Badge>
       ),
     },
@@ -142,15 +153,24 @@ export function ContactPage() {
         <p className="text-sm text-text-muted">{data?.count ?? 0} messages</p>
       </div>
 
-      <SearchBar
-        value={search}
-        onChange={(v) => {
-          setSearch(v)
-          setPage(1)
-        }}
-        placeholder="Search messages…"
-        className="w-64"
-      />
+      <div className="flex flex-wrap gap-3">
+        <SearchBar
+          value={search}
+          onChange={(v) => { setSearch(v); setPage(1) }}
+          placeholder="Search messages…"
+          className="w-64"
+        />
+        <Select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
+          className="w-40"
+        >
+          <option value="">All statuses</option>
+          <option value="NEW">New</option>
+          <option value="IN_PROGRESS">In progress</option>
+          <option value="RESOLVED">Resolved</option>
+        </Select>
+      </div>
 
       <div className="admin-surface overflow-hidden">
         <DataTable
@@ -162,6 +182,7 @@ export function ContactPage() {
           rowKey={(r) => r.id}
           emptyTitle="No messages"
           emptyDescription="All contact form submissions appear here."
+          emptyIcon={<MessageSquare />}
         />
         {totalPages > 1 && (
           <div className="flex justify-end border-t border-border p-4">
@@ -204,7 +225,7 @@ export function ContactPage() {
                   STATUS_VARIANT[viewTarget.status as keyof typeof STATUS_VARIANT] ?? 'default'
                 }
               >
-                {viewTarget.status}
+                {STATUS_LABEL[viewTarget.status] ?? viewTarget.status}
               </Badge>
               <div className="flex gap-2">
                 <IconButton

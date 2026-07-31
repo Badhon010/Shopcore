@@ -25,6 +25,7 @@ export interface Category {
   description?: string
   image?: string
   parent?: { id: string; name: string; slug: string } | null
+  display_order?: number
   children?: Category[]
   product_count?: number
 }
@@ -47,6 +48,21 @@ export interface ProductImage {
   is_primary: boolean
   ordering: number
   display_order?: number
+}
+
+export interface AttributeValue {
+  id: string
+  attribute_name: string
+  attribute_slug: string
+  value: string
+  display_order: number
+}
+
+export interface Attribute {
+  id: string
+  name: string
+  slug: string
+  values: AttributeValue[]
 }
 
 export interface ProductVariantAttributeValue {
@@ -77,10 +93,10 @@ export interface AdminProduct {
   description: string
   short_description?: string
   /** Integer ID from admin endpoint */
-  category: number
+  category: number | { id: string | number; name: string; slug?: string }
   category_name?: string
   /** Integer ID from admin endpoint */
-  brand?: number | null
+  brand?: number | { id: string | number; name: string; slug?: string } | null
   brand_name?: string
   status: ProductStatus
   /** List endpoint returns base_price; detail endpoint may return price */
@@ -131,20 +147,33 @@ export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
 
 export interface OrderItem {
   id: string
-  product_name: string
-  product_slug?: string
-  variant_sku?: string
+  /** Product name at time of order (snapshot) */
+  product_name_snapshot: string
+  /** Variant attribute snapshot (e.g. { Size: 'M', Colour: 'Red' }) */
+  variant_attributes_snapshot?: Record<string, string> | null
+  unit_price_snapshot: string
   quantity: number
-  unit_price: string
-  total_price: string
+  line_total: string
+  image_url?: string | null
+}
+
+export interface OrderStatusHistoryEntry {
+  id: string
+  from_status: string
+  to_status: string
+  changed_by_email?: string | null
+  note?: string
+  created_at: string
 }
 
 export interface Order {
   id: string
   order_number: string
-  /** Flat email returned by the admin list/detail serializer */
+  /** Flat email returned by the admin serializer */
   user_email?: string
-  /** Nested user object — may be absent on list endpoints */
+  /** Flat full name returned by the admin serializer */
+  user_full_name?: string
+  /** Nested user object — only present on some endpoints */
   user?: {
     id: string
     email: string
@@ -154,23 +183,12 @@ export interface Order {
   payment_status: PaymentStatus
   items: OrderItem[]
   subtotal: string
-  discount?: string
   discount_total?: string
   shipping_cost?: string
-  tax?: string
   tax_total?: string
   grand_total: string
   /** Serialised snapshot returned by admin endpoints */
   shipping_address_snapshot?: {
-    full_name: string
-    address_line_1: string
-    city: string
-    state_province: string
-    postal_code: string
-    country: string
-  }
-  /** Legacy field — prefer shipping_address_snapshot */
-  shipping_address?: {
     full_name: string
     address_line_1: string
     address_line_2?: string
@@ -179,12 +197,24 @@ export interface Order {
     postal_code: string
     country: string
   }
-  coupon_code?: string
+  billing_address_snapshot?: {
+    full_name: string
+    address_line_1: string
+    address_line_2?: string
+    city: string
+    state_province: string
+    postal_code: string
+    country: string
+  }
   coupon_code_snapshot?: string
   notes?: string
   placed_at?: string
   created_at: string
   updated_at?: string
+  /** Whether this order can be cancelled */
+  can_cancel?: boolean
+  /** Full status change history */
+  status_history?: OrderStatusHistoryEntry[]
 }
 
 export interface OrderStats {
@@ -207,7 +237,8 @@ export interface StockItem {
   low_stock_threshold: number
   is_low_stock: boolean
   is_out_of_stock: boolean
-  warehouse?: string
+  /** Warehouse name string returned by the serializer */
+  warehouse_name?: string
 }
 
 export interface StockMovement {
@@ -249,14 +280,14 @@ export interface Coupon {
   description?: string
   discount_type: 'PERCENTAGE' | 'FIXED'
   discount_value: string
-  minimum_order_amount?: string
-  max_discount_amount?: string
-  usage_limit_total?: number
-  usage_limit_per_user?: number
+  minimum_order_amount?: string | null
+  max_discount_amount?: string | null
+  usage_limit_total?: number | null
+  usage_limit_per_user?: number | null
   times_used: number
   is_active: boolean
-  valid_from?: string
-  valid_until?: string
+  valid_from?: string | null
+  valid_until?: string | null
   created_at: string
 }
 

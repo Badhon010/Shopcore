@@ -9,11 +9,7 @@ import {
   ShoppingCart,
   Star,
   Users,
-  XCircle,
   Clock,
-  Truck,
-  RefreshCw,
-  TrendingUp,
   WifiOff,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -22,11 +18,9 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/feedback/Skeleton'
 import { ErrorState } from '@/components/feedback/ErrorState'
-import { ordersService } from '@/services/api/orders.service'
+import { dashboardService } from '@/services/api/dashboard.service'
 import { catalogService } from '@/services/api/catalog.service'
-import { inventoryService } from '@/services/api/inventory.service'
 import { reviewsService } from '@/services/api/reviews.service'
-import { customersService } from '@/services/api/customers.service'
 import { formatCurrency } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
@@ -77,9 +71,9 @@ function SectionSkeleton({ rows = 4 }: { rows?: number }) {
 export function AnalyticsPage() {
   const { isAuthenticated } = useAuth()
 
-  const statsQuery = useQuery({
-    queryKey: ['analytics-order-stats'],
-    queryFn: () => ordersService.getOrderStats(),
+  const overviewQuery = useQuery({
+    queryKey: ['analytics-overview'],
+    queryFn: () => dashboardService.getOverview(),
     staleTime: 60_000,
     enabled: isAuthenticated,
   })
@@ -112,13 +106,6 @@ export function AnalyticsPage() {
     enabled: isAuthenticated,
   })
 
-  const lowStockQuery = useQuery({
-    queryKey: ['analytics-low-stock'],
-    queryFn: () => inventoryService.listStock({ low_stock_only: true, page_size: 1 }),
-    staleTime: 60_000,
-    enabled: isAuthenticated,
-  })
-
   const reviewsQuery = useQuery({
     queryKey: ['analytics-reviews-total'],
     queryFn: () => reviewsService.listReviews({ page_size: 1 }),
@@ -133,21 +120,17 @@ export function AnalyticsPage() {
     enabled: isAuthenticated,
   })
 
-  const customersQuery = useQuery({
-    queryKey: ['analytics-customers'],
-    queryFn: () => customersService.listCustomers({ page_size: 1 }),
-    staleTime: 60_000,
-    enabled: isAuthenticated,
-  })
+  const overview = overviewQuery.data
+  const totalOrders   = overview?.total_orders   ?? 0
+  const pendingOrders = overview?.pending_orders  ?? 0
+  const totalRevenue  = overview?.total_revenue   ?? '0'
+  const totalCustomers = overview?.total_customers ?? 0
+  const lowStockCount  = overview?.low_stock_count  ?? 0
 
-  const stats = statsQuery.data
-  const totalOrders   = stats?.total_orders  ?? 0
-  const pendingOrders = stats?.pending_orders ?? 0
-
-  const totalProducts    = productsQuery.data?.count        ?? 0
+  const totalProducts     = productsQuery.data?.count          ?? 0
   const publishedProducts = publishedProductsQuery.data?.count ?? 0
-  const draftProducts    = draftProductsQuery.data?.count   ?? 0
-  const archivedProducts = archivedProductsQuery.data?.count ?? 0
+  const draftProducts     = draftProductsQuery.data?.count     ?? 0
+  const archivedProducts  = archivedProductsQuery.data?.count  ?? 0
 
   const catalogLoading =
     productsQuery.isLoading ||
@@ -155,25 +138,23 @@ export function AnalyticsPage() {
     draftProductsQuery.isLoading ||
     archivedProductsQuery.isLoading
 
-  const totalReviews   = reviewsQuery.data?.count        ?? 0
-  const pendingReviews = pendingReviewsQuery.data?.count  ?? 0
+  const totalReviews    = reviewsQuery.data?.count        ?? 0
+  const pendingReviews  = pendingReviewsQuery.data?.count ?? 0
   const approvedReviews = totalReviews - pendingReviews
-  const reviewsLoading = reviewsQuery.isLoading || pendingReviewsQuery.isLoading
+  const reviewsLoading  = reviewsQuery.isLoading || pendingReviewsQuery.isLoading
 
   const backendDown =
-    statsQuery.isError ||
-    productsQuery.isError ||
-    customersQuery.isError
+    overviewQuery.isError ||
+    productsQuery.isError
 
-  if (statsQuery.isError && productsQuery.isError && customersQuery.isError) {
+  if (overviewQuery.isError && productsQuery.isError) {
     return (
       <ErrorState
         title="Backend unavailable"
         description="Could not connect to the ShopCore API. Make sure the Django backend is running on port 8000."
         onRetry={() => {
-          void statsQuery.refetch()
+          void overviewQuery.refetch()
           void productsQuery.refetch()
-          void customersQuery.refetch()
         }}
       />
     )
@@ -198,7 +179,7 @@ export function AnalyticsPage() {
           </p>
         </div>
         <div className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-text-muted">
-          <TrendingUp className="h-3.5 w-3.5" aria-hidden />
+          <BarChart3 className="h-3.5 w-3.5" aria-hidden />
           Live data
         </div>
       </div>
@@ -207,22 +188,22 @@ export function AnalyticsPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total Orders"
-          value={statsQuery.isLoading ? '…' : totalOrders.toLocaleString()}
+          value={overviewQuery.isLoading ? '…' : totalOrders.toLocaleString()}
           icon={<ShoppingCart />}
         />
         <StatCard
-          label="Revenue Today"
-          value={statsQuery.isLoading ? '…' : formatCurrency(stats?.revenue_today ?? 0)}
+          label="Total Revenue"
+          value={overviewQuery.isLoading ? '…' : formatCurrency(parseFloat(totalRevenue) || 0)}
           icon={<DollarSign />}
         />
         <StatCard
-          label="Revenue This Month"
-          value={statsQuery.isLoading ? '…' : formatCurrency(stats?.revenue_this_month ?? 0)}
-          icon={<BarChart3 />}
+          label="Total Customers"
+          value={overviewQuery.isLoading ? '…' : totalCustomers.toLocaleString()}
+          icon={<Users />}
         />
         <StatCard
           label="Pending Orders"
-          value={statsQuery.isLoading ? '…' : pendingOrders.toLocaleString()}
+          value={overviewQuery.isLoading ? '…' : pendingOrders.toLocaleString()}
           icon={<Clock />}
         />
       </div>
@@ -236,19 +217,14 @@ export function AnalyticsPage() {
           suffix={publishedProducts > 0 ? `${publishedProducts} published` : undefined}
         />
         <StatCard
-          label="Customers"
-          value={customersQuery.isLoading ? '…' : (customersQuery.data?.count ?? 0).toLocaleString()}
-          icon={<Users />}
-        />
-        <StatCard
           label="Total Reviews"
           value={reviewsQuery.isLoading ? '…' : totalReviews.toLocaleString()}
           icon={<Star />}
           suffix={approvedReviews > 0 ? `${approvedReviews} approved` : undefined}
         />
         <StatCard
-          label="Low Stock"
-          value={lowStockQuery.isLoading ? '…' : (lowStockQuery.data?.count ?? 0).toLocaleString()}
+          label="Low Stock SKUs"
+          value={overviewQuery.isLoading ? '…' : lowStockCount.toLocaleString()}
           icon={<AlertTriangle />}
         />
       </div>
@@ -264,7 +240,7 @@ export function AnalyticsPage() {
               View all →
             </Link>
           </CardHeader>
-          {statsQuery.isLoading ? (
+          {overviewQuery.isLoading ? (
             <SectionSkeleton rows={4} />
           ) : (
             <div className="space-y-2 px-6 pb-6">
@@ -275,36 +251,22 @@ export function AnalyticsPage() {
                 icon={ShoppingCart}
               />
               <StatRow
-                label="Orders today"
-                value={(stats?.orders_today ?? 0).toLocaleString()}
-                color="text-info"
-                icon={TrendingUp}
-              />
-              {stats?.orders_this_week != null && (
-                <StatRow
-                  label="Orders this week"
-                  value={stats.orders_this_week.toLocaleString()}
-                  color="text-info"
-                  icon={Truck}
-                />
-              )}
-              <StatRow
                 label="Pending orders"
                 value={pendingOrders.toLocaleString()}
                 color={pendingOrders > 0 ? 'text-warning' : 'text-text-muted'}
                 icon={Clock}
               />
               <StatRow
-                label="Revenue today"
-                value={formatCurrency(stats?.revenue_today ?? 0)}
+                label="Total revenue"
+                value={formatCurrency(parseFloat(totalRevenue) || 0)}
                 color="text-success"
                 icon={DollarSign}
               />
               <StatRow
-                label="Revenue this month"
-                value={formatCurrency(stats?.revenue_this_month ?? 0)}
-                color="text-success"
-                icon={RefreshCw}
+                label="Total customers"
+                value={totalCustomers.toLocaleString()}
+                color="text-info"
+                icon={Users}
               />
             </div>
           )}
@@ -346,6 +308,21 @@ export function AnalyticsPage() {
                 <p className="pt-1 text-xs text-text-muted">
                   {totalProducts} total products across all statuses.
                 </p>
+                <div className={cn(
+                  'flex items-center justify-between rounded-lg px-4 py-3 mt-1',
+                  lowStockCount > 0 ? 'bg-warning-subtle' : 'bg-bg-subtle'
+                )}>
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle
+                      className={cn('h-4 w-4', lowStockCount > 0 ? 'text-warning' : 'text-text-muted')}
+                      aria-hidden
+                    />
+                    <span className="text-sm text-text-secondary">Low stock SKUs</span>
+                  </div>
+                  <Badge variant={lowStockCount > 0 ? 'danger' : 'default'}>
+                    {overviewQuery.isLoading ? '…' : lowStockCount}
+                  </Badge>
+                </div>
               </div>
             )}
           </Card>
@@ -394,16 +371,6 @@ export function AnalyticsPage() {
                     Review {pendingReviews} pending {pendingReviews === 1 ? 'submission' : 'submissions'} →
                   </Link>
                 )}
-
-                <div className="flex items-center justify-between rounded-lg bg-bg-subtle px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <XCircle className="h-4 w-4 text-text-muted" aria-hidden />
-                    <span className="text-sm text-text-secondary">Low stock SKUs</span>
-                  </div>
-                  <Badge variant={lowStockQuery.data && lowStockQuery.data.count > 0 ? 'danger' : 'default'}>
-                    {lowStockQuery.isLoading ? '…' : (lowStockQuery.data?.count ?? 0)}
-                  </Badge>
-                </div>
               </div>
             )}
           </Card>

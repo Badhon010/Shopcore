@@ -1,6 +1,7 @@
 """Serializers for the catalog app."""
 from __future__ import annotations
 
+from django.utils.text import slugify
 from rest_framework import serializers
 
 from apps.catalog.models import (
@@ -13,6 +14,32 @@ from apps.catalog.models import (
     ProductImage,
     ProductVariant,
 )
+
+
+def _unique_slug(model, name: str, current_pk=None, max_length: int = 500) -> str:
+    """Generate a unique slug from a name, appending -2, -3… on collisions.
+
+    Used by the write serializers so staff do not have to supply a slug
+    manually — the admin forms only send a name.
+
+    The uniqueness query runs against the *unfiltered* manager (``all_objects``
+    or ``_base_manager``) because the default ``objects`` manager on
+    soft-delete models excludes inactive rows — a slug held by a soft-deleted
+    row would otherwise pass this check and then raise a DB IntegrityError
+    (500) on insert.
+    """
+    base = (slugify(name) or "item")[:max_length]
+    slug = base
+    n = 2
+    manager = getattr(model, "all_objects", None) or model._base_manager
+    qs = manager.all()
+    if current_pk is not None:
+        qs = qs.exclude(pk=current_pk)
+    while qs.filter(slug=slug).exists():
+        suffix = f"-{n}"
+        slug = f"{base[: max_length - len(suffix)]}{suffix}"
+        n += 1
+    return slug
 
 
 class CategoryListSerializer(serializers.ModelSerializer):
@@ -178,6 +205,30 @@ class ProductCreateUpdateSerializer(serializers.ModelSerializer):
             "base_price", "compare_at_price", "sku", "status", "is_featured",
             "weight_kg", "meta_title", "meta_description",
         ]
+        extra_kwargs = {
+            # slug is auto-generated from name on create; staff may override it
+            # on update. The UniqueValidator is disabled because _unique_slug()
+            # handles collisions (incl. soft-deleted rows) with a -2, -3… suffix.
+            "slug": {"required": False, "allow_blank": True, "validators": []},
+        }
+
+    def create(self, validated_data: dict) -> Product:
+        name = validated_data.get("name", "")
+        slug = (validated_data.get("slug") or "").strip() or name
+        # Always de-duplicate — an explicit colliding slug would otherwise hit
+        # the DB unique constraint (UniqueValidator is disabled) and 500.
+        validated_data["slug"] = _unique_slug(Product, slug)
+        return super().create(validated_data)
+
+    def update(self, instance: Product, validated_data: dict) -> Product:
+        # Keep the existing slug unless the staff member explicitly overrides
+        # it; an explicit override is still de-duplicated against other rows.
+        slug = (validated_data.get("slug") or "").strip()
+        if not slug:
+            validated_data["slug"] = instance.slug
+        elif slug != instance.slug:
+            validated_data["slug"] = _unique_slug(Product, slug, current_pk=instance.pk)
+        return super().update(instance, validated_data)
 
     def validate(self, attrs: dict) -> dict:
         compare_at = attrs.get("compare_at_price")
@@ -233,6 +284,30 @@ class CategoryWriteSerializer(serializers.ModelSerializer):
             "name", "slug", "parent", "description", "image",
             "display_order", "meta_title", "meta_description",
         ]
+        extra_kwargs = {
+            # slug is auto-generated from name on create; staff may override it
+            # on update. The UniqueValidator is disabled because _unique_slug()
+            # handles collisions (incl. soft-deleted rows) with a -2, -3… suffix.
+            "slug": {"required": False, "allow_blank": True, "validators": []},
+        }
+
+    def create(self, validated_data: dict) -> Category:
+        name = validated_data.get("name", "")
+        slug = (validated_data.get("slug") or "").strip() or name
+        # Always de-duplicate — an explicit colliding slug would otherwise hit
+        # the DB unique constraint (UniqueValidator is disabled) and 500.
+        validated_data["slug"] = _unique_slug(Category, slug, max_length=255)
+        return super().create(validated_data)
+
+    def update(self, instance: Category, validated_data: dict) -> Category:
+        # Keep the existing slug unless the staff member explicitly overrides
+        # it; an explicit override is still de-duplicated against other rows.
+        slug = (validated_data.get("slug") or "").strip()
+        if not slug:
+            validated_data["slug"] = instance.slug
+        elif slug != instance.slug:
+            validated_data["slug"] = _unique_slug(Category, slug, current_pk=instance.pk, max_length=255)
+        return super().update(instance, validated_data)
 
 
 class BrandWriteSerializer(serializers.ModelSerializer):
@@ -241,6 +316,30 @@ class BrandWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Brand
         fields = ["name", "slug", "logo", "description"]
+        extra_kwargs = {
+            # slug is auto-generated from name on create; staff may override it
+            # on update. The UniqueValidator is disabled because _unique_slug()
+            # handles collisions (incl. soft-deleted rows) with a -2, -3… suffix.
+            "slug": {"required": False, "allow_blank": True, "validators": []},
+        }
+
+    def create(self, validated_data: dict) -> Brand:
+        name = validated_data.get("name", "")
+        slug = (validated_data.get("slug") or "").strip() or name
+        # Always de-duplicate — an explicit colliding slug would otherwise hit
+        # the DB unique constraint (UniqueValidator is disabled) and 500.
+        validated_data["slug"] = _unique_slug(Brand, slug, max_length=255)
+        return super().create(validated_data)
+
+    def update(self, instance: Brand, validated_data: dict) -> Brand:
+        # Keep the existing slug unless the staff member explicitly overrides
+        # it; an explicit override is still de-duplicated against other rows.
+        slug = (validated_data.get("slug") or "").strip()
+        if not slug:
+            validated_data["slug"] = instance.slug
+        elif slug != instance.slug:
+            validated_data["slug"] = _unique_slug(Brand, slug, current_pk=instance.pk, max_length=255)
+        return super().update(instance, validated_data)
 
 
 # ── Admin write serializers ────────────────────────────────────────────────────

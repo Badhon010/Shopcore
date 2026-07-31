@@ -14,6 +14,7 @@ import {
   BarChart2,
   Bell,
   Settings,
+  Download,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { ROUTES } from './routes'
@@ -62,6 +63,12 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Reviews',    href: ROUTES.REVIEWS,    icon: Star },
       { label: 'Marketing',  href: ROUTES.MARKETING,  icon: Megaphone },
       { label: 'Contact',    href: ROUTES.CONTACT,    icon: Mail },
+    ],
+  },
+  {
+    label: 'Data',
+    items: [
+      { label: 'Exports', href: ROUTES.EXPORTS, icon: Download },
     ],
   },
   {

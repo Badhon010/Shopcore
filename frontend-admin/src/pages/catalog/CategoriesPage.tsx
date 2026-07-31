@@ -17,6 +17,7 @@ import { useDebounce } from '@/utils/useDebounce'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Category } from '@/types/models'
+import type { ApiError } from '@/types/api'
 
 interface CategoryForm {
   name: string
@@ -98,7 +99,14 @@ export function CategoriesPage() {
       void qc.invalidateQueries({ queryKey: ['admin-categories'] })
       setShowCreate(false)
     },
-    onError: () => toast({ title: `Failed to ${editTarget ? 'update' : 'create'} category`, variant: 'destructive' }),
+    onError: (err) => {
+      const apiErr = err as unknown as ApiError
+      toast({
+        title: `Failed to ${editTarget ? 'update' : 'create'} category`,
+        description: apiErr.message,
+        variant: 'destructive',
+      })
+    },
   })
 
   const deleteMutation = useMutation({

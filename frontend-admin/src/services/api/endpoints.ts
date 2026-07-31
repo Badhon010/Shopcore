@@ -16,6 +16,15 @@ export const endpoints = {
   customers: {
     list: () => '/accounts/admin/users/',
     detail: (id: string) => `/accounts/admin/users/${id}/`,
+    update: (id: string) => `/accounts/admin/users/${id}/update/`,
+    bulkAction: () => '/accounts/admin/users/bulk-action/',
+    activate: (id: string) => `/accounts/admin/users/${id}/activate/`,
+    deactivate: (id: string) => `/accounts/admin/users/${id}/deactivate/`,
+    suspend: (id: string) => `/accounts/admin/users/${id}/suspend/`,
+    promoteStaff: (id: string) => `/accounts/admin/users/${id}/promote-staff/`,
+    removeStaff: (id: string) => `/accounts/admin/users/${id}/remove-staff/`,
+    resetPassword: (id: string) => `/accounts/admin/users/${id}/reset-password/`,
+    verifyEmail: (id: string) => `/accounts/admin/users/${id}/verify-email/`,
   },
 
   // ── Admin: Catalog ─────────────────────────────────────────
@@ -36,6 +45,8 @@ export const endpoints = {
     // Banners
     adminBanners: () => '/catalog/admin/banners/',
     adminBanner: (pk: string) => `/catalog/admin/banners/${pk}/`,
+    // Attributes (for variant creation)
+    adminAttributes: () => '/catalog/admin/attributes/',
     // Public (read-only lookups)
     categoryTree: () => '/catalog/categories/tree/',
   },
@@ -44,7 +55,9 @@ export const endpoints = {
   orders: {
     adminList: () => '/orders/admin/',
     adminStats: () => '/orders/admin/stats/',
+    adminDetail: (orderNumber: string) => `/orders/admin/${orderNumber}/`,
     detail: (orderNumber: string) => `/orders/${orderNumber}/`,
+    cancel: (orderNumber: string) => `/orders/${orderNumber}/cancel/`,
     transition: (orderNumber: string) => `/orders/${orderNumber}/transition/`,
   },
 
@@ -87,6 +100,11 @@ export const endpoints = {
     list: () => '/notifications/',
     markRead: (pk: string) => `/notifications/${pk}/read/`,
     markAllRead: () => '/notifications/read-all/',
+    delete: (pk: string) => `/notifications/${pk}/`,
+    bulkDelete: () => '/notifications/bulk-delete/',
+    clearAll: () => '/notifications/clear-all/',
+    bulkMarkRead: () => '/notifications/bulk-mark-read/',
+    unreadCount: () => '/notifications/unread-count/',
   },
 
   // ── Admin: Dashboard ───────────────────────────────────────

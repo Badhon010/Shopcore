@@ -50,7 +50,10 @@ export const inventoryService = {
   },
 
   async listWarehouses(): Promise<Warehouse[]> {
-    const res = await axiosClient.get<Warehouse[]>(endpoints.inventory.warehouses())
-    return res.data
+    const res = await axiosClient.get<Warehouse[] | { results: Warehouse[] }>(
+      endpoints.inventory.warehouses()
+    )
+    const data = res.data
+    return Array.isArray(data) ? data : (data?.results ?? [])
   },
 }

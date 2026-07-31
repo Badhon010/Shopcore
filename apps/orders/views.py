@@ -131,6 +131,21 @@ class StaffOrderTransitionView(APIView):
         return Response(OrderSerializer(order).data)
 
 
+class AdminOrderDetailView(generics.RetrieveAPIView):
+    """Staff-only: retrieve ANY order by order number, bypassing user ownership."""
+
+    serializer_class = OrderSerializer
+    permission_classes = [IsStaffUser]
+
+    def get_object(self):
+        try:
+            return Order.objects.select_related("user").get(
+                order_number=self.kwargs["order_number"]
+            )
+        except Order.DoesNotExist:
+            raise OrderNotFoundError()
+
+
 class AdminOrderListView(generics.ListAPIView):
     """Staff-only: list ALL orders across all users."""
 

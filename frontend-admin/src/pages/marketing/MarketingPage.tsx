@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -84,7 +85,7 @@ function CampaignFormModal({ initial, onClose, onSave, isSaving }: CampaignFormM
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-4">
           <div className="space-y-1.5">
             <label htmlFor="campaign-title" className="text-body-sm font-medium text-text-primary">
               Campaign name <span className="text-danger">*</span>
@@ -164,7 +165,7 @@ function CampaignPreviewModal({ campaign, onClose }: { campaign: NewsletterCampa
         <div className="flex-1 overflow-auto p-6">
           <div
             className="prose prose-sm max-w-none text-text-primary"
-            dangerouslySetInnerHTML={{ __html: campaign.html_body }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(campaign.html_body) }}
           />
         </div>
       </div>

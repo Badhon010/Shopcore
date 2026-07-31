@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, SlidersHorizontal, Settings2, History } from 'lucide-react'
+import { AlertTriangle, Package, SlidersHorizontal, Settings2, History } from 'lucide-react'
 import { inventoryService } from '@/services/api/inventory.service'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { SearchBar } from '@/components/ui/SearchBar'
@@ -22,6 +22,7 @@ export function InventoryPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [lowStockOnly, setLowStockOnly] = useState(false)
+  const [warehouseFilter, setWarehouseFilter] = useState('')
 
   // Adjust modal
   const [adjustTarget, setAdjustTarget] = useState<StockItem | null>(null)
@@ -36,18 +37,30 @@ export function InventoryPage() {
   const [movementsTarget, setMovementsTarget] = useState<StockItem | null>(null)
   const [movementsPage, setMovementsPage] = useState(1)
 
+  // Restock modal
+  const [restockTarget, setRestockTarget] = useState<StockItem | null>(null)
+  const [restockQty, setRestockQty] = useState('')
+
   const debouncedSearch = useDebounce(search)
   const { toast } = useToast()
   const qc = useQueryClient()
   const { isAuthenticated } = useAuth()
 
+  const { data: warehousesData } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: () => inventoryService.listWarehouses(),
+    staleTime: 10 * 60_000,
+    enabled: isAuthenticated,
+  })
+
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['inventory', page, debouncedSearch, lowStockOnly],
+    queryKey: ['inventory', page, debouncedSearch, lowStockOnly, warehouseFilter],
     queryFn: () =>
       inventoryService.listStock({
         page,
         search: debouncedSearch,
         low_stock_only: lowStockOnly || undefined,
+        warehouse: warehouseFilter || undefined,
       }),
     enabled: isAuthenticated,
   })
@@ -82,6 +95,21 @@ export function InventoryPage() {
       setThresholdTarget(null)
     },
     onError: () => toast({ title: 'Failed to update threshold', variant: 'destructive' }),
+  })
+
+  const restockMutation = useMutation({
+    mutationFn: ({ pk, quantity }: { pk: string; quantity: number }) =>
+      inventoryService.restock(pk, quantity),
+    onSuccess: () => {
+      toast({ title: 'Stock restocked', variant: 'success' })
+      void qc.invalidateQueries({ queryKey: ['inventory'] })
+      setRestockTarget(null)
+      setRestockQty('')
+    },
+    onError: (err) => {
+      const apiErr = err as unknown as ApiError
+      toast({ title: 'Restock failed', description: apiErr.message, variant: 'destructive' })
+    },
   })
 
   const columns: Column<StockItem>[] = [
@@ -134,7 +162,7 @@ export function InventoryPage() {
     {
       key: 'warehouse',
       header: 'Warehouse',
-      render: (row) => <span className="text-text-secondary">{row.warehouse ?? '—'}</span>,
+      render: (row) => <span className="text-text-secondary">{row.warehouse_name ?? '—'}</span>,
     },
     {
       key: 'actions',
@@ -162,6 +190,16 @@ export function InventoryPage() {
             onClick={() => {
               setThresholdTarget(row)
               setThresholdValue(String(row.low_stock_threshold))
+            }}
+          />
+          <IconButton
+            icon={<Package />}
+            label="Restock"
+            size="sm"
+            className="text-success hover:bg-success-subtle"
+            onClick={() => {
+              setRestockTarget(row)
+              setRestockQty('')
             }}
           />
           <IconButton
@@ -202,6 +240,23 @@ export function InventoryPage() {
           placeholder="Search SKU or product…"
           className="w-64"
         />
+        {warehousesData && warehousesData.length > 0 && (
+          <select
+            className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+            value={warehouseFilter}
+            onChange={(e) => {
+              setWarehouseFilter(e.target.value)
+              setPage(1)
+            }}
+          >
+            <option value="">All warehouses</option>
+            {warehousesData.map((w) => (
+              <option key={w.id} value={String(w.id)}>
+                {w.name}
+              </option>
+            ))}
+          </select>
+        )}
         <Button
           variant={lowStockOnly ? 'primary' : 'secondary'}
           size="sm"
@@ -327,6 +382,55 @@ export function InventoryPage() {
               }
             >
               Save
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Restock modal ──────────────────────────────────── */}
+      <Modal
+        open={!!restockTarget}
+        onClose={() => setRestockTarget(null)}
+        title={`Restock — ${restockTarget?.product_name}`}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border bg-background-subtle p-3 text-sm">
+            <p className="text-text-secondary">
+              Current on hand:{' '}
+              <strong className="text-text-primary">{restockTarget?.quantity_on_hand}</strong>
+            </p>
+          </div>
+          <FormField
+            label="Quantity to add"
+            hint="Sets quantity to add as a positive restock (e.g. 100)."
+            required
+          >
+            <Input
+              type="number"
+              min="1"
+              placeholder="e.g. 100"
+              value={restockQty}
+              onChange={(e) => setRestockQty(e.target.value)}
+              autoFocus
+            />
+          </FormField>
+          <div className="flex justify-end gap-3 pt-1">
+            <Button variant="secondary" onClick={() => setRestockTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              isLoading={restockMutation.isPending}
+              disabled={restockQty === '' || parseInt(restockQty) < 1}
+              onClick={() =>
+                restockTarget &&
+                restockMutation.mutate({
+                  pk: String(restockTarget.id),
+                  quantity: parseInt(restockQty),
+                })
+              }
+            >
+              Restock
             </Button>
           </div>
         </div>

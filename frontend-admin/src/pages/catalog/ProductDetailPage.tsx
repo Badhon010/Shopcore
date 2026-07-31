@@ -29,7 +29,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { applyServerErrors } from '@/services/api/axiosClient'
 import { formatCurrency } from '@/utils/format'
 import { ROUTES } from '@/constants/routes'
-import type { ProductVariant, ProductImage } from '@/types/models'
+import type { Attribute, ProductVariant, ProductImage } from '@/types/models'
 import type { ApiError } from '@/types/api'
 
 // ── Detail form schema ────────────────────────────────────────
@@ -73,8 +73,22 @@ const variantSchema = z.object({
     z.number().positive('Must be a positive number').nullable().optional()
   ),
   is_active: z.boolean().default(true),
+  attribute_values: z.array(z.number()).default([]),
 })
 type VariantFormValues = z.infer<typeof variantSchema>
+
+function getRelatedId(value: unknown): number | null {
+  if (value == null || value === '') return null
+  if (typeof value === 'number') return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  if (typeof value === 'object' && 'id' in value) {
+    return getRelatedId((value as { id: unknown }).id)
+  }
+  return null
+}
 
 // ── Component ─────────────────────────────────────────────────
 export function ProductDetailPage() {
@@ -119,6 +133,13 @@ export function ProductDetailPage() {
     enabled: isAuthenticated,
   })
 
+  const { data: attributesData } = useQuery({
+    queryKey: ['admin-attributes-all'],
+    queryFn: () => catalogService.listAttributes(),
+    staleTime: 5 * 60_000,
+    enabled: isAuthenticated,
+  })
+
   // ── Fetch variants & images (existing products only) ───────
   const { data: variants, isLoading: variantsLoading } = useQuery({
     queryKey: ['admin-variants', slug],
@@ -142,28 +163,37 @@ export function ProductDetailPage() {
     setError,
   } = useForm<DetailFormValues>({
     resolver: zodResolver(detailSchema),
-    defaultValues: { status: 'DRAFT', is_featured: false },
+    defaultValues: {
+      name: '', description: '', short_description: '',
+      base_price: 0, compare_at_price: null,
+      sku: '', weight_kg: null,
+      status: 'DRAFT', category: undefined, brand: null,
+      is_featured: false, meta_title: '', meta_description: '',
+    },
   })
 
+  // Wait for both product AND the lookup data before resetting so the
+  // category/brand <select> elements have their options ready when the
+  // controlled value is applied – without this the selects show blank.
   useEffect(() => {
-    if (product) {
-      reset({
-        name: product.name,
-        description: product.description ?? '',
-        short_description: product.short_description ?? '',
-        base_price: parseFloat(product.base_price ?? product.price ?? '0'),
-        compare_at_price: product.compare_at_price ? parseFloat(product.compare_at_price) : null,
-        sku: product.sku ?? '',
-        weight_kg: product.weight_kg ? parseFloat(product.weight_kg) : null,
-        status: product.status,
-        category: product.category,
-        brand: product.brand ?? null,
-        is_featured: product.is_featured,
-        meta_title: product.meta_title ?? '',
-        meta_description: product.meta_description ?? '',
-      })
-    }
-  }, [product, reset])
+    if (!product) return
+    if (!isNew && (!categoriesData || !brandsData)) return
+    reset({
+      name: product.name,
+      description: product.description ?? '',
+      short_description: product.short_description ?? '',
+      base_price: parseFloat(product.base_price ?? product.price ?? '0'),
+      compare_at_price: product.compare_at_price ? parseFloat(product.compare_at_price) : null,
+      sku: product.sku ?? '',
+      weight_kg: product.weight_kg ? parseFloat(product.weight_kg) : null,
+      status: product.status,
+      category: getRelatedId(product.category) ?? undefined,
+      brand: getRelatedId(product.brand),
+      is_featured: product.is_featured,
+      meta_title: product.meta_title ?? '',
+      meta_description: product.meta_description ?? '',
+    })
+  }, [product, categoriesData, brandsData, isNew, reset])
 
   const saveMutation = useMutation({
     mutationFn: (values: DetailFormValues) => {
@@ -209,16 +239,18 @@ export function ProductDetailPage() {
 
   function openCreateVariant() {
     setEditVariant(null)
-    variantForm.reset({ sku: '', price_override: null, is_active: true })
+    variantForm.reset({ sku: '', price_override: null, is_active: true, attribute_values: [] })
     setVariantModalOpen(true)
   }
 
   function openEditVariant(v: ProductVariant) {
     setEditVariant(v)
+    const existingAttrValueIds = v.attribute_values.map((av) => Number(av.id))
     variantForm.reset({
       sku: v.sku,
       price_override: v.price_override ? parseFloat(v.price_override) : null,
       is_active: v.is_active,
+      attribute_values: existingAttrValueIds,
     })
     setVariantModalOpen(true)
   }
@@ -229,6 +261,7 @@ export function ProductDetailPage() {
         sku: values.sku,
         price_override: values.price_override != null ? String(values.price_override) : null,
         is_active: values.is_active,
+        attribute_values: values.attribute_values,
       }
       return editVariant
         ? catalogService.updateVariant(slug!, String(editVariant.id), payload)
@@ -805,6 +838,52 @@ export function ProductDetailPage() {
               Active (available for purchase)
             </label>
           </div>
+
+          {attributesData && attributesData.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-text-primary">Attribute values</p>
+              {attributesData.map((attr: Attribute) => (
+                <div key={attr.id} className="space-y-1">
+                  <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                    {attr.name}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {attr.values?.map((val) => {
+                      const numId = Number(val.id)
+                      const checked = variantForm.watch('attribute_values').includes(numId)
+                      return (
+                        <label
+                          key={val.id}
+                          className={`cursor-pointer rounded-full border px-3 py-1 text-xs transition-colors ${
+                            checked
+                              ? 'border-primary bg-primary text-white'
+                              : 'border-border bg-surface text-text-secondary hover:border-primary'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="sr-only"
+                            checked={checked}
+                            onChange={(e) => {
+                              const current = variantForm.getValues('attribute_values')
+                              variantForm.setValue(
+                                'attribute_values',
+                                e.target.checked
+                                  ? [...current, numId]
+                                  : current.filter((id) => id !== numId),
+                                { shouldDirty: true }
+                              )
+                            }}
+                          />
+                          {val.value}
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-1">
             <Button type="button" variant="secondary" onClick={() => setVariantModalOpen(false)}>

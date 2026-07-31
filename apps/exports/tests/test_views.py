@@ -52,8 +52,12 @@ class TestExportProductsView:
 
     def test_export_products_xlsx(self, staff_client):
         response = staff_client.get(reverse("exports:export-products"), {"format": "xlsx"})
-        # openpyxl may not be installed; either 200 xlsx or 501 not implemented is acceptable
-        assert response.status_code in (status.HTTP_200_OK, status.HTTP_501_NOT_IMPLEMENTED)
+        assert response.status_code == status.HTTP_200_OK
+        assert (
+            response["Content-Type"]
+            == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        assert ".xlsx" in response["Content-Disposition"]
 
     def test_export_products_invalid_format_falls_back_to_csv(self, staff_client):
         response = staff_client.get(reverse("exports:export-products"), {"format": "pdf"})

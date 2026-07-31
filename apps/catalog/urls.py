@@ -4,6 +4,7 @@ from __future__ import annotations
 from django.urls import path
 
 from apps.catalog.views import (
+    AdminAttributeListView,
     AdminBannerDetailView,
     AdminBannerListView,
     AdminBrandDetailView,
@@ -73,4 +74,6 @@ urlpatterns = [
     # Admin: Banners
     path("admin/banners/", AdminBannerListView.as_view(), name="admin-banner-list"),
     path("admin/banners/<int:pk>/", AdminBannerDetailView.as_view(), name="admin-banner-detail"),
+    # Admin: Attributes (read-only, for variant builder)
+    path("admin/attributes/", AdminAttributeListView.as_view(), name="admin-attribute-list"),
 ]

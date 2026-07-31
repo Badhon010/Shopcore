@@ -1,12 +1,19 @@
 import { axiosClient } from './axiosClient'
 import { endpoints } from './endpoints'
-import type { AdminProduct, Category, Brand, Banner, ProductVariant, ProductImage } from '@/types/models'
+import type { AdminProduct, Category, Brand, Banner, ProductVariant, ProductImage, Attribute } from '@/types/models'
 import type { PaginatedResponse, ListParams } from '@/types/api'
 
 export interface AdminProductParams extends ListParams {
   status?: string
   category?: string
   brand?: string
+}
+
+export interface ProductVariantPayload {
+  sku: string
+  price_override?: string | null
+  is_active?: boolean
+  attribute_values?: number[]
 }
 
 export const catalogService = {
@@ -47,12 +54,12 @@ export const catalogService = {
     return Array.isArray(data) ? data : (data?.results ?? [])
   },
 
-  async createVariant(productSlug: string, data: Partial<ProductVariant>): Promise<ProductVariant> {
+  async createVariant(productSlug: string, data: ProductVariantPayload): Promise<ProductVariant> {
     const res = await axiosClient.post<ProductVariant>(endpoints.catalog.adminVariants(productSlug), data)
     return res.data
   },
 
-  async updateVariant(productSlug: string, pk: string, data: Partial<ProductVariant>): Promise<ProductVariant> {
+  async updateVariant(productSlug: string, pk: string, data: ProductVariantPayload): Promise<ProductVariant> {
     const res = await axiosClient.patch<ProductVariant>(endpoints.catalog.adminVariant(productSlug, pk), data)
     return res.data
   },
@@ -105,8 +112,10 @@ export const catalogService = {
     return res.data
   },
 
-  async updateCategory(pk: string, data: Partial<Category>): Promise<Category> {
-    const res = await axiosClient.patch<Category>(endpoints.catalog.adminCategory(pk), data)
+  async updateCategory(pk: string, data: FormData | Partial<Category>): Promise<Category> {
+    const res = await axiosClient.patch<Category>(endpoints.catalog.adminCategory(pk), data, {
+      headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    })
     return res.data
   },
 
@@ -122,6 +131,11 @@ export const catalogService = {
     return res.data
   },
 
+  async getBrand(pk: string): Promise<Brand> {
+    const res = await axiosClient.get<Brand>(endpoints.catalog.adminBrand(pk))
+    return res.data
+  },
+
   async createBrand(data: FormData | Partial<Brand>): Promise<Brand> {
     const res = await axiosClient.post<Brand>(endpoints.catalog.adminBrands(), data, {
       headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
@@ -129,8 +143,10 @@ export const catalogService = {
     return res.data
   },
 
-  async updateBrand(pk: string, data: Partial<Brand>): Promise<Brand> {
-    const res = await axiosClient.patch<Brand>(endpoints.catalog.adminBrand(pk), data)
+  async updateBrand(pk: string, data: FormData | Partial<Brand>): Promise<Brand> {
+    const res = await axiosClient.patch<Brand>(endpoints.catalog.adminBrand(pk), data, {
+      headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    })
     return res.data
   },
 
@@ -162,5 +178,14 @@ export const catalogService = {
 
   async deleteBanner(pk: string): Promise<void> {
     await axiosClient.delete(endpoints.catalog.adminBanner(pk))
+  },
+
+  // ── Attributes ──────────────────────────────────────────
+  async listAttributes(): Promise<Attribute[]> {
+    const res = await axiosClient.get<Attribute[] | { results: Attribute[] }>(
+      endpoints.catalog.adminAttributes()
+    )
+    const data = res.data
+    return Array.isArray(data) ? data : (data?.results ?? [])
   },
 }

@@ -28,6 +28,7 @@ const ContactPage       = lazy(() => import('@/pages/ContactPage').then((m) => (
 const AnalyticsPage     = lazy(() => import('@/pages/analytics/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })))
 const NotificationsPage = lazy(() => import('@/pages/notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })))
 const SettingsPage      = lazy(() => import('@/pages/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
+const ExportsPage       = lazy(() => import('@/pages/exports/ExportsPage').then((m) => ({ default: m.ExportsPage })))
 
 function PageFallback() {
   return (
@@ -114,10 +115,11 @@ export const router = createBrowserRouter([
   { path: ROUTES.MARKETING,        errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(MarketingPage)}</AdminLayout></AdminOnlyRoute> },
   { path: ROUTES.CONTACT,          errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(ContactPage)}</AdminLayout></AdminOnlyRoute> },
 
-  // Analytics & Settings
+  // Analytics, Settings & Exports
   { path: ROUTES.ANALYTICS,        errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(AnalyticsPage)}</AdminLayout></AdminOnlyRoute> },
   { path: ROUTES.NOTIFICATIONS,    errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(NotificationsPage)}</AdminLayout></AdminOnlyRoute> },
   { path: ROUTES.SETTINGS,         errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(SettingsPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.EXPORTS,          errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(ExportsPage)}</AdminLayout></AdminOnlyRoute> },
 
   // 404 catch-all
   { path: '*', element: <NotFoundPage /> },

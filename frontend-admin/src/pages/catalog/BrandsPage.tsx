@@ -16,6 +16,7 @@ import { useDebounce } from '@/utils/useDebounce'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Brand } from '@/types/models'
+import type { ApiError } from '@/types/api'
 
 interface BrandForm {
   name: string
@@ -94,7 +95,14 @@ export function BrandsPage() {
       void qc.invalidateQueries({ queryKey: ['admin-brands'] })
       setModalOpen(false)
     },
-    onError: () => toast({ title: `Failed to ${editTarget ? 'update' : 'create'} brand`, variant: 'destructive' }),
+    onError: (err) => {
+      const apiErr = err as unknown as ApiError
+      toast({
+        title: `Failed to ${editTarget ? 'update' : 'create'} brand`,
+        description: apiErr.message,
+        variant: 'destructive',
+      })
+    },
   })
 
   const deleteMutation = useMutation({
