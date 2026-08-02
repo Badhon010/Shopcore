@@ -21,6 +21,8 @@ const InventoryPage     = lazy(() => import('@/pages/catalog/InventoryPage').the
 const BannersPage       = lazy(() => import('@/pages/catalog/BannersPage').then((m) => ({ default: m.BannersPage })))
 const OrdersPage        = lazy(() => import('@/pages/orders/OrdersPage').then((m) => ({ default: m.OrdersPage })))
 const OrderDetailPage   = lazy(() => import('@/pages/orders/OrderDetailPage').then((m) => ({ default: m.OrderDetailPage })))
+const PaymentMethodsPage = lazy(() => import('@/pages/payments/PaymentMethodsPage').then((m) => ({ default: m.PaymentMethodsPage })))
+const PaymentSubmissionsPage = lazy(() => import('@/pages/payments/PaymentSubmissionsPage').then((m) => ({ default: m.PaymentSubmissionsPage })))
 const CustomersPage     = lazy(() => import('@/pages/customers/CustomersPage').then((m) => ({ default: m.CustomersPage })))
 const CustomerDetailPage= lazy(() => import('@/pages/customers/CustomerDetailPage').then((m) => ({ default: m.CustomerDetailPage })))
 const CouponsPage       = lazy(() => import('@/pages/coupons/CouponsPage').then((m) => ({ default: m.CouponsPage })))
@@ -93,6 +95,10 @@ export const router = createBrowserRouter([
   // Orders
   { path: ROUTES.ORDERS,           errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(OrdersPage)}</AdminLayout></AdminOnlyRoute> },
   { path: '/orders/:orderNumber',  errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(OrderDetailPage)}</AdminLayout></AdminOnlyRoute> },
+
+  // Payments
+  { path: ROUTES.PAYMENT_METHODS,    errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(PaymentMethodsPage)}</AdminLayout></AdminOnlyRoute> },
+  { path: ROUTES.PAYMENT_SUBMISSIONS, errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(PaymentSubmissionsPage)}</AdminLayout></AdminOnlyRoute> },
 
   // Customers
   { path: ROUTES.CUSTOMERS,        errorElement: <RouterErrorBoundary />, element: <AdminOnlyRoute><AdminLayout>{wrap(CustomersPage)}</AdminLayout></AdminOnlyRoute> },

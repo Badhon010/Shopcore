@@ -48,6 +48,18 @@ export const guestCartToken = {
       // ignore
     }
   },
+  /**
+   * Return the existing guest cart token or create a fresh one. Called on
+   * first add-to-cart when anonymous (audit H-4) — the backend keys the
+   * guest cart off this token via the X-Cart-Token header.
+   */
+  ensure: (): string => {
+    const existing = guestCartToken.get()
+    if (existing) return existing
+    const fresh = `gc_${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`
+    guestCartToken.set(fresh)
+    return fresh
+  },
 }
 
 function getCartHeaders(): Record<string, string> {

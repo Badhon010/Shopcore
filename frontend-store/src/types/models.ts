@@ -197,11 +197,66 @@ export interface OrderStatusEvent {
   created_at: string
 }
 
+/** Payment provider enum — mirrors apps/payments/constants.py PaymentProvider. */
+export type PaymentProvider =
+  | 'MANUAL'
+  | 'BANK_TRANSFER'
+  | 'BKASH'
+  | 'NAGAD'
+  | 'ROCKET'
+  | 'SSLCOMMERZ'
+  | 'STRIPE'
+  | 'PAYPAL'
+
+/** Manual (offline) providers that go through the submission flow. */
+export type ManualPaymentProvider = 'BANK_TRANSFER' | 'BKASH' | 'NAGAD' | 'ROCKET'
+
+/**
+ * Payment method exposed to the storefront checkout (PaymentMethodPublicSerializer).
+ * Only enabled methods are returned; manual methods carry instructions/account info.
+ */
+export interface PaymentMethod {
+  id: string
+  provider: PaymentProvider
+  name: string
+  description?: string
+  /** Payment instructions shown to the customer (manual methods). */
+  instructions?: string
+  account_number?: string
+  account_name?: string
+  /** Absolute URL of the QR code image (manual methods). */
+  qr_image_url?: string | null
+  payment_notes?: string
+}
+
+/** Staff's manual payment submission (ManualPaymentSubmissionSerializer). */
+export interface ManualPaymentSubmission {
+  id: string
+  order: string
+  order_number: string
+  customer_email?: string | null
+  method_provider?: string | null
+  method_name?: string | null
+  reference_number: string
+  receipt?: string | null
+  receipt_url?: string | null
+  notes?: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  admin_note?: string
+  created_at: string
+}
+
 export interface Order {
   id: string
   order_number: string
   status: OrderStatus
   payment_status: string
+  is_guest?: boolean
+  guest_name?: string | null
+  guest_email?: string | null
+  guest_phone?: string | null
+  /** Plain guest lookup token — returned ONLY at checkout time, never on re-read. */
+  guest_lookup_token?: string
   items: OrderItem[]
   /** Address snapshot — use this for display; the FK may have been deleted. */
   shipping_address_snapshot: OrderAddressSnapshot

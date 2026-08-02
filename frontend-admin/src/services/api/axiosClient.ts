@@ -112,6 +112,20 @@ function normalizeError(error: AxiosError): ApiError {
     if (envelope && typeof envelope['message'] === 'string') {
       message = envelope['message']
       if (typeof envelope['code'] === 'string') code = envelope['code']
+      // DRF validation details: { field_name: ["message"] } — surface inline.
+      // Business codes (e.g. EMAIL_NOT_VERIFIED) are carried inside details.
+      const details = envelope['details']
+      if (details && typeof details === 'object' && !Array.isArray(details)) {
+        const entries = details as Record<string, unknown>
+        if (code === 'VALIDATION_ERROR' && typeof entries['code'] === 'string') {
+          code = entries['code']
+        }
+        for (const [key, value] of Object.entries(entries)) {
+          if (['detail', 'code', 'message', 'non_field_errors'].includes(key)) continue
+          if (Array.isArray(value)) fieldErrors[key] = value.map(String)
+          else if (typeof value === 'string') fieldErrors[key] = [value]
+        }
+      }
     } else if (typeof data['detail'] === 'string') {
       message = data['detail']
     } else if (typeof data['message'] === 'string') {

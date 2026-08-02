@@ -4,9 +4,9 @@ from __future__ import annotations
 import pytest
 
 from apps.inventory.exceptions import InsufficientStockError
-from apps.inventory.models import StockItem, StockMovement
+from apps.inventory.models import StockMovement
 from apps.inventory.services import commit_sale, release_reservation, reserve_stock, restock
-from apps.inventory.tests.factories import StockItemFactory, WarehouseFactory
+from apps.inventory.tests.factories import StockItemFactory
 
 
 @pytest.mark.django_db

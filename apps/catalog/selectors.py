@@ -24,11 +24,16 @@ def _is_postgres() -> bool:
     return connection.vendor == "postgresql"
 
 
-def get_category_tree() -> list[dict]:
+def get_category_tree(request=None) -> list[dict]:
     """Return the full category tree with descendant product counts, cached 5 min.
 
     One extra query fetches direct product counts for every active category;
     the recursive serialize() then rolls them up so parent nodes show totals.
+
+    Args:
+        request: Optional DRF request — used to build absolute image URLs
+            (consistent with banners/brands). When omitted, relative URLs are
+            returned.
     """
     cached = cache.get(CATEGORY_TREE_CACHE_KEY)
     if cached is not None:
@@ -56,11 +61,17 @@ def get_category_tree() -> list[dict]:
         direct = counts.get(cat.pk, 0)
         # Roll up descendant counts so a parent shows the sum of its subtree.
         total = direct + sum(c["product_count"] for c in children)
+        image = None
+        if cat.image:
+            image = cat.image.url
+            if request is not None:
+                image = request.build_absolute_uri(image)
         return {
             "id": cat.pk,
             "name": cat.name,
             "slug": cat.slug,
             "description": cat.description,
+            "image": image,
             "display_order": cat.display_order,
             "product_count": total,
             "children": children,

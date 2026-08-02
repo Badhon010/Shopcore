@@ -49,7 +49,9 @@ describe('CartLineItem', () => {
   it('renders product name and price', () => {
     render(<CartLineItem item={item} />)
     expect(screen.getByText('Aria Wireless Headphones')).toBeInTheDocument()
-    expect(screen.getByText(/\$398\.00/)).toBeInTheDocument()
+    // Store currency is configurable (BDT in production) — assert the amount,
+    // not the currency symbol.
+    expect(screen.getByText(/398\.00/)).toBeInTheDocument()
   })
 
   it('renders current quantity', () => {

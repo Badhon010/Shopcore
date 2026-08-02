@@ -9,6 +9,7 @@ import { useAddToCart } from '@/features/cart/hooks/useCart'
 import { useCartUI } from '@/contexts/CartUIContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { env } from '@/config/env'
+import { APP_CONFIG } from '@/constants/config'
 import { queryKeys } from '@/services/queryKeys'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Product } from '@/types/models'
@@ -37,6 +38,12 @@ export function ProductCard({ product, priority = false, viewMode = 'grid' }: Pr
 
   const primaryImage = product.images.find((i) => i.is_primary) ?? product.images[0]
   const isOutOfStock = !product.in_stock
+  // Mirrors StockBadge's threshold logic — keep the two in sync.
+  const isLowStock =
+    !isOutOfStock &&
+    product.stock !== undefined &&
+    product.stock > 0 &&
+    product.stock <= APP_CONFIG.lowStockThreshold
   const isNew = product.created_at
     ? Date.now() - new Date(product.created_at).getTime() < 1000 * 60 * 60 * 24 * 30
     : false
@@ -174,6 +181,11 @@ export function ProductCard({ product, priority = false, viewMode = 'grid' }: Pr
                   New
                 </span>
               )}
+              {isLowStock && (
+                <span className="rounded-md bg-warning text-warning-foreground px-2 py-0.5 text-[11px] font-bold leading-tight">
+                  Low stock
+                </span>
+              )}
               {isOutOfStock && (
                 <span className="rounded-md bg-overlay/60 px-2 py-0.5 text-[11px] text-primary-foreground/90 leading-tight">
                   Sold out
@@ -280,6 +292,11 @@ export function ProductCard({ product, priority = false, viewMode = 'grid' }: Pr
           {isNew && !isDiscounted && (
             <span className="rounded-md bg-success text-success-foreground px-2 py-0.5 text-[11px] font-bold leading-tight">
               New
+            </span>
+          )}
+          {isLowStock && (
+            <span className="rounded-md bg-warning text-warning-foreground px-2 py-0.5 text-[11px] font-bold leading-tight">
+              Low stock
             </span>
           )}
           {isOutOfStock && (

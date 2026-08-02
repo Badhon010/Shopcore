@@ -53,8 +53,14 @@ export interface DeleteAccountPayload {
 }
 
 export const authService = {
-  login: (payload: LoginPayload) =>
-    axiosClient.post<LoginResponse>(endpoints.auth.login(), payload).then((r) => r.data),
+  /**
+   * Log in. Pass the guest cart token as X-Cart-Token so the backend merges
+   * the guest cart into the user's cart atomically on success (audit H-4).
+   */
+  login: (payload: LoginPayload, guestCartToken?: string | null) =>
+    axiosClient.post<LoginResponse>(endpoints.auth.login(), payload, {
+      headers: guestCartToken ? { 'X-Cart-Token': guestCartToken } : {},
+    }).then((r) => r.data),
 
   register: (payload: RegisterPayload) =>
     axiosClient.post<User>(endpoints.auth.register(), payload).then((r) => r.data),

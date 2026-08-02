@@ -13,9 +13,14 @@ export const queryClient = new QueryClient({
         }
         return failureCount < 2
       },
-      // Re-fetch stale queries when the user focuses the tab so the page
-      // self-updates without requiring a manual browser refresh.
-      refetchOnWindowFocus: true,
+      // DO NOT re-fetch on window focus. With focus-refetch enabled, every
+      // tab-switch / DevTools click fires a burst of refetches for ALL stale
+      // queries (banners, category tree, featured products, cart…), and when
+      // one of those requests gets throttled the queries stay stale so the
+      // NEXT focus event fires another burst — a self-sustaining loop that
+      // exhausts the backend's per-IP throttle bucket (429s). Freshness is
+      // handled by explicit invalidations and per-query staleTime instead.
+      refetchOnWindowFocus: false,
     },
     mutations: {
       retry: false,

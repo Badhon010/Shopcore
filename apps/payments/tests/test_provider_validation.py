@@ -17,7 +17,6 @@ from apps.orders.tests.factories import OrderFactory
 from apps.payments.constants import PaymentProvider
 from apps.payments.serializers import InitiatePaymentSerializer
 
-
 # ---------------------------------------------------------------------------
 # Serializer-level tests (no DB, no API call)
 # ---------------------------------------------------------------------------
@@ -40,7 +39,7 @@ class TestInitiatePaymentSerializerProviderValidation:
     def test_unknown_provider_string_fails_validation(self):
         """A string that is not a member of PaymentProvider must fail."""
         serializer = InitiatePaymentSerializer(
-            data={"order_number": "ORD-20260711-000001", "provider": "PAYPAL"}
+            data={"order_number": "ORD-20260711-000001", "provider": "CRYPTO"}
         )
         assert not serializer.is_valid()
         assert "provider" in serializer.errors
@@ -83,20 +82,59 @@ def _auth_client(user) -> APIClient:
 
 @pytest.mark.django_db
 class TestInitiatePaymentViewProviderValidation:
-    def test_unimplemented_provider_returns_400_not_500(self):
-        """STRIPE is a valid PaymentProvider enum member but has no gateway
-        implementation. The view must catch the resulting ValueError and
-        return 400 (PROVIDER_NOT_AVAILABLE), never 500."""
+    def test_unregistered_provider_returns_400_not_500(self):
+        """BKASH is a valid PaymentProvider enum member but has no registered
+        gateway (manual methods use the submission flow). The view must catch
+        the resulting ValueError and return 400 (PROVIDER_NOT_AVAILABLE),
+        never 500."""
         user = UserFactory()
         order = OrderFactory(user=user, status=OrderStatus.PENDING_PAYMENT)
 
         response = _auth_client(user).post(
             reverse("payments:payment-initiate"),
-            {"order_number": order.order_number, "provider": "STRIPE"},
+            {"order_number": order.order_number, "provider": "BKASH"},
             format="json",
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.data["error"]["code"] == "PROVIDER_NOT_AVAILABLE"
+
+    def test_implemented_but_unconfigured_gateway_returns_400(self):
+        """STRIPE now has a real gateway. With the method enabled but no
+        STRIPE_SECRET_KEY in the environment it must fail gracefully with
+        GATEWAY_NOT_CONFIGURED (400), never 500 (audit H-3)."""
+        from django.test import override_settings
+
+        from apps.payments.models import PaymentMethod
+
+        user = UserFactory()
+        order = OrderFactory(user=user, status=OrderStatus.PENDING_PAYMENT)
+        PaymentMethod.objects.filter(provider="STRIPE").update(is_enabled=True)
+
+        with override_settings(STRIPE_SECRET_KEY="", STRIPE_PUBLISHABLE_KEY=""):
+            response = _auth_client(user).post(
+                reverse("payments:payment-initiate"),
+                {"order_number": order.order_number, "provider": "STRIPE"},
+                format="json",
+            )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["error"]["code"] == "GATEWAY_NOT_CONFIGURED"
+
+    def test_disabled_method_returns_400(self):
+        """A disabled payment method cannot be initiated (only the storefront
+        exposes enabled methods; API clients must respect the same rule)."""
+        from django.test import override_settings
+
+        user = UserFactory()
+        order = OrderFactory(user=user, status=OrderStatus.PENDING_PAYMENT)
+
+        with override_settings(STRIPE_SECRET_KEY="sk_test_xyz", STRIPE_PUBLISHABLE_KEY="pk_test_xyz"):
+            response = _auth_client(user).post(
+                reverse("payments:payment-initiate"),
+                {"order_number": order.order_number, "provider": "STRIPE"},
+                format="json",
+            )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["error"]["code"] == "PAYMENT_METHOD_NOT_AVAILABLE"
 
     def test_unknown_string_provider_returns_400(self):
         """A string not in PaymentProvider is rejected by the serializer (400)
@@ -106,7 +144,7 @@ class TestInitiatePaymentViewProviderValidation:
 
         response = _auth_client(user).post(
             reverse("payments:payment-initiate"),
-            {"order_number": order.order_number, "provider": "PAYPAL"},
+            {"order_number": order.order_number, "provider": "CRYPTO"},
             format="json",
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST

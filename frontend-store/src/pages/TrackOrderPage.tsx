@@ -10,12 +10,27 @@ import { Button } from '@/components/ui/Button'
 import { OrderTracker } from '@/features/orders/components/OrderTracker'
 import { useTrackOrder } from '@/features/orders/hooks/useOrders'
 import { emailSchema } from '@/utils/validators'
+import { guestOrderStore } from '@/utils/guestOrderStore'
 import type { Order } from '@/types/models'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
+const PHONE_RE = /^\+?\d{9,15}$/
+
+/**
+ * Guest order lookup (audit H-4):
+ *   - order number + phone number, OR
+ *   - order number + email + lookup token (shown once at checkout)
+ * The backend returns the same 404 for a mismatch as for a missing order, so
+ * the form must not reveal which part failed.
+ */
 const schema = z.object({
   order_number: z.string().min(1, 'Order number is required'),
-  email: emailSchema,
+  phone_number: z
+    .string()
+    .optional()
+    .refine((v) => !v || PHONE_RE.test(v), 'Enter a valid phone number'),
+  email: emailSchema.optional().or(z.literal('')),
+  lookup_token: z.string().optional(),
 })
 type FormData = z.infer<typeof schema>
 
@@ -29,7 +44,12 @@ export function TrackOrderPage() {
 
   const onSubmit = async (data: FormData) => {
     try {
-      const result = await track.mutateAsync(data)
+      const result = await track.mutateAsync({
+        order_number: data.order_number,
+        ...(data.email ? { email: data.email } : {}),
+        ...(data.phone_number ? { phone_number: data.phone_number } : {}),
+        ...(data.lookup_token ? { lookup_token: data.lookup_token } : {}),
+      })
       setOrder(result)
     } catch {
       form.setError('root', { message: 'Order not found. Please check your details.' })
@@ -58,7 +78,7 @@ export function TrackOrderPage() {
             </div>
           </div>
           <p className="mt-3 text-body-md text-text-secondary max-w-lg">
-            Enter your order number and email address to see the latest status and estimated delivery.
+            Enter your order number and the phone number or email used at checkout to see the latest status.
           </p>
         </PageContainer>
       </div>
@@ -82,7 +102,27 @@ export function TrackOrderPage() {
                   />
                 )}
               </FormField>
-              <FormField label="Email address" required error={form.formState.errors.email?.message}>
+              <FormField
+                label="Phone number"
+                helperText="The phone number used at checkout (guest orders can be tracked with just this)."
+                error={form.formState.errors.phone_number?.message}
+              >
+                {(id) => (
+                  <Input
+                    id={id}
+                    type="tel"
+                    placeholder="+8801XXXXXXXXX"
+                    {...form.register('phone_number')}
+                    error={!!form.formState.errors.phone_number}
+                  />
+                )}
+              </FormField>
+              <div className="flex items-center gap-3 text-caption text-text-tertiary">
+                <span className="h-px flex-1 bg-border" />
+                or
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <FormField label="Email address" error={form.formState.errors.email?.message}>
                 {(id) => (
                   <Input
                     id={id}
@@ -93,6 +133,7 @@ export function TrackOrderPage() {
                   />
                 )}
               </FormField>
+              <TrackTokenField form={form} orderNumber={form.watch('order_number')} />
               <Button type="submit" className="w-full" size="lg" isLoading={track.isPending} loadingText="Looking up order…">
                 Track order
               </Button>
@@ -109,6 +150,55 @@ export function TrackOrderPage() {
           )}
         </div>
       </PageContainer>
+    </>
+  )
+}
+
+/**
+ * Auto-fills the guest lookup token from sessionStorage when the user
+ * enters an order number they placed as a guest (the token was stored at
+ * checkout). The token stays optional — phone-only lookup still works.
+ */
+function TrackTokenField({
+  form,
+  orderNumber,
+}: {
+  form: ReturnType<typeof useForm<FormData>>
+  orderNumber: string
+}) {
+  const savedToken = orderNumber ? guestOrderStore.get(orderNumber) : null
+  const { setValue, register, formState } = form
+
+  // Seed the stored guest lookup token into react-hook-form state (a raw
+  // defaultValue prop would not be picked up by register).
+  useEffect(() => {
+    if (savedToken) {
+      setValue('lookup_token', savedToken)
+    }
+  }, [savedToken, setValue])
+
+  return (
+    <>
+      {savedToken && (
+        <p className="text-caption text-primary">
+          A guest tracking code was found for this order — it will be used automatically.
+        </p>
+      )}
+      <FormField
+        label="Lookup token (guest orders)"
+        error={formState.errors.lookup_token?.message}
+        helperText={savedToken ? undefined : 'Required for guests who tracked with email instead of phone.'}
+      >
+        {(id) => (
+          <Input
+            id={id}
+            placeholder="Guest tracking code"
+            defaultValue={savedToken ?? ''}
+            {...register('lookup_token')}
+            error={!!formState.errors.lookup_token}
+          />
+        )}
+      </FormField>
     </>
   )
 }

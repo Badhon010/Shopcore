@@ -3,8 +3,17 @@
 **Base URL:** `/api/`  
 **Authentication:** JWT Bearer token — `Authorization: Bearer <access_token>`  
 **Content-Type:** `application/json`  
+**Default currency:** BDT (Bangladeshi Taka) — `DEFAULT_CURRENCY`  
 **Schema:** `GET /api/schema/` (OpenAPI 3)  
 **Swagger UI:** `GET /api/schema/swagger-ui/`
+
+### Guest carts (X-Cart-Token header)
+
+Anonymous users get a guest cart by sending a client-generated token in the
+`X-Cart-Token` header. The backend keys the cart off this token
+(`Cart.session_key`) and requires it for all guest cart operations. On login,
+the guest cart is merged into the authenticated user's cart and prior guest
+orders placed with the verified email are claimed automatically (audit H-4).
 
 ---
 
@@ -72,12 +81,17 @@ Authenticate and receive JWT tokens.
 { "email": "user@example.com", "password": "securepassword" }
 ```
 
+If an `X-Cart-Token` header is present, the guest cart is merged into the
+user's cart and any prior guest orders with this verified email are claimed
+(attached to the account) in the same step.
+
 **Response `200`**
 ```json
 {
   "access": "<access_token>",
   "refresh": "<refresh_token>",
-  "user": { "id": 1, "email": "user@example.com", "first_name": "Alice", "last_name": "Smith" }
+  "user": { "id": 1, "email": "user@example.com", "first_name": "Alice", "last_name": "Smith" },
+  "guest_orders_claimed": 0
 }
 ```
 
@@ -103,7 +117,8 @@ Blacklist the refresh token. The access token continues to work until it expires
 Obtain a new access + refresh token pair. The old refresh token is blacklisted
 (`ROTATE_REFRESH_TOKENS = True`).
 
-**Auth:** None
+**Auth:** None · **Throttle:** 60/min per IP (`token_refresh` — dedicated scope,
+so token refresh is never starved by catalog/cart traffic)
 
 **Request**
 ```json
@@ -375,11 +390,13 @@ Full product detail including all variants with stock quantities and attribute v
 
 ## Cart `/api/cart/`
 
-All cart endpoints require authentication.
+Authenticated users use their account cart. Anonymous users supply an
+`X-Cart-Token` header to get/merge a guest cart (`GuestCartPermission` — an
+anonymous request without the header is rejected).
 
 ### `GET /api/cart/`
 
-Return the authenticated user's active cart.
+Return the authenticated user's (or guest's) active cart.
 
 **Response `200`**
 ```json
@@ -447,25 +464,59 @@ List orders for the authenticated user, newest first.
 
 ### `POST /api/orders/checkout/`
 
-Create a new order from the authenticated user's cart.
+Create a new order. Two request shapes:
+
+**1. Registered user** — saved-address FKs.
 
 **Auth:** Required
 
-**Request**
 ```json
 {
   "shipping_address_id": 1,
   "billing_address_id": 1,
   "coupon_code": "SAVE10",
-  "payment_method": "MANUAL",
   "idempotency_key": "unique-client-generated-uuid"
 }
 ```
 
-`idempotency_key` is required and must be unique per checkout attempt. Retrying
-with the same key returns the original order without creating a duplicate.
+`idempotency_key` must be unique per checkout attempt. Retrying with the same
+key returns the original order without creating a duplicate.
 
-**Response `201`** — Created order object.
+**2. Guest** — inline identity + shipping-address snapshot; requires the
+`X-Cart-Token` header (audit H-4). No auth required.
+
+```json
+{
+  "guest_name": "Alice Smith",
+  "guest_email": "alice@example.com",
+  "guest_phone": "+8801711111111",
+  "shipping_address": {
+    "full_name": "Alice Smith",
+    "phone_number": "+8801711111111",
+    "address_line_1": "12 Dhanmondi",
+    "address_line_2": "",
+    "city": "Dhaka",
+    "state_province": "Dhaka",
+    "postal_code": "1205",
+    "country": "BD"
+  },
+  "coupon_code": "SAVE10",
+  "idempotency_key": "guest-idem-1"
+}
+```
+
+**Response `201`** — Created order object. For guest orders the response
+includes a **one-time** `guest_lookup_token` (the DB stores only its SHA-256
+hash) used with the order number for tracking/cancelling.
+
+**Error codes**
+
+| Code | Meaning |
+|------|---------|
+| `CART_EMPTY` | Cart has no items |
+| `INSUFFICIENT_STOCK` | One or more items are out of stock |
+| `ADDRESS_NOT_FOUND` | Shipping/billing address does not belong to the user (registered) |
+| `CART_TOKEN_REQUIRED` | Guest checkout without an `X-Cart-Token` header |
 
 **Error codes**
 
@@ -490,9 +541,95 @@ Retrieve a specific order. Must belong to the authenticated user.
 
 ### `POST /api/orders/<order_number>/cancel/`
 
-Cancel an order. Only allowed in `PENDING` or `AWAITING_PAYMENT` status.
+Cancel an order. Only allowed for **unpaid** orders (`payment_status` `PENDING` or
+`FAILED`). Customers may NOT cancel a paid order — the only termination path
+for paid money is the staff refund endpoint (below), which restocks inventory.
 
-**Auth:** Required (owner only) · **Response `200`** — Updated order object.
+**Auth:** Registered orders — required (owner only). Guest orders — none, but
+the request body must carry the lookup secret: `phone_number` (must match
+`guest_phone` or the shipping snapshot) **or** `email` + `lookup_token`.
+
+**Request (guest)**
+```json
+{ "phone_number": "+8801711111111" }
+```
+
+**Response `200`** — Updated order object.
+
+**Error codes**
+
+| Code | Meaning |
+|------|---------|
+| `ORDER_NOT_FOUND` | Order does not exist or does not belong to the user |
+| `ORDER_CANCELLATION_NOT_ALLOWED` | Order is already paid/refunded; use the refund flow |
+| `INVALID_ORDER_TRANSITION` | Order cannot be cancelled from its current status |
+
+---
+
+### `POST /api/orders/track/`
+
+Guest order tracking — look up an order by its number plus the bearer secret
+used at checkout. A mismatch returns the same `404` envelope as a missing
+order so order numbers cannot be probed.
+
+**Auth:** None · **Throttle:** 20/min per IP (`order_track`)
+
+**Request (registered order — email, plus optional phone)**
+```json
+{ "order_number": "ORD-20260711-0001", "email": "alice@example.com", "phone_number": "+1-555-0100" }
+```
+
+**Request (guest order — phone alone, OR email + lookup token)**
+```json
+{ "order_number": "ORD-20260711-0001", "phone_number": "+8801711111111" }
+```
+
+```json
+{ "order_number": "ORD-20260711-0001", "email": "alice@example.com", "lookup_token": "<one-time-token-from-checkout>" }
+```
+
+Rules:
+- Registered orders: `email` must match the account email (the lookup token
+  is never used for registered orders); `phone_number` when given must match
+  the account phone or shipping snapshot.
+- Guest orders: `phone_number` matching `guest_phone`/snapshot is sufficient;
+  otherwise `email` + `lookup_token` must both match.
+
+The response is the `PublicOrderSerializer` (no email/phone/token exposed).
+
+**Response `200`** — Public order object with items and status history.
+
+**Error codes**
+
+| Code | Meaning |
+|------|---------|
+| `ORDER_NOT_FOUND` | Order does not exist **or** email/phone does not match |
+
+---
+
+### `POST /api/orders/<order_number>/refund/`
+
+Process a refund for a paid order (staff only). Records a `Refund`, marks the
+order's successful `Payment` `REFUNDED`, transitions the order to `REFUNDED`,
+and restocks the committed sale back to inventory — all atomically.
+
+**Auth:** Required (staff only)
+
+**Request** (both fields optional — defaults to a full refund)
+```json
+{ "amount": "99.98", "reason": "Defective item" }
+```
+
+**Response `201`** — Created refund object.
+
+**Error codes**
+
+| Code | Meaning |
+|------|---------|
+| `ORDER_NOT_FOUND` | Order does not exist |
+| `ORDER_NOT_REFUNDABLE` | Order is not paid, or cannot reach `REFUNDED` from its current status (e.g. `SHIPPED` must be delivered first) |
+| `ALREADY_REFUNDED` | Order already has a refund |
+| `REFUND_ERROR` | Amount invalid or partial (only full refunds in this version) |
 
 ---
 
@@ -502,10 +639,21 @@ Advance an order through its status machine (staff only).
 
 **Auth:** Required (staff only)
 
-**Request** `{ "new_status": "SHIPPED", "note": "Tracking #12345" }`
+**Request** `{ "status": "SHIPPED", "note": "Tracking #12345" }`
 
-Valid transitions: `PENDING → CONFIRMED → PROCESSING → SHIPPED → DELIVERED`  
-Staff can also set `REFUNDED` from `DELIVERED`.
+Valid transitions — a paid order can never be cancelled:
+
+```
+PENDING_PAYMENT → PAID | CANCELLED
+PAID           → PROCESSING | REFUNDED
+PROCESSING     → SHIPPED | REFUNDED
+SHIPPED        → DELIVERED
+DELIVERED      → REFUNDED
+CANCELLED / REFUNDED → (terminal)
+```
+
+Transitions to `REFUNDED` restock inventory; cancellation of an unpaid order
+releases its stock reservations.
 
 ---
 
@@ -542,11 +690,23 @@ Add stock units.
 
 ## Payments `/api/payments/`
 
+### `GET /api/payments/methods/`
+
+Public list of **enabled** payment methods for the storefront checkout, ordered
+by `sort_order`. Manual methods include their `instructions`, `account_number`,
+`account_name`, and `qr_image` for display.
+
+**Auth:** None · **Response `200`** — Array of payment method objects.
+
+---
+
 ### `POST /api/payments/initiate/`
 
 Initiate a payment for an order.
 
-**Auth:** Required
+**Auth:** Required (registered orders). Gateway-backed initiation for a guest
+order is not supported — guests pay via the manual submission flow
+(`POST /api/payments/submit/`).
 
 **Request**
 ```json
@@ -556,27 +716,67 @@ Initiate a payment for an order.
 }
 ```
 
-Valid providers: `MANUAL` (production-ready), `STRIPE`, `SSLCOMMERZ`, `BKASH`
-(stubs — return `PROVIDER_NOT_AVAILABLE` until implemented).
+Valid providers: `MANUAL` (COD — confirms immediately), `SSLCOMMERZ`, `STRIPE`,
+`PAYPAL` (gateway-backed, disabled until env credentials are configured).
+`BANK_TRANSFER`, `BKASH`, `NAGAD`, `ROCKET` are manual methods — they have no
+initiate flow; customers use the submission endpoint instead.
 
-**Response `200`**
-```json
-{
-  "payment_id": 1,
-  "status": "PENDING",
-  "provider": "MANUAL",
-  "amount": "99.98",
-  "currency": "USD"
-}
-```
+**Response `200`** — varies by provider:
+- `MANUAL`: `{ payment_id, provider }` (payment confirmed immediately)
+- `SSLCOMMERZ`/`PAYPAL`: `{ payment_id, provider, redirect_url }` — redirect
+the browser to the gateway
+- `STRIPE`: `{ payment_id, provider, client_secret }` — confirm client-side
 
 **Error codes**
 
 | Code | Meaning |
 |------|---------|
 | `ORDER_NOT_FOUND` | Order does not exist or does not belong to the user |
-| `INVALID_PROVIDER` | Provider string not in allowed values |
-| `PROVIDER_NOT_AVAILABLE` | Provider is valid but not yet implemented |
+| `INVALID_PROVIDER` | Provider string not in allowed values (serializer, `400`) |
+| `PROVIDER_NOT_AVAILABLE` | Provider is valid but has no registered gateway (e.g. `BKASH`) |
+| `PAYMENT_METHOD_NOT_AVAILABLE` | Method exists but is disabled |
+| `GATEWAY_NOT_CONFIGURED` | Gateway credentials are absent (graceful — see below) |
+| `GATEWAY_ERROR` | The provider rejected initiation |
+| `DUPLICATE_PAYMENT` | Order already has a successful payment (also `409` on a DB-level race) |
+| `INVALID_ORDER_TRANSITION` | Order is already paid/refunded |
+
+**Gateway configuration** — credentials come from environment variables only
+(`SSLCOMMERZ_STORE_ID`/`SSLCOMMERZ_STORE_PASSWORD`, `STRIPE_SECRET_KEY`,
+`PAYPAL_CLIENT_ID`/`PAYPAL_CLIENT_SECRET`). When a gateway is enabled but not
+configured, initiation returns `GATEWAY_NOT_CONFIGURED` instead of failing —
+and the storefront only lists methods that are enabled <em>and</em> configured.
+
+---
+
+### `POST /api/payments/submit/`
+
+Customer submits an offline payment (bank transfer, bKash, Nagad, Rocket) with
+a reference number and optional receipt for staff verification.
+
+**Auth:** Required (order owner)
+
+**Request** (multipart/form-data for the receipt, else JSON)
+```json
+{
+  "order_number": "ORD-20260711-0001",
+  "method_id": 1,
+  "reference_number": "TX-20260711-0001",
+  "notes": "Paid from bKash",
+  "receipt": "<file>"
+}
+```
+
+`order_number` and `reference_number` are required; `method_id` must reference an
+enabled payment method. Only one `PENDING` submission per order is allowed.
+
+**Response `201`** — Created submission object (`status: PENDING`).
+
+**Error codes**
+
+| Code | Meaning |
+|------|---------|
+| `ORDER_NOT_FOUND` | Order does not exist or does not belong to the user |
+| `PAYMENT_SUBMISSION_ERROR` | Order paid / already has pending or approved submission / method disabled |
 
 ---
 
@@ -587,6 +787,55 @@ performed inside the gateway handler.
 
 **Auth:** None (signature-verified by the provider)  
 **Response `200`** — `{ "status": "ok" }`
+
+---
+
+### Admin payment endpoints (staff only)
+
+#### `GET | POST /api/payments/admin/methods/`
+
+List all payment methods, or create one (enable/disable, configure
+instructions/account details/QR, sort order).
+
+**Auth:** Staff required · **Response `200`** — Paginated list. **Response `201`** — Created method.
+
+#### `GET | PUT | PATCH | DELETE /api/payments/admin/methods/<pk>/`
+
+Retrieve, update, or delete a payment method.
+
+**Auth:** Staff required · **Response `200`** — Method object.
+
+#### `GET /api/payments/admin/submissions/`
+
+Staff payment-verification queue. Query params: `status` (`PENDING`/`APPROVED`/`REJECTED`) and `order_number`.
+
+**Auth:** Staff required · **Response `200`** — Paginated submission list (with receipt URL).
+
+#### `POST /api/payments/admin/submissions/<pk>/review/`
+
+Approve or reject a pending manual payment submission.
+
+**Auth:** Staff required
+
+**Request**
+```json
+{ "approve": true, "admin_note": "Verified from bank statement." }
+```
+
+Approving records a `SUCCEEDED` `Payment` (provider from the submission's
+method) and transitions the order to `PAID` atomically; rejecting leaves the
+order unpaid so the customer can resubmit.
+
+**Response `200`** — Updated submission object.
+
+**Error codes**
+
+| Code | Meaning |
+|------|---------|
+| `NOT_FOUND` | Submission does not exist |
+| `SUBMISSION_ALREADY_REVIEWED` | Submission was already reviewed (`409`) |
+| `INVALID_ORDER_TRANSITION` | Order can no longer be paid (rolled back) |
+| `DUPLICATE_PAYMENT` | Concurrent approve race — order already paid (`409`) |
 
 ---
 
@@ -709,34 +958,43 @@ Move a wishlist item to the cart and remove it from the wishlist.
 
 ## Rate Limits (Production Defaults)
 
+The global `anon`/`user` buckets are deliberately generous — a single
+home-page load fires several anonymous GETs (banners, category tree, brands,
+featured products, cart) plus one CORS preflight (`OPTIONS`) per cross-origin
+request. Preflights never consume throttle budget (all throttles skip
+`OPTIONS`), and the tight per-endpoint scopes below are the actual anti-abuse
+controls.
+
 | Scope | Limit | Applied to |
 |-------|-------|-----------|
-| `anon` | 100/day | All unauthenticated requests |
-| `user` | 1000/day | All authenticated requests |
+| `anon` | 1000/min per IP | All unauthenticated requests (public catalog reads, guest cart, …) |
+| `user` | 5000/hour | All authenticated requests (anonymous requests also consume this bucket per IP) |
 | `login` | 5/min | `POST /api/accounts/login/` |
 | `register` | 10/hour | `POST /api/accounts/register/` |
 | `password_reset_request` | 5/hour | `POST /api/accounts/password-reset/` |
+| `resend_verification` | 5/hour | `POST /api/accounts/resend-verification/` |
 | `coupon_apply` | 20/min | `POST /api/coupons/apply/` |
+| `order_track` | 20/min per IP | `POST /api/orders/track/` |
+| `token_refresh` | 60/min per IP | `POST /api/accounts/token/refresh/` |
 
 ---
 
 ## Order Status Machine
 
 ```
-PENDING
+PENDING_PAYMENT
   │
-  ├──[staff confirm]──► CONFIRMED
-  │                         │
-  │                    [staff process]──► PROCESSING
-  │                                           │
-  │                                      [staff ship]──► SHIPPED
-  │                                                          │
-  │                                                    [staff deliver]──► DELIVERED
-  │                                                                           │
-  │                                                                    [staff refund]──► REFUNDED
+  ├──[payment confirmed]──► PAID ──[staff process]──► PROCESSING ──[staff ship]──► SHIPPED ──[staff deliver]──► DELIVERED
+  │                             │                        │                                                │
+  │                             └──[staff refund]────────┘                                                └──[staff refund]──► REFUNDED
   │
   └──[user cancel / timeout]──► CANCELLED
 ```
 
-Only staff can advance status beyond `PENDING`. Users may cancel while in
-`PENDING` or `AWAITING_PAYMENT`.
+Rules:
+- Only staff can advance an order beyond `PAID`.
+- Customers may cancel **unpaid** orders only (`PENDING_PAYMENT`).
+- A paid order can **never** be cancelled — the only termination path is
+  `REFUNDED` via `POST /api/orders/<order_number>/refund/`, which restocks
+  inventory.
+- `REFUNDED` and `CANCELLED` are terminal states.

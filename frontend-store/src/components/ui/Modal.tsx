@@ -55,12 +55,13 @@ export function Modal({
             </Dialog.Description>
           )}
 
+          {/* Radix Dialog.Close already calls onOpenChange(false) → onClose().
+              Adding our own onClick here would fire onClose TWICE per click. */}
           <Dialog.Close asChild>
             <IconButton
               label="Close dialog"
               size="sm"
               className="absolute right-4 top-4"
-              onClick={onClose}
             >
               <X className="h-4 w-4" />
             </IconButton>

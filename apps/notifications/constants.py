@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from django.db import models
 
 
@@ -12,6 +13,7 @@ class NotificationType(models.TextChoices):
     LOW_STOCK_ALERT = "LOW_STOCK_ALERT", "Low Stock Alert"
     NEWSLETTER_CONFIRMATION = "NEWSLETTER_CONFIRMATION", "Newsletter Confirmation"
     CONTACT_RECEIVED = "CONTACT_RECEIVED", "Contact Form Received"
+    PAYMENT_SUBMISSION = "PAYMENT_SUBMISSION", "Manual Payment Submission"
 
 
 class NotificationChannel(models.TextChoices):

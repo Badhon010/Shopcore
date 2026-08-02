@@ -16,7 +16,7 @@ import type { Order } from '@/types/models'
 
 const STATUS_VARIANT = {
   DELIVERED: 'success', SHIPPED: 'info', PROCESSING: 'info',
-  CONFIRMED: 'info', PENDING: 'warning', CANCELLED: 'danger', REFUNDED: 'default',
+  PAID: 'success', PENDING_PAYMENT: 'warning', CANCELLED: 'danger', REFUNDED: 'default',
 } as const
 
 const PAYMENT_STATUS_VARIANT = {
@@ -101,7 +101,7 @@ export function OrdersPage() {
           className="w-40"
         >
           <option value="">All statuses</option>
-          {['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'].map((s) => (
+          {['PENDING_PAYMENT', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'].map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
         </Select>

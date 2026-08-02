@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from django.contrib import admin
+
 from apps.orders.constants import OrderStatus
 from apps.orders.exceptions import InvalidOrderTransitionError
 from apps.orders.models import Order, OrderItem, OrderStatusHistory

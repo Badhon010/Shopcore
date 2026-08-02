@@ -19,8 +19,9 @@ import { useState } from 'react'
 import type { ApiError } from '@/types/api'
 
 const ORDER_STATUS_VARIANT = {
-  DELIVERED: 'success', SHIPPED: 'info', PROCESSING: 'info',
-  CONFIRMED: 'info', PENDING: 'warning', CANCELLED: 'danger', REFUNDED: 'default',
+  DELIVERED: 'success', SHIPPED: 'info', PROCESSING: 'info', PAID: 'success',
+  CONFIRMED: 'info', PENDING: 'warning', PENDING_PAYMENT: 'warning',
+  CANCELLED: 'danger', REFUNDED: 'default',
 } as const
 
 export function CustomerDetailPage() {

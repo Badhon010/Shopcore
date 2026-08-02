@@ -108,14 +108,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (payload: LoginPayload) => {
-      const data = await authService.login(payload)
+      // Send the guest cart token with the login request — the backend
+      // (CustomTokenObtainPairSerializer) merges the guest cart into the
+      // user's cart and claims prior guest orders in the same step (audit H-4).
+      const guestToken = guestCartToken.get()
+      const data = await authService.login(payload, guestToken)
       setAccessToken(data.access)
       tokenStorage.setRefreshToken(data.refresh)
       setUser(data.user)
 
-      // The backend has no guest-cart merge endpoint, so the guest cart
-      // token is simply discarded — the user's server-side cart (identified
-      // by their account) takes over after login.
+      // The token has been consumed by the merge — a fresh one will be
+      // created on the next guest add-to-cart.
       guestCartToken.clear()
 
       await queryClient.invalidateQueries({ queryKey: ['cart'] })
@@ -130,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authService.register(payload)
   }, [])
 
-  const logout = useCallback(() => {
+  const logout = useCallback((): Promise<void> => {
     // Read the refresh token BEFORE clearing it — authService.logout() needs
     // to send it to the backend to blacklist it.
     const refresh = tokenStorage.getRefreshToken()
@@ -152,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (refresh) {
       axiosClient.post(endpoints.auth.logout(), { refresh }).catch(() => undefined)
     }
+    return Promise.resolve()
   }, [queryClient])
 
   return (

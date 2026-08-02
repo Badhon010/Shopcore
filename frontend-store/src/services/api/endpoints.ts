@@ -46,8 +46,12 @@ export const endpoints = {
     invoice: (orderNumber: string) => `/orders/${orderNumber}/invoice/`,
   },
   payments: {
+    /** GET — enabled payment methods for the checkout. */
+    methods: () => '/payments/methods/',
     /** POST — initiate payment for a placed order. Accepts { order_number, provider }. */
     initiate: () => '/payments/initiate/',
+    /** POST — submit a manual (offline) payment with reference + receipt. */
+    submit: () => '/payments/submit/',
   },
   wishlist: {
     list: () => '/wishlist/',

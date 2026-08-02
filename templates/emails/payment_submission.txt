@@ -1,0 +1,16 @@
+Manual Payment Submission
+
+A customer has submitted an offline payment and is awaiting verification.
+
+Order:     {{ submission.order.order_number }}
+Customer:  {{ submission.user.email|default:"—" }}
+Method:    {{ submission.method.name|default:"—" }}
+Reference: {{ submission.reference_number }}
+Amount due: ${{ submission.order.grand_total }}
+{% if submission.notes %}Customer notes: {{ submission.notes }}
+{% endif %}
+Review this submission and approve it once the payment is confirmed.
+
+Review in admin: {{ site_url }}/admin/payments/manualpaymentsubmission/{{ submission.pk }}/change/
+
+-- ShopCore

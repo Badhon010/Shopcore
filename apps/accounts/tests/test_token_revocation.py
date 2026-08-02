@@ -11,7 +11,6 @@ the test settings).
 from __future__ import annotations
 
 import pytest
-from django.contrib.auth.tokens import default_token_generator
 from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -19,7 +18,11 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.accounts.services import blacklist_all_refresh_tokens, change_password
+from apps.accounts.services import (
+    blacklist_all_refresh_tokens,
+    change_password,
+    password_reset_token_generator,
+)
 from apps.accounts.tests.factories import UserFactory
 
 
@@ -137,7 +140,7 @@ class TestPasswordResetConfirmRevokesTokens:
 
         # Build a valid password-reset link.
         uid = urlsafe_base64_encode(force_bytes(user.pk))
-        reset_token = default_token_generator.make_token(user)
+        reset_token = password_reset_token_generator.make_token(user)
 
         client = APIClient()
         reset_response = client.post(
@@ -186,7 +189,7 @@ class TestPasswordResetConfirmRevokesTokens:
         refresh2 = _make_refresh_token(user)
 
         uid = urlsafe_base64_encode(force_bytes(user.pk))
-        reset_token = default_token_generator.make_token(user)
+        reset_token = password_reset_token_generator.make_token(user)
 
         client = APIClient()
         client.post(
@@ -202,3 +205,33 @@ class TestPasswordResetConfirmRevokesTokens:
 
         assert _try_refresh(refresh1) == status.HTTP_401_UNAUTHORIZED
         assert _try_refresh(refresh2) == status.HTTP_401_UNAUTHORIZED
+
+    def test_reset_token_survives_login_before_confirm(self):
+        """The reset token must remain valid even if the user logs in after
+        requesting the reset (SIMPLE_JWT UPDATE_LAST_LOGIN=True changes
+        last_login, which would invalidate Django's default token).
+        """
+        from django.utils import timezone
+
+        user = UserFactory()
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        reset_token = password_reset_token_generator.make_token(user)
+
+        # Simulate a login after the link was requested.
+        user.last_login = timezone.now()
+        user.save(update_fields=["last_login"])
+
+        client = APIClient()
+        response = client.post(
+            reverse("accounts:password-reset-confirm"),
+            {
+                "uid": uid,
+                "token": reset_token,
+                "new_password": "resetpassword999!",
+                "new_password_confirm": "resetpassword999!",
+            },
+            format="json",
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        user.refresh_from_db()
+        assert user.check_password("resetpassword999!")

@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from django.db import models
+
 from apps.notifications.constants import NotificationChannel, NotificationStatus, NotificationType
 
 

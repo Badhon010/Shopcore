@@ -12,10 +12,11 @@
  */
 import { axiosClient } from './axiosClient'
 import { endpoints } from './endpoints'
-import type { Order } from '@/types/models'
+import { guestCartToken } from './cart.service'
+import type { Order, PaymentProvider } from '@/types/models'
 
 // ---------------------------------------------------------------------------
-// Place order
+// Place order (registered user)
 // ---------------------------------------------------------------------------
 
 export interface PlaceOrderPayload {
@@ -30,13 +31,44 @@ export interface PlaceOrderPayload {
 }
 
 // ---------------------------------------------------------------------------
+// Place order (guest) — audit H-4
+// ---------------------------------------------------------------------------
+
+/**
+ * Guest checkout replaces the saved-Address FKs with inline identity + a
+ * shipping-address snapshot. The X-Cart-Token header is sent automatically
+ * by the axios client helpers below — the backend uses it to resolve the
+ * guest cart (Cart.session_key) and to attach guest_session_id.
+ */
+export interface GuestAddressPayload {
+  full_name: string
+  phone_number: string
+  address_line_1: string
+  address_line_2?: string
+  city: string
+  state_province: string
+  postal_code: string
+  country: string
+}
+
+export interface GuestPlaceOrderPayload {
+  guest_name: string
+  guest_email: string
+  guest_phone: string
+  shipping_address: GuestAddressPayload
+  coupon_code?: string
+  notes?: string
+  idempotency_key?: string
+}
+
+// ---------------------------------------------------------------------------
 // Initiate payment
 // ---------------------------------------------------------------------------
 
 export interface InitiatePaymentPayload {
   order_number: string
-  /** Payment provider enum value.  Only "MANUAL" is implemented in v1. */
-  provider?: string
+  /** Payment provider enum value (defaults to MANUAL / COD). */
+  provider?: PaymentProvider
 }
 
 export interface InitiatePaymentResponse {
@@ -44,7 +76,7 @@ export interface InitiatePaymentResponse {
   provider: string
   /** Populated for providers that use client-side confirmation (e.g. Stripe). */
   client_secret: string | null
-  /** Populated for redirect-based providers. */
+  /** Populated for redirect-based providers (SSLCommerz / PayPal). */
   redirect_url: string | null
 }
 
@@ -52,19 +84,28 @@ export interface InitiatePaymentResponse {
 // Service object
 // ---------------------------------------------------------------------------
 
+function cartHeaders(): Record<string, string> {
+  const token = guestCartToken.get()
+  return token ? { 'X-Cart-Token': token } : {}
+}
+
 export const checkoutService = {
-  /** Place a new order.  Returns the created Order. */
+  /** Place a new order (registered user).  Returns the created Order. */
   placeOrder: (payload: PlaceOrderPayload) =>
     axiosClient
       .post<Order>(endpoints.orders.checkout(), payload)
       .then((r) => r.data),
 
+  /** Place a new order as a guest (audit H-4). Returns the created Order
+   *  including the one-time `guest_lookup_token` (the DB stores only its hash). */
+  placeGuestOrder: (payload: GuestPlaceOrderPayload) =>
+    axiosClient
+      .post<Order>(endpoints.orders.checkout(), payload, { headers: cartHeaders() })
+      .then((r) => r.data),
+
   /** Initiate payment for an already-placed order. */
   initiatePayment: (payload: InitiatePaymentPayload) =>
     axiosClient
-      .post<InitiatePaymentResponse>(endpoints.payments.initiate(), {
-        provider: 'MANUAL',
-        ...payload,
-      })
+      .post<InitiatePaymentResponse>(endpoints.payments.initiate(), payload)
       .then((r) => r.data),
 }

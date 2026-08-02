@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from apps.common.exceptions import AppBaseException
 
 
@@ -23,4 +24,13 @@ class EmptyCartError(AppBaseException):
 class CheckoutError(AppBaseException):
     code = "CHECKOUT_ERROR"
     default_message = "An error occurred during checkout."
+    status_code = 400
+
+
+class OrderCancellationNotAllowedError(AppBaseException):
+    """Raised when a customer tries to cancel an order that has already been
+    paid. Paid orders must go through the refund flow instead (audit C-1)."""
+
+    code = "ORDER_CANCELLATION_NOT_ALLOWED"
+    default_message = "Only unpaid orders can be cancelled. Paid orders must be refunded instead."
     status_code = 400

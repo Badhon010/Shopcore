@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from django.utils import timezone
+
 import factory
+from django.utils import timezone
 from factory.django import DjangoModelFactory
 
-from apps.accounts.tests.factories import AddressFactory, UserFactory
+from apps.accounts.tests.factories import UserFactory
 from apps.catalog.tests.factories import ProductVariantFactory
 from apps.orders.constants import OrderStatus, PaymentStatus
 from apps.orders.models import Order, OrderItem

@@ -43,6 +43,7 @@ from apps.common.throttling import (
     PasswordResetRequestThrottle,
     RegisterRateThrottle,
     ResendVerificationThrottle,
+    TokenRefreshThrottle,
 )
 
 User = get_user_model()
@@ -72,6 +73,22 @@ class LoginView(TokenObtainPairView):
 
     serializer_class = CustomTokenObtainPairSerializer
     throttle_classes = [LoginRateThrottle]
+
+
+class ThrottledTokenRefreshView(TokenRefreshView):
+    """JWT token refresh with a dedicated throttle scope.
+
+    Token refresh is anonymous, so without a dedicated scope it would share
+    the global per-IP anonymous bucket with catalog/cart traffic and get
+    429-starved the moment that bucket is busy — breaking the app's silent
+    re-auth and logging users out for no reason. Scope: ``token_refresh``.
+
+    Note: setting ``throttle_classes`` REPLACES the global defaults for this
+    view (DRF semantics) — that is intentional: refresh draws only from its
+    own scope and never from the catalog/cart buckets.
+    """
+
+    throttle_classes = [TokenRefreshThrottle]
 
 
 class LogoutView(APIView):
@@ -168,7 +185,7 @@ class PasswordResetConfirmView(APIView):
 
     @extend_schema(summary="Confirm password reset", request=PasswordResetConfirmSerializer, responses={204: None})
     def post(self, request, *args, **kwargs):
-        from django.contrib.auth.tokens import default_token_generator
+        from apps.accounts.services import password_reset_token_generator
 
         serializer = PasswordResetConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -178,13 +195,13 @@ class PasswordResetConfirmView(APIView):
             user = User.objects.get(pk=uid)
         except (User.DoesNotExist, ValueError, TypeError):
             return Response(
-                {"error": {"code": "INVALID_RESET_LINK", "message": "Reset link is invalid.", "details": {}}},
+                {"error": {"code": "INVALID_RESET_LINK", "message": "Reset link is invalid. Please request a new one.", "details": {}}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if not default_token_generator.check_token(user, serializer.validated_data["token"]):
+        if not password_reset_token_generator.check_token(user, serializer.validated_data["token"]):
             return Response(
-                {"error": {"code": "INVALID_RESET_TOKEN", "message": "Reset token is invalid or expired.", "details": {}}},
+                {"error": {"code": "INVALID_RESET_TOKEN", "message": "Reset link is invalid or expired. Please request a new one.", "details": {}}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

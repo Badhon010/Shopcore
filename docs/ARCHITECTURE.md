@@ -107,7 +107,7 @@ sequenceDiagram
     DB-->>Auth: token valid
     Auth-->>MW: user = <User>
     MW->>Throttle: check_throttles(user)
-    Throttle-->>MW: ok (1000/day not exceeded)
+    Throttle-->>MW: ok (rate limit not exceeded)
     MW->>View: CheckoutView.post(request)
     View->>View: CheckoutSerializer.is_valid()
     Note over View: Validates address ownership,\ncoupon validity, idempotency key

@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 from django.contrib import admin
 from django.utils.html import format_html
+
 from apps.inventory.models import StockItem, StockMovement, Warehouse
 
 

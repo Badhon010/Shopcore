@@ -28,7 +28,9 @@ describe('ProductCard', () => {
 
   it('renders formatted price', () => {
     render(<ProductCard product={baseProduct} />)
-    expect(screen.getByText(/\$199\.00/)).toBeInTheDocument()
+    // Store currency is configurable (BDT in production) — assert the amount,
+    // not the currency symbol.
+    expect(screen.getByText(/199\.00/)).toBeInTheDocument()
   })
 
   it('renders category name', () => {
@@ -45,25 +47,28 @@ describe('ProductCard', () => {
     render(
       <ProductCard product={{ ...baseProduct, price: '149.00', original_price: '199.00' }} />
     )
-    expect(screen.getByText('Sale')).toBeInTheDocument()
+    // The card shows the discount as a percentage badge: -25%.
+    expect(screen.getByText('-25%')).toBeInTheDocument()
   })
 
   it('renders original price with strikethrough when discounted', () => {
     render(
       <ProductCard product={{ ...baseProduct, price: '149.00', original_price: '199.00' }} />
     )
-    const originalPrice = screen.getByText(/\$199\.00/)
+    // The sale price (BDT 149.00) and original price (BDT 199.00) are both
+    // rendered; the original must be struck through.
+    const originalPrice = screen.getByText(/199\.00/)
     expect(originalPrice).toHaveClass('line-through')
   })
 
   it('shows out-of-stock badge when not in stock', () => {
     render(<ProductCard product={{ ...baseProduct, in_stock: false, stock: 0 }} />)
-    expect(screen.getByText('Out of stock')).toBeInTheDocument()
+    expect(screen.getByText('Sold out')).toBeInTheDocument()
   })
 
   it('shows low stock badge when stock is low', () => {
     render(<ProductCard product={{ ...baseProduct, stock: 3 }} />)
-    expect(screen.getByText(/Low stock/)).toBeInTheDocument()
+    expect(screen.getByText('Low stock')).toBeInTheDocument()
   })
 
   it('links to the product details page', () => {

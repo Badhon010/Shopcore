@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ordersService, type OrderListParams } from '@/services/api/orders.service'
+import { ordersService, type OrderListParams, type TrackOrderPayload } from '@/services/api/orders.service'
 import { queryKeys } from '@/services/queryKeys'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuthEnabled } from '@/hooks/useAuthEnabled'
@@ -29,7 +29,7 @@ export function useOrder(orderNumber: string) {
 
 export function useTrackOrder() {
   return useMutation({
-    mutationFn: (payload: { order_number: string; email: string }) =>
+    mutationFn: (payload: TrackOrderPayload) =>
       ordersService.trackOrder(payload),
   })
 }

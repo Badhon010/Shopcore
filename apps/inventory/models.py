@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from django.db import models
+
 from apps.common.models import TimeStampedModel
 from apps.inventory.constants import MovementType
 

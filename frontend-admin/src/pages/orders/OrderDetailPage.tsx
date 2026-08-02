@@ -1,11 +1,14 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Clock } from 'lucide-react'
+import { ArrowLeft, Clock, RotateCcw } from 'lucide-react'
 import { ordersService } from '@/services/api/orders.service'
 import { Card, CardTitle, CardHeader } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
+import { Input } from '@/components/ui/Input'
+import { FormField } from '@/components/ui/FormField'
+import { Modal } from '@/components/ui/Modal'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { Skeleton } from '@/components/feedback/Skeleton'
 import { ErrorState } from '@/components/feedback/ErrorState'
@@ -16,17 +19,22 @@ import { ROUTES } from '@/constants/routes'
 import { useState } from 'react'
 import type { ApiError } from '@/types/api'
 
+// Mirrors apps/orders/constants.py ALLOWED_TRANSITIONS. Note: paid orders
+// (PAID/PROCESSING/DELIVERED) can only terminate via REFUNDED — cancelling
+// is reserved for unpaid (PENDING_PAYMENT) orders (audit C-1).
 const TRANSITIONS: Record<string, string[]> = {
-  PENDING: ['CONFIRMED', 'CANCELLED'],
-  CONFIRMED: ['PROCESSING', 'CANCELLED'],
-  PROCESSING: ['SHIPPED', 'CANCELLED'],
+  PENDING_PAYMENT: ['PAID', 'CANCELLED'],
+  PAID: ['PROCESSING', 'REFUNDED'],
+  PROCESSING: ['SHIPPED', 'REFUNDED'],
   SHIPPED: ['DELIVERED'],
   DELIVERED: ['REFUNDED'],
+  CANCELLED: [],
+  REFUNDED: [],
 }
 
 const STATUS_VARIANT = {
   DELIVERED: 'success', SHIPPED: 'info', PROCESSING: 'info',
-  CONFIRMED: 'info', PENDING: 'warning', CANCELLED: 'danger', REFUNDED: 'default',
+  PAID: 'success', PENDING_PAYMENT: 'warning', CANCELLED: 'danger', REFUNDED: 'default',
 } as const
 
 /** Format variant attributes snapshot like "Size: M · Colour: Red" */
@@ -77,6 +85,28 @@ export function OrderDetailPage() {
     },
   })
 
+  // Refund (audit C-2) — full-refund only; the backend rejects partials.
+  const [refundOpen, setRefundOpen] = useState(false)
+  const [refundReason, setRefundReason] = useState('')
+  const refundMutation = useMutation({
+    mutationFn: () => ordersService.refundOrder(orderNumber!, { reason: refundReason || undefined }),
+    onSuccess: () => {
+      toast({ title: 'Order refunded — inventory restocked', variant: 'success' })
+      void qc.invalidateQueries({ queryKey: ['admin-order', orderNumber] })
+      void qc.invalidateQueries({ queryKey: ['admin-orders'] })
+      setRefundOpen(false)
+      setRefundReason('')
+    },
+    onError: (err) => {
+      const apiErr = err as unknown as ApiError
+      toast({ title: 'Refund failed', description: apiErr.message, variant: 'destructive' })
+    },
+  })
+
+  // Refundable from PAID / PROCESSING / DELIVERED — SHIPPED must be
+  // delivered first (ALLOWED_TRANSITIONS: SHIPPED only reaches DELIVERED).
+  const isPaid = ['PAID', 'PROCESSING', 'DELIVERED'].includes(order?.status ?? '')
+
   if (isLoading) return (
     <div className="space-y-5">
       <Skeleton className="h-6 w-64" />
@@ -110,7 +140,7 @@ export function OrderDetailPage() {
             {order.status}
           </Badge>
         </div>
-        {/* Cancel shortcut */}
+        {/* Cancel shortcut — only for unpaid orders */}
         {order.can_cancel && (
           <Button
             variant="secondary"
@@ -120,6 +150,18 @@ export function OrderDetailPage() {
             className="text-danger border-danger/30 hover:bg-danger-subtle"
           >
             Cancel order
+          </Button>
+        )}
+        {/* Refund shortcut — paid orders only; uses the C-2 refund flow */}
+        {isPaid && order.status !== 'REFUNDED' && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setRefundOpen(true)}
+            className="text-success border-success/30 hover:bg-success-subtle"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Refund
           </Button>
         )}
       </div>
@@ -252,7 +294,16 @@ export function OrderDetailPage() {
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-text-muted">Status</span>
-                <Badge variant={order.payment_status === 'PAID' ? 'success' : 'warning'}>{order.payment_status}</Badge>
+                <Badge
+                  variant={
+                    order.payment_status === 'PAID' ? 'success'
+                    : order.payment_status === 'REFUNDED' ? 'default'
+                    : order.payment_status === 'FAILED' ? 'danger'
+                    : 'warning'
+                  }
+                >
+                  {order.payment_status}
+                </Badge>
               </div>
               <div className="flex justify-between">
                 <span className="text-text-muted">Placed</span>
@@ -268,6 +319,44 @@ export function OrderDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Refund modal — full refund only (backend rejects partials) */}
+      <Modal
+        open={refundOpen}
+        onClose={() => setRefundOpen(false)}
+        title={`Refund order #${order.order_number}`}
+        description="This will refund the full order total, mark the payment refunded, and restock inventory."
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg bg-background-subtle p-3 text-sm">
+            <div className="flex justify-between text-text-secondary">
+              <span>Refund amount</span>
+              <span className="font-semibold text-text-primary">{formatCurrency(order.grand_total)}</span>
+            </div>
+          </div>
+          <FormField label="Reason (optional)" htmlFor="refund-reason">
+            <Input
+              id="refund-reason"
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.target.value)}
+              placeholder="e.g. Customer request / damaged item"
+            />
+          </FormField>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="secondary" size="sm" onClick={() => setRefundOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              isLoading={refundMutation.isPending}
+              onClick={() => refundMutation.mutate()}
+            >
+              <RotateCcw className="h-4 w-4" /> Refund full amount
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

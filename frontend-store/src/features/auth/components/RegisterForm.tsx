@@ -34,7 +34,7 @@ type RegisterFormData = z.infer<typeof registerSchema>
 function getPasswordStrength(pw: string): number {
   if (!pw) return 0
   let score = 0
-  if (pw.length >= 8) score += 25
+  if (pw.length >= 10) score += 25
   if (/[A-Z]/.test(pw)) score += 25
   if (/[0-9]/.test(pw)) score += 25
   if (/[^A-Za-z0-9]/.test(pw)) score += 25

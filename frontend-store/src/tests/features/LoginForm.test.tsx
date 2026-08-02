@@ -27,7 +27,9 @@ describe('LoginForm', () => {
   it('renders email and password fields', () => {
     render(<LoginForm />)
     expect(screen.getByRole('textbox', { name: /email/i })).toBeInTheDocument()
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
+    // /^Password/ anchors to the label — /password/i would also match the
+    // "Show password" toggle button's aria-label.
+    expect(screen.getByLabelText(/^Password/)).toBeInTheDocument()
   })
 
   it('renders submit button', () => {

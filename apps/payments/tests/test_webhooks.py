@@ -6,11 +6,6 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.orders.constants import OrderStatus
-from apps.orders.tests.factories import OrderFactory
-from apps.payments.constants import PaymentStatus
-from apps.payments.tests.factories import PaymentFactory
-
 
 @pytest.fixture
 def api_client():

@@ -47,7 +47,7 @@ class CategoryTreeView(APIView):
 
     @extend_schema(summary="Get category tree")
     def get(self, request, *args, **kwargs):
-        tree = get_category_tree()
+        tree = get_category_tree(request=request)
         return Response(tree)
 
 

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from apps.common.exceptions import AppBaseException
 
 

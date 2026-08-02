@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.accounts.views import (
     AddressDetailView,
@@ -27,6 +26,7 @@ from apps.accounts.views import (
     RegisterView,
     ResendVerificationEmailView,
     SetDefaultAddressView,
+    ThrottledTokenRefreshView,
     VerifyEmailView,
 )
 
@@ -37,7 +37,7 @@ urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
     path("login/", LoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),
-    path("token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
+    path("token/refresh/", ThrottledTokenRefreshView.as_view(), name="token-refresh"),
     # Profile
     path("me/", MeView.as_view(), name="me"),
     path("me/change-password/", ChangePasswordView.as_view(), name="change-password"),

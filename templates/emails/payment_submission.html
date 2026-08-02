@@ -1,0 +1,16 @@
+{% extends "emails/base.html" %}
+{% block subject %}Manual Payment Submitted — {{ submission.order.order_number }}{% endblock %}
+{% block content %}
+<h2>Manual Payment Submission</h2>
+<p>A customer has submitted an offline payment and is awaiting verification.</p>
+<table class="order-table">
+  <tr><th>Order</th><td>{{ submission.order.order_number }}</td></tr>
+  <tr><th>Customer</th><td>{{ submission.user.email|default:"—" }}</td></tr>
+  <tr><th>Method</th><td>{{ submission.method.name|default:"—" }}</td></tr>
+  <tr><th>Reference</th><td>{{ submission.reference_number }}</td></tr>
+  <tr><th>Amount due</th><td>${{ submission.order.grand_total }}</td></tr>
+  {% if submission.notes %}<tr><th>Customer notes</th><td>{{ submission.notes }}</td></tr>{% endif %}
+</table>
+<p>Review this submission and approve it once the payment is confirmed.</p>
+<p><a href="{{ site_url }}/admin/payments/manualpaymentsubmission/{{ submission.pk }}/change/" class="btn">Review in Admin</a></p>
+{% endblock %}

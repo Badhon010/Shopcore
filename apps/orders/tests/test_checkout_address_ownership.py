@@ -19,7 +19,6 @@ from apps.cart.models import Cart, CartItem
 from apps.inventory.models import Warehouse
 from apps.inventory.tests.factories import StockItemFactory
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -120,16 +119,39 @@ class TestCheckoutAddressOwnership:
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_unauthenticated_checkout_is_rejected(self):
-        """Unauthenticated requests must be rejected (401) before any
-        address lookup occurs."""
+    def test_unauthenticated_registered_style_checkout_is_rejected(self):
+        """An unauthenticated request using the REGISTERED checkout shape
+        (shipping_address_id) must be rejected — the guest serializer does not
+        accept an address FK (audit H-4)."""
         other_user = UserFactory()
         other_address = AddressFactory(user=other_user)
 
         response = APIClient().post(
             _url(), {"shipping_address_id": other_address.pk}, format="json"
         )
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_unauthenticated_checkout_without_cart_token_rejected(self):
+        """A guest checkout without an X-Cart-Token header must be rejected
+        (no anonymous cart exists to check out)."""
+        payload = {
+            "guest_name": "Guest",
+            "guest_email": "guest@example.com",
+            "guest_phone": "+8801711111111",
+            "shipping_address": {
+                "full_name": "Guest",
+                "phone_number": "+8801711111111",
+                "address_line_1": "1 Road",
+                "city": "Dhaka",
+                "state_province": "Dhaka",
+                "postal_code": "1205",
+                "country": "BD",
+            },
+        }
+
+        response = APIClient().post(_url(), payload, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["error"]["code"] == "CART_TOKEN_REQUIRED"
 
     def test_view_defense_in_depth_rejects_other_users_address(self):
         """Even if the serializer ownership check were bypassed, the view's

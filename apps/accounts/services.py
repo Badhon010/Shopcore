@@ -6,7 +6,6 @@ import logging
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.db import transaction
-from django.utils import timezone
 
 from apps.accounts.models import Address
 
@@ -26,6 +25,24 @@ class EmailVerificationTokenGenerator(PasswordResetTokenGenerator):
 
 
 email_verification_token_generator = EmailVerificationTokenGenerator()
+
+
+class ResetPasswordTokenGenerator(PasswordResetTokenGenerator):
+    """Token generator for password reset links.
+
+    Unlike Django's ``default_token_generator``, the token hash does NOT
+    include ``user.last_login``. With ``SIMPLE_JWT.UPDATE_LAST_LOGIN = True``,
+    logging in after requesting a reset link would otherwise silently
+    invalidate the token — the user sees a mysterious 400 and cannot reset
+    their password. Changing the password still invalidates outstanding
+    tokens because the hash includes ``user.password``.
+    """
+
+    def _make_hash_value(self, user, timestamp: int) -> str:
+        return f"{user.pk}{timestamp}{user.password}"
+
+
+password_reset_token_generator = ResetPasswordTokenGenerator()
 
 
 def register_user(email: str, password: str, first_name: str = "", last_name: str = "") -> User:
@@ -191,5 +208,75 @@ def verify_email(user: User, token: str) -> bool:
     if email_verification_token_generator.check_token(user, token):
         user.is_email_verified = True
         user.save(update_fields=["is_email_verified"])
+        # Verified email is proof of ownership → claim any previous guest
+        # orders placed with this email (audit H-4 "verified automatic claim").
+        claim_guest_orders(user)
         return True
     return False
+
+
+def claim_guest_orders(user: User, by_phone: bool = False) -> int:
+    """Claim a user's previous guest orders (audit H-4).
+
+    Called automatically after email verification and on login (email is
+    verified at that point). Guest orders whose guest_email matches the user's
+    verified email are re-attached to the account (Order.user set), so the
+    customer sees their full history without duplicate orders.
+
+    Args:
+        user: The verified user claiming guest orders.
+        by_phone: Also claim orders that match the user's phone number only
+            (used on login when phone matches). Defaults to False — email
+            matching is the primary verified identity.
+
+    Returns:
+        The number of claimed orders.
+    """
+    from django.db.models import Q
+
+    from apps.orders.models import Order
+
+    if not user.is_email_verified and not by_phone:
+        # Never claim orders for an unverified identity (audit H-4 rule).
+        return 0
+
+    qs = Order.objects.filter(user__isnull=True).filter(
+        Q(guest_email__iexact=user.email)
+    )
+    if by_phone and user.phone_number:
+        qs = qs | Order.objects.filter(
+            user__isnull=True, guest_phone=user.phone_number
+        )
+
+    claimed = 0
+    with transaction.atomic():
+        for order in qs.distinct().iterator():
+            # Guard: never overwrite an existing owner.
+            if order.user_id is None:
+                order.user = user
+                order.save(update_fields=["user", "updated_at"])
+                claimed += 1
+
+    if claimed:
+        logger.info(
+            "Claimed %d guest order(s) for user %s", claimed, user.email
+        )
+    return claimed
+
+
+def merge_guest_cart_on_login(user: User, session_key: str | None) -> None:
+    """Merge a guest cart into the user's cart after login (audit H-4).
+
+    Called from the login serializer when an X-Cart-Token header is present.
+    Never raises — a missing/invalid guest cart is a silent no-op.
+    """
+    if not session_key:
+        return
+    try:
+        from apps.cart.services import merge_guest_cart_into_user_cart
+        merge_guest_cart_into_user_cart(user, session_key[:40])
+    except Exception:
+        logger.warning(
+            "Failed to merge guest cart (session=%s) for user %s",
+            session_key, user.email, exc_info=True,
+        )

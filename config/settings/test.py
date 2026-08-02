@@ -35,7 +35,10 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {  # noqa: F405
     "login": "10000/min",
     "register": "10000/min",
     "password_reset_request": "10000/min",
+    "resend_verification": "10000/min",
     "coupon_apply": "10000/min",
+    "order_track": "10000/min",
+    "token_refresh": "10000/min",
 }
 
 # Silence whitenoise in tests

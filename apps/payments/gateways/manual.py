@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 
+from apps.payments.constants import PaymentProvider
 from apps.payments.gateways.base import PaymentGateway, PaymentIntent
 
 logger = logging.getLogger("shopcore.payments.manual")
@@ -22,36 +23,28 @@ class ManualGateway(PaymentGateway):
     - Development/testing without a real gateway
     """
 
+    provider = PaymentProvider.MANUAL
+
     def initiate(self, order, amount: Decimal, currency: str) -> PaymentIntent:
         """Create a Payment record and immediately mark it succeeded.
 
-        Payment creation and the order-status transition (with its inventory
-        side effects) happen inside ONE transaction.atomic() block. If the
-        transition fails for any reason, the payment creation is rolled back
-        too — a payment can never be left SUCCEEDED while the order stays
-        unpaid.
+        Delegates to payments.services.record_successful_payment(), the single
+        source of truth for confirming a payment: Payment creation and the
+        order-status transition (with its inventory side effects) happen
+        inside ONE transaction.atomic() block, so a failed transition rolls
+        the payment row back too — a payment can never be left SUCCEEDED
+        while the order stays unpaid.
         """
-        from django.db import transaction
-        from apps.payments.models import Payment
-        from apps.payments.constants import PaymentProvider, PaymentStatus
-        from apps.orders.constants import OrderStatus
-        from apps.orders.services import transition_order_status
+        from apps.payments.constants import PaymentProvider
+        from apps.payments.services import record_successful_payment
 
-        with transaction.atomic():
-            payment = Payment.objects.create(
-                order=order,
-                amount=amount,
-                currency=currency,
-                provider=PaymentProvider.MANUAL,
-                status=PaymentStatus.SUCCEEDED,
-                raw_response={"note": "Manual payment — marked succeeded immediately."},
-            )
-            logger.info("Manual payment %s created for order %s", payment.pk, order.order_number)
-
-            # Trigger order status transition — NOT wrapped in a swallowing
-            # except: on failure this must propagate so the outer atomic()
-            # rolls back the Payment row created above.
-            transition_order_status(order, OrderStatus.PAID, actor=None, note="Manual payment confirmed.")
+        payment = record_successful_payment(
+            order,
+            provider=PaymentProvider.MANUAL,
+            amount=amount,
+            currency=currency,
+            raw_response={"note": "Manual payment — marked succeeded immediately."},
+        )
 
         return PaymentIntent(
             payment_id=payment.pk,

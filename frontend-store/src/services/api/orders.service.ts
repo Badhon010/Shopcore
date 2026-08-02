@@ -5,7 +5,12 @@ import type { PaginatedResponse, ListParams } from '@/types/api'
 
 export interface TrackOrderPayload {
   order_number: string
-  email: string
+  /** Email used at checkout (registered orders; optional for guests). */
+  email?: string
+  /** Phone used at checkout — enough on its own for guest orders (audit H-4). */
+  phone_number?: string
+  /** One-time guest lookup token (guest orders only). */
+  lookup_token?: string
 }
 
 export interface OrderListParams extends ListParams {

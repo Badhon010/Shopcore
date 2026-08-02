@@ -1,16 +1,27 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { cartService, type AddToCartPayload, type UpdateCartItemPayload } from '@/services/api/cart.service'
+import { cartService, guestCartToken, type AddToCartPayload, type UpdateCartItemPayload } from '@/services/api/cart.service'
 import { queryKeys } from '@/services/queryKeys'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuthEnabled } from '@/hooks/useAuthEnabled'
 import type { Cart } from '@/types/models'
 
 export function useCart() {
-  const enabled = useAuthEnabled()
+  const authed = useAuthEnabled()
+  // Guest carts (audit H-4) are enabled when a cart token exists — the
+  // backend resolves the cart via the X-Cart-Token header. Without this,
+  // guests would never see a cart on the storefront.
+  const hasGuestToken = !!guestCartToken.get()
+  const enabled = authed || hasGuestToken
   return useQuery({
     queryKey: queryKeys.cart.detail(),
     queryFn: ({ signal }) => cartService.getCart({ signal }),
-    staleTime: 0,
+    // staleTime: 0 made the cart permanently stale, so the global
+    // refetchOnWindowFocus fired a cart request on every tab focus and every
+    // remount — together with the homepage's catalog GETs and CORS preflights
+    // this exhausted the backend's per-IP anonymous throttle bucket (429s).
+    // Freshness is still guaranteed by optimistic updates + invalidation on
+    // every mutation (add/update/remove/checkout), so 30s staleness is safe.
+    staleTime: 30_000,
     retry: false,
     enabled,
   })
@@ -19,9 +30,16 @@ export function useCart() {
 export function useAddToCart() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const authed = useAuthEnabled()
 
   return useMutation({
-    mutationFn: (payload: AddToCartPayload) => cartService.addItem(payload),
+    // Guests (audit H-4): ensure a cart token exists before the first add so
+    // the X-Cart-Token header is present — the backend rejects token-less
+    // guest adds with 401.
+    mutationFn: (payload: AddToCartPayload) => {
+      if (!authed) guestCartToken.ensure()
+      return cartService.addItem(payload)
+    },
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.cart.detail(), data)
       toast({ title: 'Added to cart', variant: 'success' })
@@ -145,6 +163,7 @@ export function useRemoveCoupon() {
         const total = (Number(previousCart.total) + discount).toString()
         return { ...previousCart, coupon: undefined, discount: undefined, total }
       })
+      return Promise.resolve()
     },
   })
 }

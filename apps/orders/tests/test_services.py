@@ -78,8 +78,9 @@ class TestTransitionOrderStatus:
 @pytest.mark.django_db
 class TestOrderPermissions:
     def test_user_cannot_see_other_users_orders(self):
-        from rest_framework.test import APIClient
         from django.urls import reverse
+        from rest_framework.test import APIClient
+
         from apps.accounts.tests.factories import UserFactory
         from apps.orders.tests.factories import OrderFactory
 

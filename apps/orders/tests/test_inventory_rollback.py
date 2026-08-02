@@ -13,10 +13,8 @@ from apps.cart.models import Cart, CartItem
 from apps.inventory.models import Warehouse
 from apps.inventory.tests.factories import StockItemFactory
 from apps.orders.constants import OrderStatus
-from apps.orders.models import Order
 from apps.orders.services import place_order, transition_order_status
 from apps.orders.tests.factories import OrderFactory, OrderItemFactory
-
 
 # ---------------------------------------------------------------------------
 # Helpers

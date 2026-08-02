@@ -18,6 +18,10 @@ export const ROUTES = {
   ORDERS:          '/orders',
   ORDER_DETAIL:    (orderNumber: string) => `/orders/${orderNumber}`,
 
+  // Payments
+  PAYMENT_METHODS:  '/payments/methods',
+  PAYMENT_SUBMISSIONS: '/payments/submissions',
+
   // Customers
   CUSTOMERS:       '/customers',
   CUSTOMER_DETAIL: (id: string) => `/customers/${id}`,

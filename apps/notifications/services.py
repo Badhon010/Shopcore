@@ -141,9 +141,9 @@ def send_email_verification(user) -> None:
 
 def send_password_reset_email(user) -> None:
     """Send a password reset link to the user."""
-    from django.contrib.auth.tokens import default_token_generator
+    from apps.accounts.services import password_reset_token_generator
 
-    token = default_token_generator.make_token(user)
+    token = password_reset_token_generator.make_token(user)
     uid = urlsafe_base64_encode(force_bytes(user.pk))
 
     _send_email(
@@ -157,12 +157,26 @@ def send_password_reset_email(user) -> None:
     )
 
 
+def _order_recipient_email(order) -> str:
+    """Return the email an order notification should go to.
+
+    Registered orders use the account email; guest orders (user=None) use the
+    guest email captured at checkout (audit H-4).
+    """
+    if order.user is not None:
+        return order.user.email
+    return order.guest_email or ""
+
+
 def send_order_confirmation_email(order) -> None:
-    """Send an order confirmation email to the customer."""
+    """Send an order confirmation email to the customer (registered or guest)."""
+    recipient = _order_recipient_email(order)
+    if not recipient:
+        return
     _send_email(
         user=order.user,
         notification_type=NotificationType.ORDER_CONFIRMATION,
-        recipient_email=order.user.email,
+        recipient_email=recipient,
         subject=f"Order Confirmed — {order.order_number}",
         html_template="emails/order_confirmation.html",
         txt_template="emails/order_confirmation.txt",
@@ -193,11 +207,15 @@ def send_order_status_notification(order, new_status: str) -> None:
     if not entry:
         return
 
+    recipient = _order_recipient_email(order)
+    if not recipient:
+        return
+
     notification_type, subject, html_template, txt_template = entry
     _send_email(
         user=order.user,
         notification_type=notification_type,
-        recipient_email=order.user.email,
+        recipient_email=recipient,
         subject=subject,
         html_template=html_template,
         txt_template=txt_template,
@@ -239,4 +257,29 @@ def send_contact_received(message) -> None:
         html_template="emails/contact_received.html",
         txt_template="emails/contact_received.txt",
         context={"message": message, "site_url": _admin_url()},
+    )
+
+
+def send_payment_submission_notification(submission) -> None:
+    """Send an admin notification email when a customer submits a manual
+    payment for verification.
+
+    Sends to ADMIN_EMAIL if configured; skips silently otherwise.
+    """
+    admin_email = getattr(settings, "ADMIN_EMAIL", "")
+    if not admin_email:
+        logger.debug(
+            "ADMIN_EMAIL not set — skipping payment-submission notification for %s",
+            submission.order.order_number,
+        )
+        return
+
+    _send_email(
+        user=None,
+        notification_type=NotificationType.PAYMENT_SUBMISSION,
+        recipient_email=admin_email,
+        subject=f"Manual Payment Submitted — {submission.order.order_number}",
+        html_template="emails/payment_submission.html",
+        txt_template="emails/payment_submission.txt",
+        context={"submission": submission, "site_url": _admin_url()},
     )

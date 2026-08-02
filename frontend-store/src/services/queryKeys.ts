@@ -23,6 +23,9 @@ export const queryKeys = {
   cart: {
     detail: () => ['cart'] as const,
   },
+  payments: {
+    methods: () => ['payments', 'methods'] as const,
+  },
   orders: {
     list: (params?: ListParams & Record<string, unknown>) =>
       ['orders', params ?? {}] as const,

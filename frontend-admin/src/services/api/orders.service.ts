@@ -38,4 +38,23 @@ export const ordersService = {
     const res = await axiosClient.post<Order>(endpoints.orders.cancel(orderNumber))
     return res.data
   },
+
+  /** Staff refund of a paid order (audit C-2). Returns the created Refund. */
+  async refundOrder(orderNumber: string, payload: { reason?: string; amount?: string }): Promise<Refund> {
+    const res = await axiosClient.post<Refund>(endpoints.orders.refund(orderNumber), payload)
+    return res.data
+  },
+}
+
+export interface Refund {
+  id: string
+  order: string
+  order_number: string
+  amount: string
+  currency: string
+  reason?: string
+  status: 'SUCCEEDED' | 'PENDING' | 'FAILED'
+  created_by_email?: string | null
+  refunded_at?: string
+  created_at: string
 }

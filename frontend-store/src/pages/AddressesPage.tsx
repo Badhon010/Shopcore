@@ -10,7 +10,6 @@ import { EmptyState } from '@/components/feedback/EmptyState'
 import { AddressForm } from '@/features/account/components/AddressForm'
 import { useAddresses, useCreateAddress, useUpdateAddress, useDeleteAddress } from '@/features/account/hooks/useProfile'
 import type { Address } from '@/types/models'
-import type { AddressPayload } from '@/services/api/addresses.service'
 
 export function AddressesPage() {
   const { data: addresses, isLoading } = useAddresses()

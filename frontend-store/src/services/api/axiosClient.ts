@@ -143,23 +143,44 @@ function normalizeError(error: AxiosError): ApiError {
   }
 
   const status = error.response.status
-  const data = error.response.data as Record<string, unknown>
+  const data = error.response.data as Record<string, unknown> | undefined
 
-  // DRF field-level errors: { field_name: ["message"] }
   const fieldErrors: Record<string, string[]> = {}
   let message = 'An error occurred. Please try again.'
   let code: string | undefined
 
   if (typeof data === 'object' && data !== null) {
-    for (const [key, value] of Object.entries(data)) {
-      if (key === 'detail' && typeof value === 'string') {
-        message = value
-      } else if (key === 'code' && typeof value === 'string') {
-        code = value
-      } else if (key === 'non_field_errors' && Array.isArray(value)) {
-        message = (value as string[]).join(' ')
-      } else if (Array.isArray(value)) {
-        fieldErrors[key] = value as string[]
+    // Project-wide error envelope: { error: { code, message, details } }
+    const envelope = data['error'] as Record<string, unknown> | undefined
+    if (envelope && typeof envelope === 'object') {
+      if (typeof envelope['code'] === 'string') code = envelope['code']
+      if (typeof envelope['message'] === 'string') message = envelope['message']
+      // DRF validation details: { field_name: ["message"] } — surface inline.
+      // Business codes (e.g. EMAIL_NOT_VERIFIED) are carried inside details.
+      const details = envelope['details']
+      if (details && typeof details === 'object' && !Array.isArray(details)) {
+        const entries = details as Record<string, unknown>
+        if (code === 'VALIDATION_ERROR' && typeof entries['code'] === 'string') {
+          code = entries['code']
+        }
+        for (const [key, value] of Object.entries(entries)) {
+          if (['detail', 'code', 'message', 'non_field_errors'].includes(key)) continue
+          if (Array.isArray(value)) fieldErrors[key] = value.map(String)
+          else if (typeof value === 'string') fieldErrors[key] = [value]
+        }
+      }
+    } else {
+      // Plain DRF shapes (no envelope): { detail }, { non_field_errors }, flat fields.
+      if (typeof data['detail'] === 'string') {
+        message = data['detail']
+      } else if (typeof data['code'] === 'string') {
+        code = data['code']
+      } else if (Array.isArray(data['non_field_errors'])) {
+        message = (data['non_field_errors'] as string[]).join(' ')
+      }
+      for (const [key, value] of Object.entries(data)) {
+        if (['detail', 'code', 'message', 'non_field_errors', 'error'].includes(key)) continue
+        if (Array.isArray(value)) fieldErrors[key] = value.map(String)
       }
     }
   }

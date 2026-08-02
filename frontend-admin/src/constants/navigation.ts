@@ -8,6 +8,7 @@ import {
   ShoppingCart,
   Users,
   Ticket,
+  CreditCard,
   Star,
   Megaphone,
   Mail,
@@ -52,9 +53,11 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Commerce',
     items: [
-      { label: 'Orders',    href: ROUTES.ORDERS,    icon: ShoppingCart },
-      { label: 'Customers', href: ROUTES.CUSTOMERS, icon: Users },
-      { label: 'Coupons',   href: ROUTES.COUPONS,   icon: Ticket },
+      { label: 'Orders',          href: ROUTES.ORDERS,             icon: ShoppingCart },
+      { label: 'Payments',        href: ROUTES.PAYMENT_SUBMISSIONS, icon: CreditCard },
+      { label: 'Payment Methods', href: ROUTES.PAYMENT_METHODS,    icon: Ticket },
+      { label: 'Customers',       href: ROUTES.CUSTOMERS,          icon: Users },
+      { label: 'Coupons',         href: ROUTES.COUPONS,            icon: Ticket },
     ],
   },
   {

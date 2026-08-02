@@ -9,7 +9,7 @@
 // design accept raw API responses (typed as `any` by the generic axios call
 // until proper response DTOs are introduced). All output types are enforced
 // at the return-type level. Track typing as a follow-up task.
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 import type { Cart, CartItem, Category, Product, ProductImage, ProductVariant, WishlistItem } from '@/types/models'
 
 // Raw shapes as returned by Django REST Framework — intentionally loose

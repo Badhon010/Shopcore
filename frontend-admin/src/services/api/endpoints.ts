@@ -59,6 +59,20 @@ export const endpoints = {
     detail: (orderNumber: string) => `/orders/${orderNumber}/`,
     cancel: (orderNumber: string) => `/orders/${orderNumber}/cancel/`,
     transition: (orderNumber: string) => `/orders/${orderNumber}/transition/`,
+    /** POST — staff refund for a paid order. Body: { reason?, amount? } */
+    refund: (orderNumber: string) => `/orders/${orderNumber}/refund/`,
+  },
+
+  // ── Admin: Payments ────────────────────────────────────────
+  payments: {
+    /** GET — staff payment-method list. POST — create. */
+    methods: () => '/payments/admin/methods/',
+    /** GET/PATCH/DELETE — single payment method. */
+    method: (pk: string) => `/payments/admin/methods/${pk}/`,
+    /** GET — manual payment submissions queue (filters: status, order_number). */
+    submissions: () => '/payments/admin/submissions/',
+    /** POST — approve/reject a submission. Body: { approve, admin_note? } */
+    submissionReview: (pk: string) => `/payments/admin/submissions/${pk}/review/`,
   },
 
   // ── Admin: Inventory ───────────────────────────────────────

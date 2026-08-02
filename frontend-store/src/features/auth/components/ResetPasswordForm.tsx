@@ -2,7 +2,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useState } from 'react'
-import { CheckCircle } from 'lucide-react'
+import { CheckCircle, Link2Off } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { FormField } from '@/components/ui/FormField'
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { passwordSchema } from '@/utils/validators'
 import { authService } from '@/services/api/auth.service'
+import { applyServerErrors } from '@/services/api/axiosClient'
 import { ROUTES } from '@/constants/routes'
 import type { ApiError } from '@/types/api'
 
@@ -25,9 +26,12 @@ const schema = z
 
 type FormData = z.infer<typeof schema>
 
+const LINK_ERROR_CODES = new Set(['INVALID_RESET_TOKEN', 'INVALID_RESET_LINK'])
+
 export function ResetPasswordForm() {
   const { uid = '', token = '' } = useParams()
   const [success, setSuccess] = useState(false)
+  const [linkInvalid, setLinkInvalid] = useState(!uid || !token)
 
   const mutation = useMutation({
     mutationFn: (data: FormData) => authService.resetPassword({ uid, token, ...data }),
@@ -42,7 +46,13 @@ export function ResetPasswordForm() {
       await mutation.mutateAsync(data)
       setSuccess(true)
     } catch (err) {
-      form.setError('root', { message: (err as ApiError).message })
+      const apiErr = err as ApiError
+      if (LINK_ERROR_CODES.has(apiErr.code ?? '')) {
+        setLinkInvalid(true)
+      }
+      // Surface DRF field errors (e.g. password too weak) on their inputs.
+      applyServerErrors(form.setError, apiErr.fieldErrors)
+      form.setError('root', { message: apiErr.message })
     }
   }
 
@@ -66,11 +76,28 @@ export function ResetPasswordForm() {
       <div className="mb-6">
         <h1 className="text-heading-md font-semibold text-text-primary">Set new password</h1>
       </div>
-      {form.formState.errors.root && (
-        <div role="alert" className="rounded-lg bg-danger-subtle border border-danger/20 p-3 text-body-sm text-danger">
-          {form.formState.errors.root.message}
+
+      {(linkInvalid || form.formState.errors.root) && (
+        <div role="alert" className="space-y-2 rounded-lg bg-danger-subtle border border-danger/20 p-3 text-body-sm text-danger">
+          <p className="flex items-start gap-2">
+            <Link2Off className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              {linkInvalid && !form.formState.errors.root
+                ? 'This reset link is invalid or has expired.'
+                : form.formState.errors.root?.message}
+            </span>
+          </p>
+          {linkInvalid && (
+            <Link
+              to={ROUTES.FORGOT_PASSWORD}
+              className="inline-block font-medium text-danger underline hover:opacity-80"
+            >
+              Request a new reset link
+            </Link>
+          )}
         </div>
       )}
+
       <FormField label="New password" required error={form.formState.errors.new_password?.message}>
         {(id, errorId) => (
           <Input id={id} type="password" error={!!form.formState.errors.new_password} errorId={errorId} {...form.register('new_password')} />

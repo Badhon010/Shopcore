@@ -13,7 +13,14 @@ User = get_user_model()
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """Extends the default JWT serializer to include user info in the response."""
+    """Extends the default JWT serializer to include user info in the response.
+
+    On successful login:
+    - Claims the user's previous guest orders placed with this verified email
+      (audit H-4 "verified automatic claim"), and
+    - Merges a guest cart supplied via the X-Cart-Token header into the
+      user's cart.
+    """
 
     def validate(self, attrs: dict) -> dict:
         data = super().validate(attrs)
@@ -29,7 +36,27 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                     "code": "EMAIL_NOT_VERIFIED",
                 }
             )
+
+        # Post-login side effects (verified identity): claim guest orders and
+        # merge the guest cart. Both are safe no-ops when nothing to do, and
+        # login must never fail because a claim/merge hiccuped.
+        claimed = 0
+        try:
+            from apps.accounts.services import (
+                claim_guest_orders,
+                merge_guest_cart_on_login,
+            )
+            claimed = claim_guest_orders(self.user)
+            session_key = ""
+            request = self.context.get("request")
+            if request is not None:
+                session_key = request.META.get("HTTP_X_CART_TOKEN", "") or ""
+            merge_guest_cart_on_login(self.user, session_key or None)
+        except Exception:
+            claimed = 0
+
         data["user"] = UserSerializer(self.user).data
+        data["guest_orders_claimed"] = claimed
         return data
 
 

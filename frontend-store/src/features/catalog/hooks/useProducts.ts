@@ -91,6 +91,7 @@ export function useFeaturedProducts() {
   return useQuery({
     queryKey: queryKeys.catalog.featured(),
     queryFn: ({ signal }) => catalogService.getFeaturedProducts({ signal }),
+    staleTime: 5 * 60 * 1000,
   })
 }
 
@@ -98,6 +99,7 @@ export function useBestsellers() {
   return useQuery({
     queryKey: queryKeys.catalog.bestsellers(),
     queryFn: ({ signal }) => catalogService.getBestsellers({ signal }),
+    staleTime: 5 * 60 * 1000,
   })
 }
 

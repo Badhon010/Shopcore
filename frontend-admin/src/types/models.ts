@@ -134,9 +134,10 @@ export interface Banner {
 }
 
 // ── Orders ───────────────────────────────────────────────────
+// Mirrors apps/orders/constants.py OrderStatus (ALL_CAPS).
 export type OrderStatus =
-  | 'PENDING'
-  | 'CONFIRMED'
+  | 'PENDING_PAYMENT'
+  | 'PAID'
   | 'PROCESSING'
   | 'SHIPPED'
   | 'DELIVERED'
@@ -581,6 +582,54 @@ export interface NewsletterAnalytics {
   }>
 }
 
+
+// ── Payments ─────────────────────────────────────────────────
+export type PaymentProvider =
+  | 'MANUAL'
+  | 'BANK_TRANSFER'
+  | 'BKASH'
+  | 'NAGAD'
+  | 'ROCKET'
+  | 'SSLCOMMERZ'
+  | 'STRIPE'
+  | 'PAYPAL'
+
+export interface PaymentMethod {
+  id: string
+  provider: PaymentProvider
+  name: string
+  description?: string
+  is_enabled: boolean
+  sort_order: number
+  instructions?: string
+  account_number?: string
+  account_name?: string
+  qr_image?: string | null
+  payment_notes?: string
+  is_sandbox: boolean
+  gateway_config?: Record<string, unknown> | null
+  /** Whether the gateway's env credentials are configured (H-3). */
+  is_configured: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ManualPaymentSubmission {
+  id: string
+  order: string
+  order_number: string
+  customer_email?: string | null
+  method_provider?: string | null
+  method_name?: string | null
+  reference_number: string
+  receipt?: string | null
+  receipt_url?: string | null
+  notes?: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  admin_note?: string
+  reviewed_at?: string | null
+  created_at: string
+}
 
 // ── Contact ───────────────────────────────────────────────────
 export type ContactStatus = 'NEW' | 'IN_PROGRESS' | 'RESOLVED'

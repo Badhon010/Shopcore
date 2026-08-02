@@ -1,23 +1,38 @@
 from __future__ import annotations
+
 import logging
-from decimal import Decimal
 from datetime import timedelta
+from decimal import Decimal
 
 from django.db.models import Count, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
 from apps.accounts.models import Address
 from apps.cart.services import get_or_create_cart
+from apps.common.pagination import StandardResultsSetPagination
+from apps.common.permissions import IsStaffUser
+from apps.common.throttling import OrderTrackThrottle
 from apps.orders.exceptions import OrderNotFoundError
 from apps.orders.models import Order
 from apps.orders.selectors import get_order_by_number, get_orders_for_user
-from apps.orders.serializers import CheckoutSerializer, OrderSerializer
-from apps.orders.services import place_order, transition_order_status
-from apps.common.permissions import IsStaffUser
-from apps.common.pagination import StandardResultsSetPagination
+from apps.orders.serializers import (
+    CheckoutSerializer,
+    GuestCheckoutSerializer,
+    OrderSerializer,
+    PublicOrderSerializer,
+    TrackOrderSerializer,
+)
+from apps.orders.services import (
+    place_order,
+    transition_order_status,
+    verify_guest_lookup_token,
+)
+from apps.payments.serializers import RefundRequestSerializer, RefundSerializer
 
 logger = logging.getLogger("shopcore.orders.views")
 
@@ -41,7 +56,19 @@ class OrderDetailView(generics.RetrieveAPIView):
 
 
 class CheckoutView(APIView):
+    """Place an order — registered users use saved Address FKs; guests (no
+    auth, X-Cart-Token header) supply inline address + identity (audit H-4)."""
+
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request, *args, **kwargs):
+        is_authenticated = request.user.is_authenticated
+
+        if is_authenticated:
+            return self._checkout_registered(request)
+        return self._checkout_guest(request)
+
+    def _checkout_registered(self, request):
         serializer = CheckoutSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -89,24 +116,277 @@ class CheckoutView(APIView):
 
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
+    def _checkout_guest(self, request):
+        from apps.cart.views import _resolve_cart_identity
+        from apps.inventory.exceptions import InsufficientStockError
+        from apps.orders.exceptions import EmptyCartError
+
+        serializer = GuestCheckoutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        _, session_key = _resolve_cart_identity(request)
+        if not session_key:
+            return Response(
+                {
+                    "error": {
+                        "code": "CART_TOKEN_REQUIRED",
+                        "message": "A cart token (X-Cart-Token header) is required for guest checkout.",
+                        "details": {},
+                    }
+                },
+                status=400,
+            )
+        cart = get_or_create_cart(user=None, session_key=session_key)
+
+        guest_data = {
+            "guest_name": data["guest_name"],
+            "guest_email": data["guest_email"],
+            "guest_phone": data["guest_phone"],
+            "guest_session_id": session_key,
+        }
+        try:
+            order = place_order(
+                user=None,
+                cart=cart,
+                coupon_code=data.get("coupon_code") or None,
+                notes=data.get("notes", ""),
+                idempotency_key=data.get("idempotency_key") or None,
+                guest_data=guest_data,
+                shipping_address_snapshot=data["shipping_address"],
+            )
+        except EmptyCartError as exc:
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message, "details": exc.details}},
+                status=400,
+            )
+        except InsufficientStockError as exc:
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message, "details": exc.details}},
+                status=409,
+            )
+
+        serializer_out = OrderSerializer(order).data
+        # Return the plain lookup token exactly once — the DB stores only its
+        # hash. The guest uses it (with the order number) for tracking/cancel.
+        plain_token = getattr(order, "_guest_lookup_token_plain", "")
+        if plain_token:
+            serializer_out["guest_lookup_token"] = plain_token
+        return Response(serializer_out, status=status.HTTP_201_CREATED)
+
 
 class OrderCancelView(APIView):
-    def post(self, request, order_number, *args, **kwargs):
-        try:
-            order = Order.objects.get(order_number=order_number, user=request.user)
-        except Order.DoesNotExist:
-            raise OrderNotFoundError()
+    """Cancel an order — registered users by ownership; guests must supply the
+    lookup secret (order number + phone OR email + lookup token) (audit H-4)."""
 
-        from apps.orders.constants import OrderStatus
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, order_number, *args, **kwargs):
         from apps.orders.exceptions import InvalidOrderTransitionError
+
+        if request.user.is_authenticated:
+            try:
+                order = Order.objects.get(order_number=order_number, user=request.user)
+            except Order.DoesNotExist:
+                raise OrderNotFoundError()
+        else:
+            order = self._get_guest_order_authorized(request, order_number)
+            if order is None:
+                raise OrderNotFoundError()
+
+        from apps.orders.constants import OrderStatus, PaymentStatus
+        from apps.orders.exceptions import (
+            OrderCancellationNotAllowedError,
+        )
+
+        # Audit C-1 / B-4: customers may only cancel UNPAID orders (PENDING or
+        # FAILED payment). A paid order's money cannot be reversed by
+        # cancellation — staff must use the refund endpoint instead.
+        if order.payment_status in (PaymentStatus.PAID, PaymentStatus.REFUNDED):
+            raise OrderCancellationNotAllowedError(
+                details={
+                    "order_number": order.order_number,
+                    "payment_status": order.payment_status,
+                }
+            )
+
         try:
-            order = transition_order_status(order, OrderStatus.CANCELLED, actor=request.user, note="Cancelled by customer.")
+            order = transition_order_status(
+                order,
+                OrderStatus.CANCELLED,
+                actor=request.user if request.user.is_authenticated else None,
+                note="Cancelled by customer.",
+            )
         except InvalidOrderTransitionError as exc:
             return Response(
                 {"error": {"code": exc.code, "message": exc.message, "details": exc.details}},
                 status=400,
             )
         return Response(OrderSerializer(order).data)
+
+    def _get_guest_order_authorized(self, request, order_number: str):
+        """Resolve a guest order and verify the lookup secret.
+
+        Accepts: phone (matches guest_phone or snapshot) OR email + lookup_token.
+        Returns the Order or None (caller raises ORDER_NOT_FOUND — same envelope
+        as a missing order to prevent probing, audit S-5).
+        """
+        from apps.orders.serializers import GuestCancelSerializer
+
+        serializer = GuestCancelSerializer(data=request.data)
+        if not serializer.is_valid():
+            return None
+        data = serializer.validated_data
+
+        try:
+            order = Order.objects.get(order_number=order_number)
+        except Order.DoesNotExist:
+            return None
+
+        # A registered order can never be cancelled via the guest path.
+        if order.user_id is not None:
+            return None
+
+        phone = data.get("phone_number", "")
+        if phone:
+            snapshot_phone = (order.shipping_address_snapshot or {}).get("phone_number", "") or ""
+            if phone == order.guest_phone or phone == snapshot_phone:
+                return order
+            return None
+
+        email = data.get("email", "")
+        token = data.get("lookup_token", "")
+        if (
+            email
+            and order.guest_email
+            and email.lower() == order.guest_email.lower()
+            and verify_guest_lookup_token(order, token)
+        ):
+            return order
+        return None
+
+
+@extend_schema(
+    summary="Track an order (guest)",
+    description=(
+        "Look up an order by its number plus the email (and optional phone) "
+        "used at checkout. The email/phone pair is the bearer secret; a "
+        "mismatch returns the same 404 as a missing order."
+    ),
+    request=TrackOrderSerializer,
+    responses={200: PublicOrderSerializer},
+    tags=["Orders"],
+)
+class TrackOrderView(APIView):
+    """Guest order tracking by order number + email (+ optional phone).
+
+    The email (and phone, when supplied) must match the order's owner. A
+    mismatch returns the same 404 envelope as a missing order so that order
+    numbers cannot be probed (audit S-5).
+    """
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [OrderTrackThrottle]
+
+    def post(self, request, *args, **kwargs):
+        serializer = TrackOrderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            order = Order.objects.select_related("user").get(
+                order_number=data["order_number"]
+            )
+        except Order.DoesNotExist:
+            raise OrderNotFoundError()
+
+        # Registered orders: verify the account email (and phone when given).
+        if order.user_id is not None:
+            if order.user.email.lower() != data["email"].strip().lower():
+                raise OrderNotFoundError()
+            phone = data.get("phone_number", "")
+            if phone:
+                user_phone = (order.user.phone_number or "").strip()
+                snapshot_phone = (order.shipping_address_snapshot or {}).get(
+                    "phone_number", ""
+                ) or ""
+                if phone not in (user_phone, snapshot_phone):
+                    raise OrderNotFoundError()
+            return Response(
+                PublicOrderSerializer(order, context={"request": request}).data
+            )
+
+        # Guest orders (audit H-4): lookup requires Order Number + Phone  OR
+        # Order Number + Email + Lookup Token. A mismatch returns the same 404
+        # envelope as a missing order (no probing, audit S-5).
+        phone = data.get("phone_number", "")
+        if phone:
+            snapshot_phone = (order.shipping_address_snapshot or {}).get(
+                "phone_number", ""
+            ) or ""
+            if phone == order.guest_phone or phone == snapshot_phone:
+                return Response(
+                    PublicOrderSerializer(order, context={"request": request}).data
+                )
+            raise OrderNotFoundError()
+
+        token = data.get("lookup_token", "")
+        if (
+            order.guest_email
+            and data["email"].strip().lower() == order.guest_email.lower()
+            and verify_guest_lookup_token(order, token)
+        ):
+            return Response(
+                PublicOrderSerializer(order, context={"request": request}).data
+            )
+        raise OrderNotFoundError()
+
+
+@extend_schema(
+    summary="Process a refund (staff)",
+    description=(
+        "Refund a paid order: records a Refund, marks the successful Payment "
+        "REFUNDED, transitions the order to REFUNDED, and restocks inventory."
+    ),
+    request=RefundRequestSerializer,
+    responses={201: RefundSerializer, 400: None, 404: None},
+    tags=["Orders"],
+)
+class RefundOrderView(APIView):
+    """Staff-only: process a refund for a paid order (audit C-2)."""
+
+    permission_classes = [IsStaffUser]
+
+    def post(self, request, order_number, *args, **kwargs):
+        from apps.payments.exceptions import (
+            AlreadyRefundedError,
+            OrderNotRefundableError,
+            RefundError,
+        )
+        from apps.payments.services import process_refund
+
+        try:
+            order = Order.objects.get(order_number=order_number)
+        except Order.DoesNotExist:
+            raise OrderNotFoundError()
+
+        serializer = RefundRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            refund = process_refund(
+                order,
+                actor=request.user,
+                amount=serializer.validated_data.get("amount"),
+                reason=serializer.validated_data.get("reason", ""),
+            )
+        except (OrderNotRefundableError, AlreadyRefundedError, RefundError) as exc:
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message, "details": exc.details}},
+                status=exc.status_code,
+            )
+
+        return Response(RefundSerializer(refund).data, status=status.HTTP_201_CREATED)
 
 
 class StaffOrderTransitionView(APIView):

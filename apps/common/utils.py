@@ -56,17 +56,53 @@ def generate_order_number() -> str:
     return f"ORD-{now.strftime('%Y%m%d')}-{sequence:06d}"
 
 
-def format_currency(amount: Decimal, currency: str = "USD") -> str:
+# ISO 4217 → display symbol. Centralized here so multi-currency support can
+# be extended later without touching call sites (audit currency decision).
+CURRENCY_SYMBOLS: dict[str, str] = {
+    "BDT": "৳",
+    "USD": "$",
+    "EUR": "€",
+    "GBP": "£",
+}
+
+
+def default_currency() -> str:
+    """Return the store's configured default currency (ISO 4217 code)."""
+    from django.conf import settings
+    return getattr(settings, "DEFAULT_CURRENCY", "BDT")
+
+
+def format_currency(amount: Decimal, currency: str | None = None) -> str:
     """Format a Decimal amount as a currency string.
+
+    The single formatting entry point — every UI/email/export surfaces
+    amounts through here (or through ``format_currency_symbol`` when a
+    symbol is desired) so that multi-currency support can be added later
+    without a refactor (audit currency decision).
 
     Args:
         amount: The monetary amount.
-        currency: ISO 4217 currency code.
+        currency: ISO 4217 currency code. Defaults to settings.DEFAULT_CURRENCY.
 
     Returns:
-        Formatted string, e.g. ``"USD 10.00"``.
+        Formatted string, e.g. ``"BDT 10.00"``.
     """
-    return f"{currency} {amount:.2f}"
+    return f"{(currency or default_currency())} {amount:.2f}"
+
+
+def format_currency_symbol(amount: Decimal, currency: str | None = None) -> str:
+    """Format an amount with the currency's display symbol.
+
+    Args:
+        amount: The monetary amount.
+        currency: ISO 4217 currency code. Defaults to settings.DEFAULT_CURRENCY.
+
+    Returns:
+        Formatted string, e.g. ``"৳ 10.00"`` for BDT.
+    """
+    cur = currency or default_currency()
+    symbol = CURRENCY_SYMBOLS.get(cur, f"{cur} ")
+    return f"{symbol}{amount:.2f}"
 
 
 def round_money(amount: Decimal) -> Decimal:

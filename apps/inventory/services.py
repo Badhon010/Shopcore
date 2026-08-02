@@ -169,33 +169,61 @@ def commit_sale(variant, quantity: int, reference: str = "", warehouse=None) -> 
     return stock
 
 
-def restock(variant, quantity: int, reference: str = "", note: str = "", warehouse=None, actor=None) -> StockItem:
+def restock(
+    variant,
+    quantity: int,
+    reference: str = "",
+    note: str = "",
+    warehouse=None,
+    actor=None,
+    movement_type=None,
+) -> StockItem:
     """Add stock to a variant.
 
     Args:
         variant: ProductVariant instance.
         quantity: Number of units to add.
-        reference: Purchase order or other reference.
+        reference: Purchase order, order number, or other reference.
         note: Optional note for the stock movement.
         warehouse: Warehouse instance (uses default if None).
         actor: User who performed the restock (for audit).
+        movement_type: MovementType to record. Defaults to RESTOCK (admin
+            restock). Pass MovementType.RETURN for refund/return restocks so
+            the ledger distinguishes the two.
 
     Returns:
         The updated StockItem.
+
+    Idempotency: when ``reference`` and ``movement_type`` are both provided
+    and an identical movement (same stock item, type, reference) already
+    exists, the operation is skipped — this makes order-return restocks safe
+    against duplicate application (e.g. a retried refund transition).
     """
     if warehouse is None:
         warehouse = _get_default_warehouse()
+    if movement_type is None:
+        movement_type = MovementType.RESTOCK
 
     with transaction.atomic():
         stock, _ = StockItem.objects.select_for_update().get_or_create(
             variant=variant, warehouse=warehouse
         )
+
+        if reference and StockMovement.objects.filter(
+            stock_item=stock, movement_type=movement_type, reference=reference
+        ).exists():
+            logger.info(
+                "Restock (%s) for %s (ref: %s) already recorded; skipping duplicate.",
+                movement_type, variant.sku, reference,
+            )
+            return stock
+
         stock.quantity_on_hand += quantity
         stock.save(update_fields=["quantity_on_hand", "updated_at"])
 
         StockMovement.objects.create(
             stock_item=stock,
-            movement_type=MovementType.RESTOCK,
+            movement_type=movement_type,
             quantity_delta=quantity,
             reference=reference,
             note=note or f"Restocked {quantity} unit(s)",

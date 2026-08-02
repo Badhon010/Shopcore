@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from decimal import Decimal as _Decimal
 from pathlib import Path
 
 import environ
@@ -231,18 +232,38 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
         "rest_framework.filters.SearchFilter",
     ],
+    # The global anon/user buckets apply to every request not covered by a
+    # narrower per-endpoint throttle. They must be generous: a single
+    # home-page load issues several anonymous GETs (banners, category tree,
+    # brands, featured products, cart), the browser fires a CORS preflight
+    # (OPTIONS) per cross-origin request, and React Query re-fetches stale
+    # queries on window focus. 100/min per IP was far too tight — a minute
+    # of browsing exhausted it and every subsequent request (including
+    # token refresh, which shares the anonymous bucket) returned 429. The
+    # Storefront* classes below exclude preflights from the count entirely;
+    # the tight scopes (login, register, password reset, coupon, order
+    # track, token refresh) are the actual anti-abuse controls.
+    #
+    # Production note: the anon/user buckets are keyed by client IP. When
+    # deployed behind a reverse proxy (nginx / Replit edge), set NUM_PROXIES
+    # below so DRF reads the real client IP from X-Forwarded-For — otherwise
+    # every anonymous visitor shares the proxy's IP and the "generous"
+    # bucket becomes a site-wide limit.
+    "NUM_PROXIES": env.int("NUM_PROXIES", default=0),
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
+        "apps.common.throttling.StorefrontAnonRateThrottle",
+        "apps.common.throttling.StorefrontUserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "100/day",
-        "user": "1000/day",
+        "anon": "1000/min",
+        "user": "5000/hour",
         "login": "5/min",
         "register": "10/hour",
         "password_reset_request": "5/hour",
         "resend_verification": "5/hour",
         "coupon_apply": "20/min",
+        "order_track": "20/min",
+        "token_refresh": "60/min",
     },
     "EXCEPTION_HANDLER": "apps.common.exception_handler.custom_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -274,6 +295,12 @@ SIMPLE_JWT = {
 # ---------------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=["http://localhost:3000"])
 CORS_ALLOW_CREDENTIALS = True
+# The storefront sends an X-Cart-Token header for guest carts (audit H-4) on
+# every cart call and on login. It must be in the allowed preflight headers or
+# the browser blocks those requests with a CORS error before they reach Django.
+from corsheaders.defaults import default_headers  # noqa: E402
+
+CORS_ALLOW_HEADERS = [*default_headers, "x-cart-token"]
 
 # ---------------------------------------------------------------------------
 # Cache (Redis)
@@ -322,7 +349,9 @@ else:
     if _email_url and _email_url != "console://":
         try:
             _email_config = env.email_url("EMAIL_URL")
-            EMAIL_BACKEND = _email_config.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+            EMAIL_BACKEND = _email_config.get(
+                "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+            )
             EMAIL_HOST = _email_config.get("EMAIL_HOST", "")
             EMAIL_PORT = _email_config.get("EMAIL_PORT", 587)
             EMAIL_HOST_USER = _email_config.get("EMAIL_HOST_USER", "")
@@ -373,9 +402,11 @@ SPECTACULAR_SETTINGS = {
 # ---------------------------------------------------------------------------
 # Business configuration
 # ---------------------------------------------------------------------------
-from decimal import Decimal as _Decimal
-
-DEFAULT_CURRENCY = env("DEFAULT_CURRENCY", default="USD")
+# Primary store currency (BDT = Bangladeshi Taka). The pricing system is
+# designed for future multi-currency support via the centralized
+# apps.common.utils.format_currency() helper, but the production store
+# currently operates only in BDT (audit 10 currency decision).
+DEFAULT_CURRENCY = env("DEFAULT_CURRENCY", default="BDT")
 FLAT_SHIPPING_RATE = _Decimal(env("FLAT_SHIPPING_RATE", default="5.00"))
 DEFAULT_TAX_RATE_PERCENT = _Decimal(env("DEFAULT_TAX_RATE_PERCENT", default="0"))
 
@@ -441,8 +472,19 @@ ADMIN_SITE_TITLE = "ShopCore Admin"
 ADMIN_INDEX_TITLE = "Welcome to ShopCore Administration"
 
 # ---------------------------------------------------------------------------
-# Third-party credentials (documented placeholders; not wired in v1)
+# Payment gateway credentials (H-3) — secrets live ONLY in environment
+# variables, never in code or the database. Gateways report
+# "gateway not configured" until their keys are set.
 # ---------------------------------------------------------------------------
 STRIPE_PUBLISHABLE_KEY = env("STRIPE_PUBLISHABLE_KEY", default="")
 STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
 STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
+
+SSLCOMMERZ_STORE_ID = env("SSLCOMMERZ_STORE_ID", default="")
+SSLCOMMERZ_STORE_PASSWORD = env("SSLCOMMERZ_STORE_PASSWORD", default="")
+SSLCOMMERZ_SANDBOX = env.bool("SSLCOMMERZ_SANDBOX", default=True)
+
+PAYPAL_CLIENT_ID = env("PAYPAL_CLIENT_ID", default="")
+PAYPAL_CLIENT_SECRET = env("PAYPAL_CLIENT_SECRET", default="")
+PAYPAL_WEBHOOK_ID = env("PAYPAL_WEBHOOK_ID", default="")
+PAYPAL_SANDBOX = env.bool("PAYPAL_SANDBOX", default=True)

@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from apps.orders.constants import OrderStatus, PaymentStatus as OrderPaymentStatus
+from apps.orders.constants import OrderStatus
+from apps.orders.constants import PaymentStatus as OrderPaymentStatus
 from apps.orders.tests.factories import OrderFactory
 from apps.payments.constants import PaymentStatus as GatewayPaymentStatus
 from apps.payments.exceptions import DuplicatePaymentError
