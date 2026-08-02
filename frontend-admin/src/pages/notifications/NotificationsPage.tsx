@@ -27,16 +27,29 @@ export function NotificationsPage() {
     enabled: isAuthenticated,
   })
 
+  // Real unread total from the dedicated endpoint — shared cache with the bell.
+  const { data: unreadCount } = useQuery({
+    queryKey: ['notification-unread-count'],
+    queryFn: () => notificationsService.getUnreadCount(),
+    staleTime: 15_000,
+    enabled: isAuthenticated,
+  })
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ['admin-notifications'] })
+    void queryClient.invalidateQueries({ queryKey: ['notification-unread-count'] })
+  }
+
   const markReadMutation = useMutation({
     mutationFn: (pk: string) => notificationsService.markRead(pk),
-    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['admin-notifications'] }) },
+    onSuccess: () => { invalidate() },
     onError: (e: ApiError) => toast({ title: e.message, variant: 'destructive' }),
   })
 
   const markAllMutation = useMutation({
     mutationFn: () => notificationsService.markAllRead(),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['admin-notifications'] })
+      invalidate()
       toast({ title: 'All notifications marked as read', variant: 'success' })
     },
     onError: (e: ApiError) => toast({ title: e.message, variant: 'destructive' }),
@@ -45,7 +58,7 @@ export function NotificationsPage() {
   const deleteMutation = useMutation({
     mutationFn: (pk: string) => notificationsService.deleteNotification(pk),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['admin-notifications'] })
+      invalidate()
       toast({ title: 'Notification deleted', variant: 'success' })
     },
     onError: (e: ApiError) => toast({ title: e.message, variant: 'destructive' }),
@@ -54,14 +67,13 @@ export function NotificationsPage() {
   const clearAllMutation = useMutation({
     mutationFn: () => notificationsService.clearAll(),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['admin-notifications'] })
+      invalidate()
       toast({ title: 'All notifications cleared', variant: 'success' })
     },
     onError: (e: ApiError) => toast({ title: e.message, variant: 'destructive' }),
   })
 
   const notifications = data?.results ?? []
-  const unreadCount = notifications.filter((n) => !n.is_read).length
   const totalPages = Math.ceil((data?.count ?? 0) / PAGE_SIZE)
 
   return (
@@ -70,11 +82,11 @@ export function NotificationsPage() {
         <div>
           <h1 className="text-lg font-bold text-text-primary">Notifications</h1>
           <p className="mt-0.5 text-sm text-text-secondary">
-            {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
+            {(unreadCount ?? 0) > 0 ? `${unreadCount ?? 0} unread` : 'All caught up'}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {unreadCount > 0 && (
+          {(unreadCount ?? 0) > 0 && (
             <Button
               variant="secondary"
               size="sm"

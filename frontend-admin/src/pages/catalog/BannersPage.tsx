@@ -42,6 +42,7 @@ interface SortableBannerCardProps {
   onToggleActive: (b: Banner) => void
   onMove: (b: Banner, dir: -1 | 1) => void
   isTogglingId: string | null
+  isSavingOrder: boolean
   isFirst: boolean
   isLast: boolean
 }
@@ -53,6 +54,7 @@ function SortableBannerCard({
   onToggleActive,
   onMove,
   isTogglingId,
+  isSavingOrder,
   isFirst,
   isLast,
 }: SortableBannerCardProps) {
@@ -67,7 +69,7 @@ function SortableBannerCard({
           label="Move up"
           size="sm"
           className="text-text-muted hover:bg-background-subtle"
-          disabled={isFirst}
+          disabled={isFirst || isSavingOrder}
           onClick={() => onMove(banner, -1)}
         />
         <IconButton
@@ -75,7 +77,7 @@ function SortableBannerCard({
           label="Move down"
           size="sm"
           className="text-text-muted hover:bg-background-subtle"
-          disabled={isLast}
+          disabled={isLast || isSavingOrder}
           onClick={() => onMove(banner, 1)}
         />
       </div>
@@ -155,6 +157,7 @@ export function BannersPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [titleError, setTitleError] = useState('')
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [savingOrder, setSavingOrder] = useState(false)
   // Local ordering state so drag is instant without waiting for server
   const [localOrder, setLocalOrder] = useState<string[] | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -215,29 +218,34 @@ export function BannersPage() {
   }
 
   // ── Drag end: update display_order on server ──────────────────────────────
-  function persistOrder(newIds: string[]) {
+  async function persistOrder(newIds: string[]) {
+    if (savingOrder) return
     setLocalOrder(newIds)
+    setSavingOrder(true)
 
-    // Patch each banner whose display_order changed
+    const patches: Promise<Banner>[] = []
     newIds.forEach((id, idx) => {
       const banner = serverBanners.find((b) => String(b.id) === id)
       if (banner && banner.display_order !== idx) {
-        catalogService
-          .updateBanner(id, { display_order: idx } as Partial<Banner>)
-          .catch(() => {
-            toast({ title: 'Failed to save order', variant: 'destructive' })
-          })
+        patches.push(catalogService.updateBanner(id, { display_order: idx }))
       }
     })
 
-    // Refresh after a short delay so the server order is reflected
-    setTimeout(() => {
-      void qc.invalidateQueries({ queryKey: ['admin-banners'] })
+    try {
+      // Wait for every patch before refetching so the list never snaps back
+      // to a stale server order (no fixed-delay race).
+      await Promise.all(patches)
+      await qc.invalidateQueries({ queryKey: ['admin-banners'] })
+    } catch {
+      toast({ title: 'Failed to save order', variant: 'destructive' })
+    } finally {
       setLocalOrder(null)
-    }, 1200)
+      setSavingOrder(false)
+    }
   }
 
   function handleMove(banner: Banner, dir: -1 | 1) {
+    if (savingOrder) return
     const ids = displayedBanners.map((b) => String(b.id))
     const index = ids.indexOf(String(banner.id))
     const nextIndex = index + dir
@@ -247,7 +255,7 @@ export function BannersPage() {
     const moved = newIds.splice(index, 1)[0]
     if (!moved) return
     newIds.splice(nextIndex, 0, moved)
-    persistOrder(newIds)
+    void persistOrder(newIds)
   }
 
   // ── Toggle active ─────────────────────────────────────────────────────────
@@ -255,7 +263,7 @@ export function BannersPage() {
     const id = String(banner.id)
     setTogglingId(id)
     catalogService
-      .updateBanner(id, { is_active: !banner.is_active } as Partial<Banner>)
+      .updateBanner(id, { is_active: !banner.is_active })
       .then(() => {
         toast({
           title: banner.is_active ? 'Banner deactivated' : 'Banner activated',
@@ -295,7 +303,7 @@ export function BannersPage() {
       setModalOpen(false)
     },
     onError: (err) => {
-      if ((err as Error).message === 'validation') return
+      if (err.message === 'validation') return
       toast({ title: 'Failed to save banner', variant: 'destructive' })
     },
   })
@@ -373,6 +381,7 @@ export function BannersPage() {
                 onToggleActive={handleToggleActive}
                 onMove={handleMove}
                 isTogglingId={togglingId}
+                isSavingOrder={savingOrder}
                 isFirst={index === 0}
                 isLast={index === displayedBanners.length - 1}
               />
@@ -455,7 +464,6 @@ export function BannersPage() {
                 if (e.target.value.trim()) setTitleError('')
               }}
               placeholder="Summer Sale"
-              autoFocus
               error={!!titleError}
             />
           </FormField>

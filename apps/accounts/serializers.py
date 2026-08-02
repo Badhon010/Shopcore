@@ -47,11 +47,12 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "full_name",
             "phone_number",
+            "is_active",
             "is_email_verified",
             "is_staff",
             "date_joined",
         ]
-        read_only_fields = ["id", "email", "is_email_verified", "is_staff", "date_joined"]
+        read_only_fields = ["id", "email", "is_active", "is_email_verified", "is_staff", "date_joined"]
 
 
 class UserRegistrationSerializer(serializers.Serializer):

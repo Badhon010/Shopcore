@@ -56,7 +56,6 @@ export function LoginPage() {
             id="email"
             type="email"
             autoComplete="email"
-            autoFocus
             error={!!errors.email}
             placeholder="you@company.com"
             {...register('email')}

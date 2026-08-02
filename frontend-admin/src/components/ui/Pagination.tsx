@@ -40,7 +40,7 @@ export function Pagination({ page, totalPages, onPageChange, className }: Pagina
           ) : (
             <button
               key={p}
-              onClick={() => onPageChange(p as number)}
+              onClick={() => onPageChange(p)}
               aria-current={p === page ? 'page' : undefined}
               className={cn(
                 'inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors',

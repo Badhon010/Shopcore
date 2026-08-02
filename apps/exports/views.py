@@ -328,7 +328,11 @@ class ExportInventoryView(APIView):
             qs = qs.filter(quantity_on_hand=0)
         elif request.query_params.get("low_stock_only", "").lower() == "true":
             from django.db.models import F
-            qs = qs.filter(quantity_on_hand__lte=F("low_stock_threshold"))
+            # Match is_low_stock semantics (available = on_hand - reserved) so
+            # the export agrees with the admin inventory list filter.
+            qs = qs.annotate(
+                _available=F("quantity_on_hand") - F("quantity_reserved")
+            ).filter(_available__lte=F("low_stock_threshold"))
 
         headers = [
             "Stock Item ID", "SKU", "Product", "Warehouse",

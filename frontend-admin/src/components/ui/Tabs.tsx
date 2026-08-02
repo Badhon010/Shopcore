@@ -30,7 +30,7 @@ export function Tabs({ tabs, value, onValueChange, children, className }: TabsPr
             key={tab.value}
             value={tab.value}
             className={cn(
-              'relative flex items-center gap-1.5 pb-2.5 pt-0.5 text-sm font-medium text-text-muted transition-colors',
+              'relative flex items-center gap-1.5 px-4 pb-3 pt-3 text-sm font-medium text-text-muted transition-colors',
               'hover:text-text-primary focus-visible:outline-none focus-visible:text-text-primary',
               'data-[state=active]:text-text-primary',
               'after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-primary after:scale-x-0 after:transition-transform',

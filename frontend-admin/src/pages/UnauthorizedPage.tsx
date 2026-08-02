@@ -7,8 +7,8 @@ export function UnauthorizedPage() {
   const { logout } = useAuth()
   const navigate = useNavigate()
 
-  const handleReturn = async () => {
-    await logout()
+  const handleReturn = () => {
+    logout()
     navigate('/login', { replace: true })
   }
 
@@ -21,7 +21,7 @@ export function UnauthorizedPage() {
       <p className="mt-2 text-body-md text-text-secondary">
         This account can use the ShopCore store, but it does not have permission to use the admin workspace.
       </p>
-      <Button variant="secondary" className="mt-6" onClick={() => void handleReturn()}>
+      <Button variant="secondary" className="mt-6" onClick={handleReturn}>
         Sign in with another account
       </Button>
     </div>

@@ -34,10 +34,12 @@ export const notificationsService = {
   },
 
   async bulkDelete(ids: string[]): Promise<void> {
-    await axiosClient.delete(endpoints.notifications.bulkDelete(), { data: { ids } })
+    // Backend NotificationBulkDeleteView accepts POST
+    await axiosClient.post(endpoints.notifications.bulkDelete(), { ids })
   },
 
   async clearAll(): Promise<void> {
-    await axiosClient.post(endpoints.notifications.clearAll())
+    // Backend NotificationClearAllView implements DELETE
+    await axiosClient.delete(endpoints.notifications.clearAll())
   },
 }

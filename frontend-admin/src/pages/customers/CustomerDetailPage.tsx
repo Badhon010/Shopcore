@@ -10,6 +10,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { Skeleton } from '@/components/feedback/Skeleton'
+import { ErrorState } from '@/components/feedback/ErrorState'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useToast } from '@/contexts/ToastContext'
 import { formatCurrency, formatDate } from '@/utils/format'
@@ -30,7 +31,7 @@ export function CustomerDetailPage() {
   const { isAuthenticated } = useAuth()
   const [resetConfirm, setResetConfirm] = useState(false)
 
-  const { data: customer, isLoading } = useQuery({
+  const { data: customer, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-customer', id],
     queryFn: () => customersService.getCustomer(id!),
     enabled: isAuthenticated && !!id,
@@ -90,7 +91,15 @@ export function CustomerDetailPage() {
       <Skeleton className="h-64 w-full" />
     </div>
   )
-  if (!customer) return null
+  if (isError || !customer) {
+    return (
+      <ErrorState
+        title="Customer not found"
+        description="This customer could not be loaded. They may have been removed or you may not have access to them."
+        onRetry={() => void refetch()}
+      />
+    )
+  }
 
   return (
     <div className="space-y-5">
@@ -223,7 +232,7 @@ export function CustomerDetailPage() {
                     <p className="text-xs text-text-muted">{formatDate(order.created_at)}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge variant={ORDER_STATUS_VARIANT[order.status as keyof typeof ORDER_STATUS_VARIANT] ?? 'default'}>
+                    <Badge variant={ORDER_STATUS_VARIANT[order.status] ?? 'default'}>
                       {order.status}
                     </Badge>
                     <span className="text-sm font-medium text-text-primary">{formatCurrency(order.grand_total)}</span>

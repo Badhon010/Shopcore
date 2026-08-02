@@ -48,7 +48,9 @@ export const catalogService = {
 
   // ── Variants ────────────────────────────────────────────
   async listVariants(productSlug: string): Promise<ProductVariant[]> {
-    const res = await axiosClient.get(endpoints.catalog.adminVariants(productSlug))
+    const res = await axiosClient.get<ProductVariant[] | { results: ProductVariant[] }>(
+      endpoints.catalog.adminVariants(productSlug)
+    )
     // Handle both flat array (pagination_class = None) and paginated envelope
     const data = res.data
     return Array.isArray(data) ? data : (data?.results ?? [])
@@ -70,7 +72,9 @@ export const catalogService = {
 
   // ── Images ──────────────────────────────────────────────
   async listImages(productSlug: string): Promise<ProductImage[]> {
-    const res = await axiosClient.get(endpoints.catalog.adminImages(productSlug))
+    const res = await axiosClient.get<ProductImage[] | { results: ProductImage[] }>(
+      endpoints.catalog.adminImages(productSlug)
+    )
     // Handle both flat array (pagination_class = None) and paginated envelope
     const data = res.data
     return Array.isArray(data) ? data : (data?.results ?? [])

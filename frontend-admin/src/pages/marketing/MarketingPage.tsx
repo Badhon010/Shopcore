@@ -106,7 +106,7 @@ function CampaignFormModal({ initial, onClose, onSave, isSaving }: CampaignFormM
               id="campaign-subject"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="e.g. Our biggest sale of the year 🎉"
+              placeholder="e.g. Our biggest sale of the year"
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-body-sm text-text-primary placeholder-text-muted outline-none transition-colors focus:border-primary focus:shadow-focus-ring"
             />
           </div>
@@ -214,7 +214,7 @@ export function MarketingPage() {
       page_size: 20,
       search: subSearch || undefined,
       ...(subFilter !== 'all' && { active: subFilter === 'active' }),
-    } as never),
+    }),
     enabled: isAuthenticated && tab === 'subscribers',
   })
 
@@ -225,7 +225,7 @@ export function MarketingPage() {
       page_size: 15,
       search: campSearch || undefined,
       status: campFilter || undefined,
-    } as never),
+    }),
     enabled: isAuthenticated && tab === 'campaigns',
   })
 

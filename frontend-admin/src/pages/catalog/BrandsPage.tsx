@@ -210,7 +210,7 @@ export function BrandsPage() {
           </div>
 
           <FormField label="Name" htmlFor="brand-name" required>
-            <Input id="brand-name" autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Nike" />
+            <Input id="brand-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Nike" />
           </FormField>
 
           <FormField label="Description" htmlFor="brand-desc">

@@ -339,8 +339,9 @@ export interface Notification {
 }
 
 // ── Dashboard ─────────────────────────────────────────────────
+/** Top-level flattened KPI aliases returned by GET /dashboard/. */
 export interface DashboardKPIs {
-  total_revenue: string
+  total_revenue: number
   revenue_change_pct?: number
   total_orders: number
   orders_change_pct?: number
@@ -348,24 +349,238 @@ export interface DashboardKPIs {
   customers_change_pct?: number
   low_stock_count: number
   pending_orders: number
+  period_days?: number
+  generated_at?: string
 }
 
-export interface RevenueDataPoint {
-  date: string
-  revenue: string | number
-}
-
-export interface OrderVolumeDataPoint {
-  date: string
-  orders: number
-}
-
-export interface BestSellerItem {
+export interface TopProductItem {
+  product_id?: number
   product_name: string
   product_slug?: string
-  revenue: string | number
   units_sold: number
+  revenue: number
 }
+
+export interface TopCategoryItem {
+  id: number
+  name: string
+  slug: string
+  product_count: number
+}
+
+export interface RecentOrderItem {
+  id: number
+  order_number: string
+  status: string
+  payment_status: string
+  grand_total: number
+  placed_at: string
+  user_email?: string
+}
+
+export interface RecentCustomerItem {
+  id: number
+  email: string
+  full_name: string
+  date_joined: string
+}
+
+export interface RecentReviewItem {
+  id: number
+  rating: number
+  is_approved: boolean
+  created_at: string
+  product_name?: string
+  user_email?: string
+}
+
+export interface DashboardChartPoint {
+  date: string
+  revenue?: number
+  orders?: number
+}
+
+export interface LowStockItem {
+  id: number
+  quantity_on_hand: number
+  quantity_reserved: number
+  low_stock_threshold: number
+  variant_sku?: string
+  product_name?: string
+  product_slug?: string
+  warehouse_name?: string
+}
+
+/** Full payload of GET /dashboard/ — every number is a backend aggregate. */
+export interface DashboardOverview extends DashboardKPIs {
+  revenue: {
+    total_all_time: number
+    current_period: number
+    previous_period: number
+    growth_pct: number
+    average_order_value: number
+  }
+  orders: {
+    total_all_time: number
+    current_period: number
+    previous_period: number
+    growth_pct: number
+    by_status: Record<string, number>
+  }
+  customers: {
+    total: number
+    new_current_period: number
+    new_previous_period: number
+    growth_pct: number
+  }
+  products: {
+    total: number
+    by_status: Record<string, number>
+  }
+  categories: { total: number }
+  inventory: {
+    low_stock_count: number
+    out_of_stock_count: number
+  }
+  subscribers: {
+    total: number
+    active: number
+    new_current_period: number
+    new_previous_period: number
+    growth_pct: number
+  }
+  reviews: {
+    total: number
+    approved: number
+    pending: number
+    average_rating: number
+  }
+  top_products: TopProductItem[]
+  top_categories: TopCategoryItem[]
+  recent_orders: RecentOrderItem[]
+  recent_customers: RecentCustomerItem[]
+  recent_reviews: RecentReviewItem[]
+  revenue_chart: DashboardChartPoint[]
+  orders_chart: DashboardChartPoint[]
+  low_stock_items: LowStockItem[]
+}
+
+// ── Analytics ──────────────────────────────────────────────────
+export type AnalyticsGranularity = 'day' | 'week' | 'month' | 'year'
+
+/** GET /dashboard/analytics/revenue/ */
+export interface RevenueAnalytics {
+  period_days: number
+  granularity: AnalyticsGranularity
+  all_time: {
+    total_revenue: number
+    total_paid_orders: number
+    average_order_value: number
+  }
+  current_period: {
+    revenue: number
+    orders: number
+    aov: number
+  }
+  previous_period: {
+    revenue: number
+    orders: number
+  }
+  revenue_growth_pct: number
+  orders_growth_pct: number
+  over_time: Array<{ bucket: string; revenue: number; orders: number }>
+  payment_status_breakdown: Record<string, number>
+}
+
+/** GET /dashboard/analytics/orders/ */
+export interface OrderAnalytics {
+  period_days: number
+  granularity: AnalyticsGranularity
+  over_time: Array<{ bucket: string; orders: number }>
+  status_distribution: Array<{ status: string; count: number; pct: number }>
+  cancellation_rate_pct: number
+}
+
+/** GET /dashboard/analytics/best-sellers/ */
+export interface BestSellersResponse {
+  period_days: number
+  results: Array<{
+    product_id?: number
+    product_name: string
+    product_slug?: string
+    category_name?: string
+    units_sold: number
+    revenue: number
+    orders: number
+  }>
+}
+
+/** GET /dashboard/analytics/customers/ */
+export interface CustomerGrowthAnalytics {
+  period_days: number
+  granularity: AnalyticsGranularity
+  total_customers: number
+  active_customers: number
+  over_time: Array<{ bucket: string; new_customers: number }>
+}
+
+/** GET /dashboard/analytics/inventory/ */
+export interface InventoryAnalytics {
+  summary: {
+    total_sku_count: number
+    in_stock_count: number
+    low_stock_count: number
+    out_of_stock_count: number
+    total_inventory_value: number
+  }
+  by_warehouse: Array<{
+    warehouse_name?: string
+    warehouse_code?: string
+    total_on_hand: number
+    total_reserved: number
+    sku_count: number
+  }>
+}
+
+/** GET /dashboard/analytics/coupons/ */
+export interface CouponAnalytics {
+  period_days: number
+  period_coupon_orders: number
+  period_total_discount: number
+  top_coupons_this_period: Array<{
+    coupon_code?: string
+    times_used: number
+    total_discount: number
+  }>
+  all_coupons: Array<{
+    code: string
+    discount_type: string
+    discount_value: number
+    times_used: number
+    is_active: boolean
+  }>
+}
+
+/** GET /dashboard/analytics/newsletter/ */
+export interface NewsletterAnalytics {
+  period_days: number
+  granularity: AnalyticsGranularity
+  total_subscribers: number
+  active_subscribers: number
+  growth_over_time: Array<{ bucket: string; new_subscribers: number }>
+  recent_campaign_stats: Array<{
+    id: number
+    title: string
+    subject: string
+    sent_at?: string
+    recipient_count: number
+    open_count: number
+    click_count: number
+    open_rate: number
+    click_rate: number
+  }>
+}
+
 
 // ── Contact ───────────────────────────────────────────────────
 export type ContactStatus = 'NEW' | 'IN_PROGRESS' | 'RESOLVED'

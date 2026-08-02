@@ -1,57 +1,77 @@
 import { axiosClient } from './axiosClient'
 import { endpoints } from './endpoints'
-import type { DashboardKPIs, RevenueDataPoint, OrderVolumeDataPoint, BestSellerItem } from '@/types/models'
+import type {
+  AnalyticsGranularity,
+  BestSellersResponse,
+  CouponAnalytics,
+  CustomerGrowthAnalytics,
+  DashboardOverview,
+  InventoryAnalytics,
+  NewsletterAnalytics,
+  OrderAnalytics,
+  RevenueAnalytics,
+} from '@/types/models'
 
+/** Query params accepted by the dashboard analytics endpoints. */
 export interface AnalyticsParams {
-  period?: 'day' | 'week' | 'month' | 'year'
-}
-
-export interface InventoryHealth {
-  total_skus: number
-  low_stock_count: number
-  out_of_stock_count: number
+  /** Look-back window in days (default 30). */
+  days?: number
+  /** Aggregation granularity: day | week | month | year (default day). */
+  granularity?: AnalyticsGranularity
+  /** Result limit for best-sellers (default 20, max 100). */
+  limit?: number
+  /** Inclusive start date (YYYY-MM-DD) — overrides `days` for an arbitrary range. */
+  date_from?: string
+  /** Inclusive end date (YYYY-MM-DD) — overrides `days` for an arbitrary range. */
+  date_to?: string
 }
 
 export const dashboardService = {
-  async getOverview(): Promise<DashboardKPIs> {
-    const res = await axiosClient.get<DashboardKPIs>(endpoints.dashboard.overview())
+  /** All dashboard KPIs + charts + recent activity in a single request. */
+  async getOverview(params?: { days?: number }): Promise<DashboardOverview> {
+    const res = await axiosClient.get<DashboardOverview>(endpoints.dashboard.overview(), { params })
     return res.data
   },
 
-  async getRevenue(params?: AnalyticsParams): Promise<RevenueDataPoint[]> {
-    const res = await axiosClient.get<any>(endpoints.dashboard.revenue(), { params })
-    const data = res.data
-    const items = Array.isArray(data) ? data : (data?.over_time ?? data?.revenue_chart ?? [])
-    return items.map((item: any) => ({
-      date: String(item.date ?? item.bucket ?? ''),
-      revenue: Number(item.revenue ?? 0),
-    }))
+  /** Revenue over time, AOV, growth and payment breakdown. */
+  async getRevenueAnalytics(params?: AnalyticsParams): Promise<RevenueAnalytics> {
+    const res = await axiosClient.get<RevenueAnalytics>(endpoints.dashboard.revenue(), { params })
+    return res.data
   },
 
-  async getOrderVolume(params?: AnalyticsParams): Promise<OrderVolumeDataPoint[]> {
-    const res = await axiosClient.get<any>(endpoints.dashboard.orders(), { params })
-    const data = res.data
-    const items = Array.isArray(data) ? data : (data?.over_time ?? data?.orders_chart ?? [])
-    return items.map((item: any) => ({
-      date: String(item.date ?? item.bucket ?? ''),
-      orders: Number(item.orders ?? 0),
-    }))
+  /** Orders over time, status distribution and cancellation rate. */
+  async getOrderAnalytics(params?: AnalyticsParams): Promise<OrderAnalytics> {
+    const res = await axiosClient.get<OrderAnalytics>(endpoints.dashboard.orders(), { params })
+    return res.data
   },
 
-  async getBestSellers(): Promise<BestSellerItem[]> {
-    const res = await axiosClient.get<any>(endpoints.dashboard.bestSellers())
-    const data = res.data
-    const items = Array.isArray(data) ? data : (data?.results ?? data?.top_products ?? [])
-    return items.map((item: any) => ({
-      product_name: String(item.product_name ?? ''),
-      product_slug: item.product_slug ? String(item.product_slug) : undefined,
-      revenue: Number(item.revenue ?? 0),
-      units_sold: Number(item.units_sold ?? 0),
-    }))
+  /** Products ranked by units sold and revenue over the period. */
+  async getBestSellers(params?: AnalyticsParams): Promise<BestSellersResponse> {
+    const res = await axiosClient.get<BestSellersResponse>(endpoints.dashboard.bestSellers(), { params })
+    return res.data
   },
 
-  async getInventoryHealth(): Promise<InventoryHealth> {
-    const res = await axiosClient.get<InventoryHealth>(endpoints.dashboard.inventory())
+  /** New customer registrations over time. */
+  async getCustomerGrowth(params?: AnalyticsParams): Promise<CustomerGrowthAnalytics> {
+    const res = await axiosClient.get<CustomerGrowthAnalytics>(endpoints.dashboard.customers(), { params })
+    return res.data
+  },
+
+  /** Inventory value, stock health and warehouse breakdown. */
+  async getInventoryAnalytics(): Promise<InventoryAnalytics> {
+    const res = await axiosClient.get<InventoryAnalytics>(endpoints.dashboard.inventory())
+    return res.data
+  },
+
+  /** Coupon usage and discounts in the period. */
+  async getCouponAnalytics(params?: AnalyticsParams): Promise<CouponAnalytics> {
+    const res = await axiosClient.get<CouponAnalytics>(endpoints.dashboard.coupons(), { params })
+    return res.data
+  },
+
+  /** Subscriber growth and campaign performance. */
+  async getNewsletterAnalytics(params?: AnalyticsParams): Promise<NewsletterAnalytics> {
+    const res = await axiosClient.get<NewsletterAnalytics>(endpoints.dashboard.newsletter(), { params })
     return res.data
   },
 }

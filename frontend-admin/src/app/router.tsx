@@ -1,11 +1,13 @@
-import { createBrowserRouter, Navigate, useRouteError, isRouteErrorResponse } from 'react-router-dom'
+import { createBrowserRouter, useRouteError, isRouteErrorResponse } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { AdminLayout } from '@/layouts/AdminLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { AdminOnlyRoute } from '@/routes/AdminOnlyRoute'
 import { PublicOnlyRoute } from '@/routes/PublicOnlyRoute'
-import { Spinner } from '@/components/feedback/Spinner'
+import { LoadingScreen } from '@/components/layout/LoadingScreen'
+import { ErrorState } from '@/components/feedback/ErrorState'
 import { ROUTES } from '@/constants/routes'
+import { NotFoundPage } from '@/pages/NotFoundPage'
 import { UnauthorizedPage } from '@/pages/UnauthorizedPage'
 
 // Lazy page imports
@@ -31,11 +33,7 @@ const SettingsPage      = lazy(() => import('@/pages/settings/SettingsPage').the
 const ExportsPage       = lazy(() => import('@/pages/exports/ExportsPage').then((m) => ({ default: m.ExportsPage })))
 
 function PageFallback() {
-  return (
-    <div className="flex min-h-[40vh] items-center justify-center">
-      <Spinner size="lg" className="text-primary" />
-    </div>
-  )
+  return <LoadingScreen label="Loading page…" />
 }
 
 function wrap(Component: React.ComponentType) {
@@ -46,26 +44,17 @@ function wrap(Component: React.ComponentType) {
   )
 }
 
-function NotFoundPage() {
-  return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
-      <p className="text-5xl font-bold text-text-muted">404</p>
-      <h1 className="mt-3 text-lg font-semibold text-text-primary">Page not found</h1>
-      <p className="mt-1 text-sm text-text-secondary">The page you're looking for doesn't exist.</p>
-      <a href={ROUTES.DASHBOARD} className="mt-6 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover">
-        Back to dashboard
-      </a>
-    </div>
-  )
-}
-
-
 function RouterErrorBoundary() {
   const error = useRouteError()
   if (isRouteErrorResponse(error) && error.status === 404) return <NotFoundPage />
+  if (isRouteErrorResponse(error) && error.status === 403) return <UnauthorizedPage />
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
-      <h1 className="text-lg font-semibold text-text-primary">Something went wrong</h1>
+    <div className="container-page py-10">
+      <ErrorState
+        title="Something went wrong"
+        description="An unexpected error occurred while rendering this page. Try reloading, or return to the dashboard."
+        onRetry={() => window.location.reload()}
+      />
     </div>
   )
 }

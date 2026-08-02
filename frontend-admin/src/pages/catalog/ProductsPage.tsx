@@ -76,7 +76,7 @@ export function ProductsPage() {
     { key: 'price', header: 'Price', align: 'right', render: (row) => formatCurrency(row.base_price ?? row.price ?? '0') },
     {
       key: 'status', header: 'Status',
-      render: (row) => <Badge variant={STATUS_VARIANT[row.status as keyof typeof STATUS_VARIANT] ?? 'default'}>{row.status}</Badge>,
+      render: (row) => <Badge variant={STATUS_VARIANT[row.status] ?? 'default'}>{row.status}</Badge>,
     },
     { key: 'created', header: 'Created', render: (row) => <span className="text-text-muted">{formatDate(row.created_at)}</span> },
     {

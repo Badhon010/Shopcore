@@ -107,7 +107,12 @@ function normalizeError(error: AxiosError): ApiError {
   const fieldErrors: Record<string, string[]> = {}
 
   if (data) {
-    if (typeof data['detail'] === 'string') {
+    // Project-wide error envelope: { error: { code, message, details } }
+    const envelope = data['error'] as Record<string, unknown> | undefined
+    if (envelope && typeof envelope['message'] === 'string') {
+      message = envelope['message']
+      if (typeof envelope['code'] === 'string') code = envelope['code']
+    } else if (typeof data['detail'] === 'string') {
       message = data['detail']
     } else if (typeof data['message'] === 'string') {
       message = data['message']
@@ -131,7 +136,7 @@ function normalizeError(error: AxiosError): ApiError {
 
     // Extract DRF field errors
     for (const [key, value] of Object.entries(data)) {
-      if (key !== 'detail' && key !== 'message' && key !== 'code' && key !== 'non_field_errors') {
+      if (key !== 'error' && key !== 'detail' && key !== 'message' && key !== 'code' && key !== 'non_field_errors') {
         if (Array.isArray(value)) {
           fieldErrors[key] = value.map(String)
         }

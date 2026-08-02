@@ -41,7 +41,7 @@ export function ContactPage() {
       page,
       search: debouncedSearch || undefined,
       ...(statusFilter ? { status: statusFilter } : {}),
-    } as never),
+    }),
     enabled: isAuthenticated,
   })
 
@@ -96,7 +96,7 @@ export function ContactPage() {
       key: 'status',
       header: 'Status',
       render: (row) => (
-        <Badge variant={STATUS_VARIANT[row.status as keyof typeof STATUS_VARIANT] ?? 'default'}>
+        <Badge variant={STATUS_VARIANT[row.status] ?? 'default'}>
           {STATUS_LABEL[row.status] ?? row.status}
         </Badge>
       ),
@@ -221,9 +221,7 @@ export function ContactPage() {
 
             <div className="flex items-center justify-between gap-3">
               <Badge
-                variant={
-                  STATUS_VARIANT[viewTarget.status as keyof typeof STATUS_VARIANT] ?? 'default'
-                }
+                variant={STATUS_VARIANT[viewTarget.status] ?? 'default'}
               >
                 {STATUS_LABEL[viewTarget.status] ?? viewTarget.status}
               </Badge>

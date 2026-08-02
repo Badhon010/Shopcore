@@ -313,7 +313,6 @@ export function InventoryPage() {
               placeholder="e.g. 50 or -10"
               value={adjustDelta}
               onChange={(e) => setAdjustDelta(e.target.value)}
-              autoFocus
             />
           </FormField>
           <FormField label="Reason (optional)">
@@ -363,7 +362,6 @@ export function InventoryPage() {
               min="0"
               value={thresholdValue}
               onChange={(e) => setThresholdValue(e.target.value)}
-              autoFocus
             />
           </FormField>
           <div className="flex justify-end gap-3 pt-1">
@@ -412,7 +410,6 @@ export function InventoryPage() {
               placeholder="e.g. 100"
               value={restockQty}
               onChange={(e) => setRestockQty(e.target.value)}
-              autoFocus
             />
           </FormField>
           <div className="flex justify-end gap-3 pt-1">

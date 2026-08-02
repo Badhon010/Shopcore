@@ -90,6 +90,8 @@ export function ReviewsPage() {
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ['admin-reviews'] })
+    // Tab badge counts live under a separate key — refresh them too.
+    void queryClient.invalidateQueries({ queryKey: ['admin-reviews-count'] })
   }
 
   const approveMutation = useMutation({

@@ -168,6 +168,15 @@ class AdminOrderListView(generics.ListAPIView):
         payment_status = self.request.query_params.get("payment_status")
         if payment_status:
             qs = qs.filter(payment_status=payment_status)
+        # Date range filters — validate upfront with parse_date so a malformed
+        # value is ignored instead of raising lazily at query evaluation (500).
+        from django.utils.dateparse import parse_date
+        date_from = parse_date(self.request.query_params.get("date_from", "") or "")
+        if date_from:
+            qs = qs.filter(created_at__date__gte=date_from)
+        date_to = parse_date(self.request.query_params.get("date_to", "") or "")
+        if date_to:
+            qs = qs.filter(created_at__date__lte=date_to)
         return qs
 
 

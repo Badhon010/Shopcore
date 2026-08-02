@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { Skeleton } from '@/components/feedback/Skeleton'
+import { ErrorState } from '@/components/feedback/ErrorState'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, formatDateTime } from '@/utils/format'
@@ -43,7 +44,7 @@ export function OrderDetailPage() {
 
   const { isAuthenticated } = useAuth()
 
-  const { data: order, isLoading } = useQuery({
+  const { data: order, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-order', orderNumber],
     queryFn: () => ordersService.getOrder(orderNumber!),
     enabled: isAuthenticated && !!orderNumber,
@@ -83,7 +84,15 @@ export function OrderDetailPage() {
     </div>
   )
 
-  if (!order) return null
+  if (isError || !order) {
+    return (
+      <ErrorState
+        title="Order not found"
+        description="This order could not be loaded. It may have been deleted or you may not have access to it."
+        onRetry={() => void refetch()}
+      />
+    )
+  }
 
   const allowedTransitions = TRANSITIONS[order.status] ?? []
   const addr = order.shipping_address_snapshot
@@ -97,7 +106,7 @@ export function OrderDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-lg font-semibold text-text-primary">Order #{order.order_number}</h1>
-          <Badge variant={STATUS_VARIANT[order.status as keyof typeof STATUS_VARIANT] ?? 'default'}>
+          <Badge variant={STATUS_VARIANT[order.status] ?? 'default'}>
             {order.status}
           </Badge>
         </div>

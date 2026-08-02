@@ -16,6 +16,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FormField } from '@/components/ui/FormField'
 import { Input } from '@/components/ui/Input'
 import { couponsService } from '@/services/api/coupons.service'
+import { useDebounce } from '@/utils/useDebounce'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatDate, formatCurrency } from '@/utils/format'
@@ -50,17 +51,18 @@ export function CouponsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Coupon | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Coupon | null>(null)
+  const debouncedSearch = useDebounce(search)
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const { isAuthenticated } = useAuth()
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-coupons', page, search, activeFilter],
+    queryKey: ['admin-coupons', page, debouncedSearch, activeFilter],
     queryFn: () =>
       couponsService.listCoupons({
         page,
         page_size: PAGE_SIZE,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         is_active: activeFilter === 'all' ? undefined : activeFilter === 'active',
       }),
     enabled: isAuthenticated,

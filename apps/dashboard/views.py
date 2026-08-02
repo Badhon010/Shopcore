@@ -32,6 +32,45 @@ def _period_bounds(days: int):
     return now, period_start, prev_start
 
 
+def _analytics_bounds(params, default_days=30):
+    """Return (period_end, period_start, prev_start, period_days).
+
+    Accepts an inclusive `date_from`/`date_to` range (YYYY-MM-DD) so admins
+    can query any arbitrary period; otherwise falls back to a `days` look-back
+    window ending now. The previous window has the same duration and sits
+    immediately before the range (used for growth percentages).
+    """
+    from datetime import datetime, time as dtime
+
+    from django.utils.dateparse import parse_date
+
+    now = timezone.now()
+    date_from = parse_date(params.get("date_from") or "")
+    date_to = parse_date(params.get("date_to") or "")
+
+    # Swap if the caller supplied an inverted range.
+    if date_from and date_to and date_from > date_to:
+        date_from, date_to = date_to, date_from
+
+    if date_to:
+        period_end = datetime.combine(date_to, dtime.max, tzinfo=now.tzinfo)
+    else:
+        period_end = now
+
+    if date_from:
+        period_start = datetime.combine(date_from, dtime.min, tzinfo=now.tzinfo)
+    else:
+        try:
+            days = max(1, min(730, int(params.get("days", default_days))))
+        except (ValueError, TypeError):
+            days = default_days
+        period_start = period_end - timedelta(days=days)
+
+    span = period_end - period_start
+    prev_start = period_start - span
+    return period_end, period_start, prev_start, max(1, span.days)
+
+
 # ── Dashboard statistics ───────────────────────────────────────────────────────
 
 @extend_schema(
@@ -92,20 +131,25 @@ class DashboardStatsView(APIView):
         cur_customers = customers_qs.filter(date_joined__gte=period_start).count()
         prv_customers = customers_qs.filter(date_joined__gte=prev_start, date_joined__lt=period_start).count()
 
-        # ── Products ─────────────────────────────────────────────────────────
-        from apps.catalog.constants import ProductStatus
+        # ── Products (default manager → active, non-soft-deleted only, matching
+        #    the admin product list) ──────────────────────────────────────────
         products_by_status = {
             row["status"]: row["cnt"]
-            for row in Product.all_objects.values("status").annotate(cnt=Count("id"))
+            for row in Product.objects.values("status").annotate(cnt=Count("id"))
         }
 
         # ── Categories ───────────────────────────────────────────────────────
         total_categories = Category.objects.filter(is_active=True).count()
 
         # ── Inventory ────────────────────────────────────────────────────────
-        low_stock_count = StockItem.objects.filter(
+        # Low stock is based on available quantity (on_hand - reserved), matching
+        # StockItem.is_low_stock and the admin inventory list's "Low stock only"
+        # filter. Out-of-stock items (on_hand=0) are tracked separately.
+        low_stock_count = StockItem.objects.annotate(
+            _available=F("quantity_on_hand") - F("quantity_reserved"),
+        ).filter(
             quantity_on_hand__gt=0,
-            quantity_on_hand__lte=F("low_stock_threshold"),
+            _available__lte=F("low_stock_threshold"),
         ).count()
         out_of_stock_count = StockItem.objects.filter(quantity_on_hand=0).count()
 
@@ -116,8 +160,15 @@ class DashboardStatsView(APIView):
         prv_subs = NewsletterSubscriber.objects.filter(created_at__gte=prev_start, created_at__lt=period_start).count()
 
         # ── Reviews ──────────────────────────────────────────────────────────
-        review_agg = Review.objects.aggregate(total=Count("id"), avg=Avg("rating"))
+        review_agg = Review.objects.aggregate(
+            total=Count("id"),
+            avg=Avg("rating"),
+            approved=Count("id", filter=Q(is_approved=True)),
+            pending=Count("id", filter=Q(is_approved=False)),
+        )
         total_reviews = review_agg["total"] or 0
+        approved_reviews = review_agg["approved"] or 0
+        pending_reviews = review_agg["pending"] or 0
         avg_rating = round(float(review_agg["avg"] or 0), 2)
 
         # ── Top products (by period revenue) ─────────────────────────────────
@@ -160,6 +211,30 @@ class DashboardStatsView(APIView):
             )[:10]
         )
 
+        # ── Recent customers (newest sign-ups) ───────────────────────────────
+        # full_name is a model property (not a column) so it cannot be used in
+        # .values(); compose it from first_name/last_name instead.
+        recent_customers = list(
+            customers_qs.order_by("-date_joined")
+            .values("id", "email", "first_name", "last_name", "date_joined")[:5]
+        )
+        for _c in recent_customers:
+            _c["full_name"] = f"{_c.pop('first_name', '')} {_c.pop('last_name', '')}".strip()
+
+        # ── Recent reviews (awaiting moderation + latest) ─────────────────────
+        recent_reviews = list(
+            Review.objects.select_related("user", "product")
+            .order_by("-created_at")
+            .values(
+                "id",
+                "rating",
+                "is_approved",
+                "created_at",
+                product_name=F("product__name"),
+                user_email=F("user__email"),
+            )[:5]
+        )
+
         # ── Revenue chart (daily for window) ─────────────────────────────────
         revenue_chart = list(
             paid_qs.filter(placed_at__gte=period_start)
@@ -179,10 +254,16 @@ class DashboardStatsView(APIView):
         )
 
         # ── Low stock items ───────────────────────────────────────────────────
+        # Same available-based semantics as low_stock_count above (most critical
+        # first by lowest available quantity).
         low_stock_items = list(
             StockItem.objects.select_related("variant__product", "warehouse")
-            .filter(quantity_on_hand__lte=F("low_stock_threshold"))
-            .order_by("quantity_on_hand")
+            .annotate(_available=F("quantity_on_hand") - F("quantity_reserved"))
+            .filter(
+                quantity_on_hand__gt=0,
+                _available__lte=F("low_stock_threshold"),
+            )
+            .order_by("_available")
             .values(
                 "id",
                 "quantity_on_hand",
@@ -246,11 +327,15 @@ class DashboardStatsView(APIView):
                 },
                 "reviews": {
                     "total": total_reviews,
+                    "approved": approved_reviews,
+                    "pending": pending_reviews,
                     "average_rating": avg_rating,
                 },
                 "top_products": top_products,
                 "top_categories": top_categories,
                 "recent_orders": recent_orders,
+                "recent_customers": recent_customers,
+                "recent_reviews": recent_reviews,
                 "revenue_chart": revenue_chart,
                 "orders_chart": orders_chart,
                 "low_stock_items": low_stock_items,
@@ -264,11 +349,14 @@ class DashboardStatsView(APIView):
     summary="Revenue analytics",
     description=(
         "Revenue over time, AOV, growth, and payment status breakdown. "
-        "Supports `days` (window) and `granularity` (day|week|month) params."
+        "Supports `days` (window) and `granularity` (day|week|month|year) params, "
+        "or an explicit `date_from`/`date_to` range (YYYY-MM-DD) for any period."
     ),
     parameters=[
         OpenApiParameter("days", int, description="Look-back window in days (default 30)"),
-        OpenApiParameter("granularity", str, description="Aggregation granularity: day, week, month (default day)"),
+        OpenApiParameter("granularity", str, description="Aggregation granularity: day, week, month, year (default day)"),
+        OpenApiParameter("date_from", str, description="Inclusive start date (YYYY-MM-DD) — overrides `days`"),
+        OpenApiParameter("date_to", str, description="Inclusive end date (YYYY-MM-DD) — overrides `days`"),
     ],
     tags=["Analytics"],
 )
@@ -276,7 +364,7 @@ class AnalyticsRevenueView(APIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request, *args, **kwargs):
-        from django.db.models.functions import TruncMonth, TruncWeek
+        from django.db.models.functions import TruncMonth, TruncWeek, TruncYear
         from apps.orders.constants import PaymentStatus
         from apps.orders.models import Order
 
@@ -286,9 +374,9 @@ class AnalyticsRevenueView(APIView):
             days = 30
 
         granularity = request.query_params.get("granularity", "day")
-        trunc_fn = {"week": TruncWeek, "month": TruncMonth}.get(granularity, TruncDate)
+        trunc_fn = {"week": TruncWeek, "month": TruncMonth, "year": TruncYear}.get(granularity, TruncDate)
 
-        now, period_start, prev_start = _period_bounds(days)
+        period_end, period_start, prev_start, period_days = _analytics_bounds(request.query_params, days)
         paid_qs = Order.objects.filter(payment_status=PaymentStatus.PAID)
 
         # All-time totals
@@ -301,7 +389,7 @@ class AnalyticsRevenueView(APIView):
         aov = (total_revenue / total_orders) if total_orders else Decimal("0")
 
         # Current vs previous period
-        cur = paid_qs.filter(placed_at__gte=period_start).aggregate(
+        cur = paid_qs.filter(placed_at__gte=period_start, placed_at__lte=period_end).aggregate(
             revenue=Sum("grand_total"), orders=Count("id")
         )
         prv = paid_qs.filter(placed_at__gte=prev_start, placed_at__lt=period_start).aggregate(
@@ -313,7 +401,7 @@ class AnalyticsRevenueView(APIView):
 
         # Revenue over time
         over_time = list(
-            paid_qs.filter(placed_at__gte=period_start)
+            paid_qs.filter(placed_at__gte=period_start, placed_at__lte=period_end)
             .annotate(bucket=trunc_fn("placed_at"))
             .values("bucket")
             .annotate(revenue=Sum("grand_total"), orders=Count("id"))
@@ -328,7 +416,7 @@ class AnalyticsRevenueView(APIView):
 
         return Response(
             {
-                "period_days": days,
+                "period_days": period_days,
                 "granularity": granularity,
                 "all_time": {
                     "total_revenue": total_revenue,
@@ -354,10 +442,16 @@ class AnalyticsRevenueView(APIView):
 
 @extend_schema(
     summary="Order analytics",
-    description="Orders over time, status distribution, and cancellation rate.",
+    description=(
+        "Orders over time, status distribution, and cancellation rate. "
+        "Supports `days` (window) and `granularity` (day|week|month|year) params, "
+        "or an explicit `date_from`/`date_to` range (YYYY-MM-DD)."
+    ),
     parameters=[
         OpenApiParameter("days", int, description="Look-back window in days (default 30)"),
-        OpenApiParameter("granularity", str, description="day|week|month (default day)"),
+        OpenApiParameter("granularity", str, description="day|week|month|year (default day)"),
+        OpenApiParameter("date_from", str, description="Inclusive start date (YYYY-MM-DD) — overrides `days`"),
+        OpenApiParameter("date_to", str, description="Inclusive end date (YYYY-MM-DD) — overrides `days`"),
     ],
     tags=["Analytics"],
 )
@@ -365,7 +459,7 @@ class AnalyticsOrdersView(APIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request, *args, **kwargs):
-        from django.db.models.functions import TruncMonth, TruncWeek
+        from django.db.models.functions import TruncMonth, TruncWeek, TruncYear
         from apps.orders.models import Order
 
         try:
@@ -374,30 +468,32 @@ class AnalyticsOrdersView(APIView):
             days = 30
 
         granularity = request.query_params.get("granularity", "day")
-        trunc_fn = {"week": TruncWeek, "month": TruncMonth}.get(granularity, TruncDate)
-        now, period_start, _ = _period_bounds(days)
+        trunc_fn = {"week": TruncWeek, "month": TruncMonth, "year": TruncYear}.get(granularity, TruncDate)
+        period_end, period_start, _, period_days = _analytics_bounds(request.query_params, days)
 
         over_time = list(
-            Order.objects.filter(placed_at__gte=period_start)
+            Order.objects.filter(placed_at__gte=period_start, placed_at__lte=period_end)
             .annotate(bucket=trunc_fn("placed_at"))
             .values("bucket")
             .annotate(orders=Count("id"))
             .order_by("bucket")
         )
 
+        # Status distribution + cancellation scoped to the requested window
+        window_qs = Order.objects.filter(placed_at__gte=period_start, placed_at__lte=period_end)
         status_dist = list(
-            Order.objects.values("status").annotate(count=Count("id"), pct=Count("id"))
+            window_qs.values("status").annotate(count=Count("id"))
         )
         total = sum(r["count"] for r in status_dist)
         for row in status_dist:
             row["pct"] = round(row["count"] / total * 100, 1) if total else 0.0
 
-        cancelled = Order.objects.filter(status="CANCELLED").count()
+        cancelled = window_qs.filter(status="CANCELLED").count()
         cancel_rate = round(cancelled / total * 100, 1) if total else 0.0
 
         return Response(
             {
-                "period_days": days,
+                "period_days": period_days,
                 "granularity": granularity,
                 "over_time": over_time,
                 "status_distribution": status_dist,
@@ -412,6 +508,8 @@ class AnalyticsOrdersView(APIView):
     parameters=[
         OpenApiParameter("days", int, description="Look-back window in days (default 30)"),
         OpenApiParameter("limit", int, description="Number of results (default 20, max 100)"),
+        OpenApiParameter("date_from", str, description="Inclusive start date (YYYY-MM-DD) — overrides `days`"),
+        OpenApiParameter("date_to", str, description="Inclusive end date (YYYY-MM-DD) — overrides `days`"),
     ],
     tags=["Analytics"],
 )
@@ -427,10 +525,10 @@ class AnalyticsBestSellersView(APIView):
         except (ValueError, TypeError):
             days, limit = 30, 20
 
-        _, period_start, _ = _period_bounds(days)
+        period_end, period_start, _, period_days = _analytics_bounds(request.query_params, days)
 
         results = list(
-            OrderItem.objects.filter(order__placed_at__gte=period_start)
+            OrderItem.objects.filter(order__placed_at__gte=period_start, order__placed_at__lte=period_end)
             .values(
                 product_id=F("variant__product__id"),
                 product_name=F("variant__product__name"),
@@ -441,15 +539,21 @@ class AnalyticsBestSellersView(APIView):
             .order_by("-revenue")[:limit]
         )
 
-        return Response({"period_days": days, "results": results})
+        return Response({"period_days": period_days, "results": results})
 
 
 @extend_schema(
     summary="Customer growth analytics",
-    description="New customer registrations over time, total and active counts.",
+    description=(
+        "New customer registrations over time, total and active counts. "
+        "Supports `days` (window) and `granularity` (day|week|month|year) params, "
+        "or an explicit `date_from`/`date_to` range (YYYY-MM-DD)."
+    ),
     parameters=[
         OpenApiParameter("days", int, description="Look-back window in days (default 30)"),
-        OpenApiParameter("granularity", str, description="day|week|month (default day)"),
+        OpenApiParameter("granularity", str, description="day|week|month|year (default day)"),
+        OpenApiParameter("date_from", str, description="Inclusive start date (YYYY-MM-DD) — overrides `days`"),
+        OpenApiParameter("date_to", str, description="Inclusive end date (YYYY-MM-DD) — overrides `days`"),
     ],
     tags=["Analytics"],
 )
@@ -457,7 +561,7 @@ class AnalyticsCustomerGrowthView(APIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request, *args, **kwargs):
-        from django.db.models.functions import TruncMonth, TruncWeek
+        from django.db.models.functions import TruncMonth, TruncWeek, TruncYear
         from apps.accounts.models import User
 
         try:
@@ -466,15 +570,15 @@ class AnalyticsCustomerGrowthView(APIView):
             days = 30
 
         granularity = request.query_params.get("granularity", "day")
-        trunc_fn = {"week": TruncWeek, "month": TruncMonth}.get(granularity, TruncDate)
-        _, period_start, _ = _period_bounds(days)
+        trunc_fn = {"week": TruncWeek, "month": TruncMonth, "year": TruncYear}.get(granularity, TruncDate)
+        period_end, period_start, _, period_days = _analytics_bounds(request.query_params, days)
 
         customers_qs = User.objects.filter(is_staff=False)
         total = customers_qs.count()
         active = customers_qs.filter(is_active=True).count()
 
         over_time = list(
-            customers_qs.filter(date_joined__gte=period_start)
+            customers_qs.filter(date_joined__gte=period_start, date_joined__lte=period_end)
             .annotate(bucket=trunc_fn("date_joined"))
             .values("bucket")
             .annotate(new_customers=Count("id"))
@@ -483,7 +587,7 @@ class AnalyticsCustomerGrowthView(APIView):
 
         return Response(
             {
-                "period_days": days,
+                "period_days": period_days,
                 "granularity": granularity,
                 "total_customers": total,
                 "active_customers": active,
@@ -505,8 +609,13 @@ class AnalyticsInventoryView(APIView):
         from apps.inventory.models import StockItem
 
         total_items = StockItem.objects.count()
-        low_stock = StockItem.objects.filter(
-            quantity_on_hand__gt=0, quantity_on_hand__lte=F("low_stock_threshold")
+        # Low stock = available (on_hand - reserved) at or below threshold,
+        # matching StockItem.is_low_stock and the dashboard overview count.
+        low_stock = StockItem.objects.annotate(
+            _available=F("quantity_on_hand") - F("quantity_reserved"),
+        ).filter(
+            quantity_on_hand__gt=0,
+            _available__lte=F("low_stock_threshold"),
         ).count()
         out_of_stock = StockItem.objects.filter(quantity_on_hand=0).count()
         in_stock = total_items - low_stock - out_of_stock
@@ -551,9 +660,14 @@ class AnalyticsInventoryView(APIView):
 
 @extend_schema(
     summary="Coupon usage analytics",
-    description="Coupon usage counts, discount totals, and top coupons by use.",
+    description=(
+        "Coupon usage counts, discount totals, and top coupons by use. "
+        "Supports `days` (window) or an explicit `date_from`/`date_to` range (YYYY-MM-DD)."
+    ),
     parameters=[
         OpenApiParameter("days", int, description="Look-back window in days (default 30)"),
+        OpenApiParameter("date_from", str, description="Inclusive start date (YYYY-MM-DD) — overrides `days`"),
+        OpenApiParameter("date_to", str, description="Inclusive end date (YYYY-MM-DD) — overrides `days`"),
     ],
     tags=["Analytics"],
 )
@@ -569,11 +683,12 @@ class AnalyticsCouponUsageView(APIView):
         except (ValueError, TypeError):
             days = 30
 
-        _, period_start, _ = _period_bounds(days)
+        period_end, period_start, _, period_days = _analytics_bounds(request.query_params, days)
 
         # Orders with coupons in the period
         coupon_orders = Order.objects.filter(
             placed_at__gte=period_start,
+            placed_at__lte=period_end,
             coupon__isnull=False,
         )
         total_coupon_orders = coupon_orders.count()
@@ -596,7 +711,7 @@ class AnalyticsCouponUsageView(APIView):
 
         return Response(
             {
-                "period_days": days,
+                "period_days": period_days,
                 "period_coupon_orders": total_coupon_orders,
                 "period_total_discount": total_discount,
                 "top_coupons_this_period": top_coupons,
@@ -607,10 +722,16 @@ class AnalyticsCouponUsageView(APIView):
 
 @extend_schema(
     summary="Newsletter growth analytics",
-    description="Subscriber growth over time and campaign performance summary.",
+    description=(
+        "Subscriber growth over time and campaign performance summary. "
+        "Supports `days` (window) and `granularity` (day|week|month|year) params, "
+        "or an explicit `date_from`/`date_to` range (YYYY-MM-DD)."
+    ),
     parameters=[
         OpenApiParameter("days", int, description="Look-back window in days (default 30)"),
-        OpenApiParameter("granularity", str, description="day|week|month (default day)"),
+        OpenApiParameter("granularity", str, description="day|week|month|year (default day)"),
+        OpenApiParameter("date_from", str, description="Inclusive start date (YYYY-MM-DD) — overrides `days`"),
+        OpenApiParameter("date_to", str, description="Inclusive end date (YYYY-MM-DD) — overrides `days`"),
     ],
     tags=["Analytics"],
 )
@@ -618,7 +739,7 @@ class AnalyticsNewsletterView(APIView):
     permission_classes = [IsStaffUser]
 
     def get(self, request, *args, **kwargs):
-        from django.db.models.functions import TruncMonth, TruncWeek
+        from django.db.models.functions import TruncMonth, TruncWeek, TruncYear
         from apps.newsletter.models import NewsletterCampaign, NewsletterSubscriber
 
         try:
@@ -627,14 +748,14 @@ class AnalyticsNewsletterView(APIView):
             days = 30
 
         granularity = request.query_params.get("granularity", "day")
-        trunc_fn = {"week": TruncWeek, "month": TruncMonth}.get(granularity, TruncDate)
-        _, period_start, _ = _period_bounds(days)
+        trunc_fn = {"week": TruncWeek, "month": TruncMonth, "year": TruncYear}.get(granularity, TruncDate)
+        period_end, period_start, _, period_days = _analytics_bounds(request.query_params, days)
 
         total_subs = NewsletterSubscriber.objects.count()
         active_subs = NewsletterSubscriber.objects.filter(active=True).count()
 
         growth = list(
-            NewsletterSubscriber.objects.filter(created_at__gte=period_start)
+            NewsletterSubscriber.objects.filter(created_at__gte=period_start, created_at__lte=period_end)
             .annotate(bucket=trunc_fn("created_at"))
             .values("bucket")
             .annotate(new_subscribers=Count("id"))
@@ -657,7 +778,7 @@ class AnalyticsNewsletterView(APIView):
 
         return Response(
             {
-                "period_days": days,
+                "period_days": period_days,
                 "granularity": granularity,
                 "total_subscribers": total_subs,
                 "active_subscribers": active_subs,

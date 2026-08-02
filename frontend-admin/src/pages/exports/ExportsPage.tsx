@@ -44,10 +44,8 @@ export function ExportsPage() {
   const [loadingKey, setLoadingKey] = useState<string | null>(null)
 
   const exportMutation = useMutation({
-    mutationFn: async ({ key }: { key: keyof typeof exportsService }) => {
-      const fn = exportsService[key] as (fmt: ExportFormat) => Promise<Blob>
-      return fn(format)
-    },
+    mutationFn: ({ key }: { key: keyof typeof exportsService }) =>
+      exportsService[key](format),
     onSuccess: (blob, { key }) => {
       const label = EXPORTS.find((e) => e.key === key)?.label ?? 'export'
       triggerDownload(blob, `${label.toLowerCase()}_export.${format}`)

@@ -229,6 +229,134 @@ class TestStockMovementHistoryView:
 
 
 @pytest.mark.django_db
+class TestStockItemListView:
+    """GET /inventory/stock/ — list with search / low-stock / warehouse filters."""
+
+    def test_lists_all_stock_items(self, staff_client):
+        client, _ = staff_client
+        StockItemFactory()
+        StockItemFactory()
+        url = reverse("inventory:stock-list")
+        response = client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["count"] == 2
+
+    def test_search_by_sku(self, staff_client):
+        client, _ = staff_client
+        target = StockItemFactory(variant__sku="GRN-TEE-L")
+        StockItemFactory(variant__sku="BLU-HOOD-M")
+        url = reverse("inventory:stock-list")
+        response = client.get(url, {"search": "GRN-TEE"})
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["id"] == target.pk
+
+    def test_search_by_product_name(self, staff_client):
+        client, _ = staff_client
+        target = StockItemFactory(variant__product__name="Organic Green Tee")
+        StockItemFactory(variant__product__name="Denim Jacket")
+        url = reverse("inventory:stock-list")
+        response = client.get(url, {"search": "green tee"})
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["id"] == target.pk
+
+    def test_low_stock_only_filter(self, staff_client):
+        client, _ = staff_client
+        # available=2 <= threshold=5 → low stock
+        low = StockItemFactory(quantity_on_hand=2, quantity_reserved=0, low_stock_threshold=5)
+        StockItemFactory(quantity_on_hand=100, quantity_reserved=0, low_stock_threshold=5)
+        url = reverse("inventory:stock-list")
+        response = client.get(url, {"low_stock_only": "true"})
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["id"] == low.pk
+
+    def test_low_stock_counts_reserved(self, staff_client):
+        client, _ = staff_client
+        # on_hand=10, reserved=6 → available=4 <= 5 → low stock
+        low = StockItemFactory(quantity_on_hand=10, quantity_reserved=6, low_stock_threshold=5)
+        # on_hand=10, reserved=0 → available=10 > 5 → not low stock
+        StockItemFactory(quantity_on_hand=10, quantity_reserved=0, low_stock_threshold=5)
+        url = reverse("inventory:stock-list")
+        response = client.get(url, {"low_stock_only": "true"})
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["id"] == low.pk
+
+    def test_out_of_stock_only_filter(self, staff_client):
+        client, _ = staff_client
+        oos = StockItemFactory(quantity_on_hand=0)
+        StockItemFactory(quantity_on_hand=50)
+        url = reverse("inventory:stock-list")
+        response = client.get(url, {"out_of_stock_only": "true"})
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["id"] == oos.pk
+
+    def test_warehouse_filter(self, staff_client):
+        client, _ = staff_client
+        wh1 = WarehouseFactory(code="WH-MAIN")
+        wh2 = WarehouseFactory(code="WH-SEC")
+        in_wh1 = StockItemFactory(warehouse=wh1)
+        StockItemFactory(warehouse=wh2)
+        url = reverse("inventory:stock-list")
+        response = client.get(url, {"warehouse": str(wh1.pk)})
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["id"] == in_wh1.pk
+
+    def test_combined_filters(self, staff_client):
+        client, _ = staff_client
+        wh = WarehouseFactory(code="WH-ONE")
+        target = StockItemFactory(
+            warehouse=wh,
+            variant__product__name="Cherry Soda",
+            quantity_on_hand=2,
+            low_stock_threshold=5,
+        )
+        StockItemFactory(
+            warehouse=wh,
+            variant__product__name="Lemon Soda",
+            quantity_on_hand=100,
+        )
+        StockItemFactory(
+            variant__product__name="Cherry Soda",
+            quantity_on_hand=2,
+            low_stock_threshold=5,
+        )
+        url = reverse("inventory:stock-list")
+        response = client.get(
+            url,
+            {"search": "cherry", "low_stock_only": "true", "warehouse": str(wh.pk)},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["id"] == target.pk
+
+    def test_response_includes_stock_status_fields(self, staff_client):
+        client, _ = staff_client
+        StockItemFactory(quantity_on_hand=0, quantity_reserved=0, low_stock_threshold=5)
+        StockItemFactory(quantity_on_hand=100, quantity_reserved=0, low_stock_threshold=5)
+        url = reverse("inventory:stock-list")
+        response = client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        results = {r["id"]: r for r in response.data["results"]}
+        assert all("is_low_stock" in r and "is_out_of_stock" in r for r in results.values())
+
+    def test_stock_list_requires_staff(self, plain_client):
+        url = reverse("inventory:stock-list")
+        response = plain_client.get(url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_stock_list_requires_auth(self):
+        client = APIClient()
+        url = reverse("inventory:stock-list")
+        response = client.get(url)
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
 class TestWarehouseListView:
     def test_list_warehouses(self, staff_client):
         client, _ = staff_client

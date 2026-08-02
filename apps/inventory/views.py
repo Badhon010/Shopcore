@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 
 from django.db import transaction
-from drf_spectacular.utils import extend_schema
+from django.db.models import Case, F, IntegerField, Q, Sum, When, Window
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -25,14 +26,61 @@ from apps.inventory.services import restock
 logger = logging.getLogger("shopcore.inventory.views")
 
 
+@extend_schema(
+    summary="List stock items",
+    description=(
+        "Staff-only: paginated stock items across warehouses. Supports `search` "
+        "(SKU or product name), `low_stock_only`, `out_of_stock_only`, and "
+        "`warehouse` (ID) filters."
+    ),
+    parameters=[
+        OpenApiParameter("search", str, description="Search SKU or product name"),
+        OpenApiParameter(
+            "low_stock_only",
+            str,
+            description="true — only items whose available quantity is at or below their low-stock threshold",
+        ),
+        OpenApiParameter(
+            "out_of_stock_only",
+            str,
+            description="true — only items with 0 on hand",
+        ),
+        OpenApiParameter("warehouse", int, description="Filter by warehouse ID"),
+    ],
+    tags=["Inventory"],
+)
 class StockItemListView(generics.ListAPIView):
     serializer_class = StockItemSerializer
     permission_classes = [IsStaffUser]
 
     def get_queryset(self):
-        return StockItem.objects.select_related("variant__product", "warehouse").order_by(
-            "variant__sku"
-        )
+        qs = StockItem.objects.select_related("variant__product", "warehouse")
+
+        search = self.request.query_params.get("search", "")
+        if search:
+            qs = qs.filter(
+                Q(variant__sku__icontains=search)
+                | Q(variant__product__name__icontains=search)
+            )
+
+        # Boolean toggles — sent by the admin UI as "true"/"false" strings.
+        if self.request.query_params.get("out_of_stock_only", "").lower() == "true":
+            qs = qs.filter(quantity_on_hand=0)
+        elif self.request.query_params.get("low_stock_only", "").lower() == "true":
+            # Match the is_low_stock property the admin UI badge relies on:
+            # available (= on_hand - reserved) at or below the threshold.
+            qs = qs.annotate(
+                _available=F("quantity_on_hand") - F("quantity_reserved")
+            ).filter(_available__lte=F("low_stock_threshold"))
+
+        warehouse = self.request.query_params.get("warehouse", "")
+        if warehouse:
+            try:
+                qs = qs.filter(warehouse_id=int(warehouse))
+            except ValueError:
+                pass  # ignore malformed values rather than 500
+
+        return qs.order_by("variant__sku")
 
 
 class StockItemDetailView(generics.RetrieveAPIView):
@@ -102,7 +150,7 @@ class ManualStockAdjustmentView(APIView):
         serializer = ManualAdjustmentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         quantity_delta = serializer.validated_data["quantity_delta"]
-        reason = serializer.validated_data["reason"]
+        reason = serializer.validated_data.get("reason", "")
         note = serializer.validated_data.get("note", "")
 
         try:
@@ -181,7 +229,35 @@ class StockMovementHistoryView(generics.ListAPIView):
 
     def get_queryset(self):
         pk = self.kwargs["pk"]
-        return StockMovement.objects.filter(stock_item_id=pk).order_by("-created_at")
+        # Running on-hand total across this stock item's history. Only
+        # movement types that actually change quantity_on_hand count toward
+        # the total (reservations/releases only touch quantity_reserved).
+        on_hand_delta = Case(
+            When(
+                movement_type__in=[
+                    MovementType.RESTOCK,
+                    MovementType.ADJUSTMENT,
+                    MovementType.SALE,
+                ],
+                then=F("quantity_delta"),
+            ),
+            default=0,
+            output_field=IntegerField(),
+        )
+        return (
+            StockMovement.objects
+            .filter(stock_item_id=pk)
+            .select_related("created_by")
+            .annotate(
+                _running_after=Window(
+                    expression=Sum(on_hand_delta),
+                    partition_by=[F("stock_item_id")],
+                    order_by=[F("id")],
+                ),
+                _row_delta=on_hand_delta,
+            )
+            .order_by("-created_at", "-id")
+        )
 
 
 class WarehouseListView(generics.ListAPIView):

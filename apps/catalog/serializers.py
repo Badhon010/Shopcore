@@ -72,7 +72,7 @@ class BannerSerializer(serializers.ModelSerializer):
         fields = [
             "id", "title", "subtitle", "eyebrow", "image",
             "cta_text", "cta_link", "secondary_cta_text", "secondary_cta_link",
-            "display_order",
+            "display_order", "is_active",
         ]
 
 

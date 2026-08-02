@@ -70,11 +70,11 @@ export function OrdersPage() {
     },
     {
       key: 'status', header: 'Status',
-      render: (row) => <Badge variant={STATUS_VARIANT[row.status as keyof typeof STATUS_VARIANT] ?? 'default'}>{row.status}</Badge>,
+      render: (row) => <Badge variant={STATUS_VARIANT[row.status] ?? 'default'}>{row.status}</Badge>,
     },
     {
       key: 'payment', header: 'Payment',
-      render: (row) => <Badge variant={PAYMENT_STATUS_VARIANT[row.payment_status as keyof typeof PAYMENT_STATUS_VARIANT] ?? 'default'}>{row.payment_status}</Badge>,
+      render: (row) => <Badge variant={PAYMENT_STATUS_VARIANT[row.payment_status] ?? 'default'}>{row.payment_status}</Badge>,
     },
     { key: 'total', header: 'Total', align: 'right', render: (row) => <span className="font-medium text-text-primary">{formatCurrency(row.grand_total)}</span> },
   ]

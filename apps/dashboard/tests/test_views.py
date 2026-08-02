@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.accounts.tests.factories import StaffUserFactory, UserFactory
+from apps.inventory.tests.factories import StockItemFactory
 
 
 @pytest.fixture
@@ -73,6 +74,26 @@ class TestDashboardStatsView:
     def test_anonymous_cannot_access_dashboard(self, anon_client):
         response = anon_client.get(reverse("dashboard:overview"))
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_low_stock_count_uses_available_quantity(self, staff_client):
+        # on_hand=60, reserved=50 → available=10 <= threshold=15 → low stock
+        StockItemFactory(quantity_on_hand=60, quantity_reserved=50, low_stock_threshold=15)
+        # on_hand=200, reserved=0 → available=200 > threshold=5 → not low stock
+        StockItemFactory(quantity_on_hand=200, quantity_reserved=0, low_stock_threshold=5)
+        # on_hand=0 → out of stock, counted separately
+        StockItemFactory(quantity_on_hand=0, quantity_reserved=0, low_stock_threshold=5)
+        response = staff_client.get(reverse("dashboard:overview"))
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["low_stock_count"] == 1
+        assert response.data["inventory"]["low_stock_count"] == 1
+        assert response.data["inventory"]["out_of_stock_count"] == 1
+
+    def test_low_stock_items_match_count(self, staff_client):
+        low = StockItemFactory(quantity_on_hand=60, quantity_reserved=50, low_stock_threshold=15)
+        StockItemFactory(quantity_on_hand=200, quantity_reserved=0, low_stock_threshold=5)
+        response = staff_client.get(reverse("dashboard:overview"))
+        assert response.data["low_stock_count"] == 1
+        assert [item["id"] for item in response.data["low_stock_items"]] == [low.pk]
 
 
 # ── Revenue analytics ──────────────────────────────────────────────────────────
@@ -193,6 +214,18 @@ class TestAnalyticsInventoryView:
     def test_non_staff_cannot_access_inventory_analytics(self, plain_client):
         response = plain_client.get(reverse("dashboard:analytics-inventory"))
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_low_stock_count_uses_available_quantity(self, staff_client):
+        # on_hand=60, reserved=50 → available=10 <= threshold=15 → low stock
+        StockItemFactory(quantity_on_hand=60, quantity_reserved=50, low_stock_threshold=15)
+        # on_hand=200, reserved=0 → available=200 > threshold=5 → not low stock
+        StockItemFactory(quantity_on_hand=200, quantity_reserved=0, low_stock_threshold=5)
+        response = staff_client.get(reverse("dashboard:analytics-inventory"))
+        summary = response.data["summary"]
+        assert summary["total_sku_count"] == 2
+        assert summary["low_stock_count"] == 1
+        assert summary["out_of_stock_count"] == 0
+        assert summary["in_stock_count"] == 1
 
 
 # ── Coupon analytics ───────────────────────────────────────────────────────────

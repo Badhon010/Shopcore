@@ -48,7 +48,7 @@ function ToastItem({ item, onClose }: { item: ToastData; onClose: () => void }) 
     <RadixToast.Root
       className={cn(
         'pointer-events-auto flex w-[360px] items-start gap-3 rounded-xl border p-4 shadow-md',
-        'data-[state=open]:animate-scale-in data-[state=closed]:animate-fade-in',
+        'data-[state=open]:animate-scale-in data-[state=closed]:animate-fade-out',
         VARIANT_STYLES[variant]
       )}
       duration={4000}

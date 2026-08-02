@@ -220,7 +220,7 @@ export function CategoriesPage() {
           </div>
 
           <FormField label="Name" htmlFor="cat-name" required>
-            <Input id="cat-name" autoFocus value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Electronics" />
+            <Input id="cat-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Electronics" />
           </FormField>
 
           <FormField label="Description" htmlFor="cat-desc">

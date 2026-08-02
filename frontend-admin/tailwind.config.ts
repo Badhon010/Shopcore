@@ -89,6 +89,28 @@ const config: Config = {
         lg:          'var(--shadow-lg)',
         'focus-ring':'var(--shadow-focus-ring)',
       },
+
+      // ── Typography Scale (mirrors frontend-store) ──────────────
+      fontSize: {
+        // Display
+        'display-2xl': ['4.5rem',  { lineHeight: '1.05', letterSpacing: '-0.02em' }],
+        'display-xl':  ['3.5rem',  { lineHeight: '1.08', letterSpacing: '-0.02em' }],
+        'display-lg':  ['3rem',    { lineHeight: '1.1',  letterSpacing: '-0.015em' }],
+        // Headings
+        'heading-xl':  ['2.25rem', { lineHeight: '1.2',  letterSpacing: '-0.01em' }],
+        'heading-lg':  ['1.75rem', { lineHeight: '1.25' }],
+        'heading-md':  ['1.375rem',{ lineHeight: '1.3' }],
+        'heading-sm':  ['1.25rem', { lineHeight: '1.35' }],
+        // Body
+        'body-lg':     ['1.125rem',{ lineHeight: '1.6' }],
+        'body-md':     ['1rem',    { lineHeight: '1.6' }],
+        'body-sm':     ['0.875rem',{ lineHeight: '1.5' }],
+        // Utility
+        caption:       ['0.75rem', { lineHeight: '1.4', letterSpacing: '0.02em' }],
+        overline:      ['0.6875rem',{ lineHeight: '1.4', letterSpacing: '0.08em' }],
+        label:         ['0.8125rem',{ lineHeight: '1.4', letterSpacing: '0.01em' }],
+      },
+
       fontFamily: {
         sans: ['InterVariable', 'Inter', 'system-ui', 'sans-serif'],
       },
@@ -100,6 +122,10 @@ const config: Config = {
         'fade-in': {
           from: { opacity: '0' },
           to:   { opacity: '1' },
+        },
+        'fade-out': {
+          from: { opacity: '1' },
+          to:   { opacity: '0' },
         },
         'slide-in-right': {
           from: { transform: 'translateX(100%)' },
@@ -117,6 +143,7 @@ const config: Config = {
       animation: {
         shimmer:          'shimmer 2s linear infinite',
         'fade-in':        'fade-in var(--duration-base) ease-out',
+        'fade-out':       'fade-out var(--duration-base) ease-in',
         'scale-in':       'scale-in var(--duration-base) cubic-bezier(0.2,0,0,1)',
         'slide-in-right': 'slide-in-right var(--duration-slow) cubic-bezier(0.2,0,0,1)',
         'slide-in-left':  'slide-in-left  var(--duration-slow) cubic-bezier(0.2,0,0,1)',

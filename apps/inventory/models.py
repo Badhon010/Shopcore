@@ -68,6 +68,10 @@ class StockItem(TimeStampedModel):
     def is_low_stock(self) -> bool:
         return self.quantity_available <= self.low_stock_threshold
 
+    @property
+    def is_out_of_stock(self) -> bool:
+        return self.quantity_on_hand == 0
+
 
 class StockMovement(models.Model):
     """Append-only audit log for all stock changes.

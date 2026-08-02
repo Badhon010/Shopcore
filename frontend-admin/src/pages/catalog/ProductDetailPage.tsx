@@ -22,6 +22,7 @@ import { Tabs } from '@/components/ui/Tabs'
 import { Modal } from '@/components/ui/Modal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Skeleton } from '@/components/feedback/Skeleton'
+import { ErrorState } from '@/components/feedback/ErrorState'
 import { EmptyState } from '@/components/feedback/EmptyState'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { useToast } from '@/contexts/ToastContext'
@@ -85,7 +86,7 @@ function getRelatedId(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null
   }
   if (typeof value === 'object' && 'id' in value) {
-    return getRelatedId((value as { id: unknown }).id)
+    return getRelatedId(value.id)
   }
   return null
 }
@@ -112,7 +113,7 @@ export function ProductDetailPage() {
   const [deleteImage, setDeleteImage] = useState<ProductImage | null>(null)
 
   // ── Fetch product ──────────────────────────────────────────
-  const { data: product, isLoading: productLoading } = useQuery({
+  const { data: product, isLoading: productLoading, isError: productError, refetch: refetchProduct } = useQuery({
     queryKey: ['admin-product', slug],
     queryFn: () => catalogService.getProduct(slug!),
     enabled: isAuthenticated && !isNew && !!slug,
@@ -121,14 +122,14 @@ export function ProductDetailPage() {
   // ── Fetch categories & brands for selectors ────────────────
   const { data: categoriesData } = useQuery({
     queryKey: ['admin-categories-all'],
-    queryFn: () => catalogService.listCategories({ page_size: 200 } as never),
+    queryFn: () => catalogService.listCategories({ page_size: 200 }),
     staleTime: 5 * 60_000,
     enabled: isAuthenticated,
   })
 
   const { data: brandsData } = useQuery({
     queryKey: ['admin-brands-all'],
-    queryFn: () => catalogService.listBrands({ page_size: 200 } as never),
+    queryFn: () => catalogService.listBrands({ page_size: 200 }),
     staleTime: 5 * 60_000,
     enabled: isAuthenticated,
   })
@@ -400,6 +401,17 @@ export function ProductDetailPage() {
     )
   }
 
+  // ── Error state (existing product that failed to load) ─────
+  if (!isNew && productError) {
+    return (
+      <ErrorState
+        title="Product not found"
+        description="This product could not be loaded. It may have been deleted or you may not have access to it."
+        onRetry={() => void refetchProduct()}
+      />
+    )
+  }
+
   const tabs = isNew
     ? [{ value: 'details', label: 'Details' }]
     : [
@@ -462,7 +474,6 @@ export function ProductDetailPage() {
               >
                 <Input
                   id="name"
-                  autoFocus={isNew}
                   error={!!errors.name}
                   {...register('name')}
                 />
@@ -807,7 +818,6 @@ export function ProductDetailPage() {
             <Input
               error={!!variantForm.formState.errors.sku}
               placeholder="PROD-001-RED-M"
-              autoFocus
               {...variantForm.register('sku')}
             />
           </FormField>
