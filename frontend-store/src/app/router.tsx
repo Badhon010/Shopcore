@@ -12,6 +12,7 @@ import { ServerErrorPage } from '@/pages/ServerErrorPage'
 import { MaintenancePage } from '@/pages/MaintenancePage'
 import { OfflinePage } from '@/pages/OfflinePage'
 import { buildRoute } from '@/constants/routes'
+import { useAuth } from '@/contexts/AuthContext'
 
 // Page-level lazy imports
 const HomePage = lazy(() => import('@/pages/HomePage').then((m) => ({ default: m.HomePage })))
@@ -106,6 +107,47 @@ function ProductCategoryRedirect() {
   return <Navigate to={buildRoute.category(slug)} replace />
 }
 
+/**
+ * Direct /orders and /orders/:orderNumber routes:
+ * Account holders go to /account/orders/:orderNumber, guests go to /track-order
+ */
+function OrderRedirect() {
+  const { orderNumber = '' } = useParams<{ orderNumber: string }>()
+  const { isAuthenticated, isLoading } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to={`/account/orders/${encodeURIComponent(orderNumber)}`} replace />
+  }
+
+  return <Navigate to={`/track-order?order_number=${encodeURIComponent(orderNumber)}`} replace />
+}
+
+function OrdersRedirect() {
+  const { isAuthenticated, isLoading } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/account/orders" replace />
+  }
+
+  return <Navigate to="/track-order" replace />
+}
+
 export const router = createBrowserRouter([
   // Public routes under RootLayout
   {
@@ -131,6 +173,8 @@ export const router = createBrowserRouter([
       { path: '/products/:productSlug', element: withSuspense(ProductDetailsPage) },
 
       { path: '/cart', element: withSuspense(CartPage) },
+      { path: '/orders', element: <OrdersRedirect /> },
+      { path: '/orders/:orderNumber', element: <OrderRedirect /> },
       { path: '/track-order', element: withSuspense(TrackOrderPage) },
       { path: '/about', element: withSuspense(AboutPage) },
       { path: '/contact', element: withSuspense(ContactPage) },

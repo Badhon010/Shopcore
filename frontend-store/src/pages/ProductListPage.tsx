@@ -163,9 +163,10 @@ export function ProductListPage() {
     })
   }
 
-  /** Reset all non-category filters — category is cleared via the category tree. */
+  /** Reset all filters including category */
   const handleClear = () => {
     setSearchParams((prev) => {
+      prev.delete('category')
       prev.delete('in_stock')
       prev.delete('min_rating')
       prev.delete('brands')

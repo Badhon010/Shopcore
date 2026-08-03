@@ -29,7 +29,7 @@ interface OrderTrackerProps {
 export function OrderTracker({ order }: OrderTrackerProps) {
   if (order.status === 'CANCELLED' || order.status === 'REFUNDED') {
     // Find the history entry that transitioned INTO this terminal status
-    const terminalEntry = order.status_history.find((h) => h.to_status === order.status)
+    const terminalEntry = (order.status_history || []).find((h) => h.to_status === order.status)
     return (
       <div className="rounded-lg bg-danger-subtle border border-danger/20 p-4">
         <p className="text-body-sm font-semibold text-danger">
@@ -64,7 +64,7 @@ export function OrderTracker({ order }: OrderTrackerProps) {
             const isCompleted = index < currentStepIndex
             const isCurrent = index === currentStepIndex
             // Find history entry where the order transitioned INTO this step
-            const historyEntry = order.status_history.find((h) => h.to_status === step)
+            const historyEntry = (order.status_history || []).find((h) => h.to_status === step)
 
             return (
               <li

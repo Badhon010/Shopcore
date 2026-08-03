@@ -13,23 +13,6 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5000,
     allowedHosts: true,
-    proxy: {
-      // Frontend code calls same-origin paths like "/api/catalog/products/"
-      // (see VITE_API_BASE_URL=/api in .env); the backend actually serves
-      // its API under "/api/v1/...", so rewrite the prefix here.
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        rewrite: (requestPath) => requestPath.replace(/^\/api/, '/api/v1'),
-      },
-      // Product/category/banner images are served by Django from MEDIA_URL
-      // ("/media/...") — without this proxy entry every <img> pointing at a
-      // backend-uploaded image 404s in dev, since only /api was forwarded.
-      '/media': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
-    },
   },
   build: {
     rollupOptions: {

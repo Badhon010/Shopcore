@@ -13,6 +13,9 @@ import { emailSchema } from '@/utils/validators'
 import { guestOrderStore } from '@/utils/guestOrderStore'
 import type { Order } from '@/types/models'
 import { useEffect, useState } from 'react'
+import { Navigate, useSearchParams } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
+import { ROUTES } from '@/constants/routes'
 
 const PHONE_RE = /^\+?\d{9,15}$/
 
@@ -23,29 +26,47 @@ const PHONE_RE = /^\+?\d{9,15}$/
  * The backend returns the same 404 for a mismatch as for a missing order, so
  * the form must not reveal which part failed.
  */
-const schema = z.object({
-  order_number: z.string().min(1, 'Order number is required'),
-  phone_number: z
-    .string()
-    .optional()
-    .refine((v) => !v || PHONE_RE.test(v), 'Enter a valid phone number'),
-  email: emailSchema.optional().or(z.literal('')),
-  lookup_token: z.string().optional(),
-})
+const schema = z
+  .object({
+    order_number: z.string().optional(),
+    phone_number: z
+      .string()
+      .optional()
+      .refine((v) => !v || PHONE_RE.test(v), 'Enter a valid phone number'),
+    email: emailSchema.optional().or(z.literal('')),
+    lookup_token: z.string().optional(),
+  })
+  .refine(
+    (data) => !!(data.order_number?.trim() || data.email?.trim() || data.phone_number?.trim() || data.lookup_token?.trim()),
+    {
+      message: 'Provide at least an order number, phone number, email, or guest tracking code.',
+      path: ['order_number'],
+    }
+  )
 type FormData = z.infer<typeof schema>
 
 export function TrackOrderPage() {
+  const [searchParams] = useSearchParams()
+  const orderNumParam = searchParams.get('order_number') || searchParams.get('number') || searchParams.get('id') || ''
+  const emailParam = searchParams.get('email') || ''
+  const tokenParam = searchParams.get('token') || searchParams.get('lookup_token') || searchParams.get('guest_lookup_token') || ''
+
   const [order, setOrder] = useState<Order | null>(null)
   const track = useTrackOrder()
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
+    defaultValues: {
+      order_number: orderNumParam,
+      email: emailParam,
+      lookup_token: tokenParam,
+    },
   })
 
   const onSubmit = async (data: FormData) => {
     try {
       const result = await track.mutateAsync({
-        order_number: data.order_number,
+        order_number: data.order_number || '',
         ...(data.email ? { email: data.email } : {}),
         ...(data.phone_number ? { phone_number: data.phone_number } : {}),
         ...(data.lookup_token ? { lookup_token: data.lookup_token } : {}),
@@ -55,6 +76,20 @@ export function TrackOrderPage() {
       form.setError('root', { message: 'Order not found. Please check your details.' })
     }
   }
+
+  // Trigger auto lookup on mount if query params are present
+  useEffect(() => {
+    if (orderNumParam || emailParam || tokenParam) {
+      if (orderNumParam) form.setValue('order_number', orderNumParam)
+      if (emailParam) form.setValue('email', emailParam)
+      if (tokenParam) form.setValue('lookup_token', tokenParam)
+      void onSubmit({
+        order_number: orderNumParam,
+        email: emailParam,
+        lookup_token: tokenParam,
+      })
+    }
+  }, [orderNumParam, emailParam, tokenParam])
 
   return (
     <>
@@ -78,7 +113,7 @@ export function TrackOrderPage() {
             </div>
           </div>
           <p className="mt-3 text-body-md text-text-secondary max-w-lg">
-            Enter your order number and the phone number or email used at checkout to see the latest status.
+            Enter your order number, guest tracking code, or email used at checkout to see the latest status.
           </p>
         </PageContainer>
       </div>
@@ -92,7 +127,7 @@ export function TrackOrderPage() {
                   {form.formState.errors.root.message}
                 </div>
               )}
-              <FormField label="Order number" required error={form.formState.errors.order_number?.message}>
+              <FormField label="Order number" error={form.formState.errors.order_number?.message}>
                 {(id) => (
                   <Input
                     id={id}
@@ -133,7 +168,7 @@ export function TrackOrderPage() {
                   />
                 )}
               </FormField>
-              <TrackTokenField form={form} orderNumber={form.watch('order_number')} />
+              <TrackTokenField form={form} orderNumber={form.watch('order_number') || ''} />
               <Button type="submit" className="w-full" size="lg" isLoading={track.isPending} loadingText="Looking up order…">
                 Track order
               </Button>

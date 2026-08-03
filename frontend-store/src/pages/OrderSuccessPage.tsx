@@ -5,6 +5,7 @@ import { Check, KeyRound, Clock3 } from 'lucide-react'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { Button } from '@/components/ui/Button'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
+import { useAuth } from '@/contexts/AuthContext'
 import { ROUTES } from '@/constants/routes'
 
 interface OrderSuccessPageState {
@@ -20,6 +21,12 @@ export function OrderSuccessPage() {
   const state = (location.state ?? {}) as OrderSuccessPageState
   const guestLookupToken: string | undefined = state.guestLookupToken
   const manualPending: boolean = state.manualPending ?? false
+
+  const { isAuthenticated } = useAuth()
+
+  const trackOrderUrl = isAuthenticated && orderNumber
+    ? `/orders/${orderNumber}`
+    : ROUTES.TRACK_ORDER
 
   return (
     <>
@@ -89,7 +96,7 @@ export function OrderSuccessPage() {
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Button asChild>
-            <Link to={ROUTES.TRACK_ORDER}>Track your order</Link>
+            <Link to={trackOrderUrl}>Track your order</Link>
           </Button>
           <Button variant="ghost" asChild>
             <Link to={ROUTES.PRODUCTS}>Continue shopping</Link>

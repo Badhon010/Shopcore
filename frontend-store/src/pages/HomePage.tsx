@@ -52,7 +52,7 @@ import {
 import { cn } from '@/utils/cn'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { ProductGrid } from '@/features/catalog/components/ProductGrid'
-import { useBanners, useFeaturedProducts, useCategoryTree } from '@/features/catalog/hooks/useProducts'
+import { useBanners, useFeaturedProducts, useCategoryTree, useBrands } from '@/features/catalog/hooks/useProducts'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import { ROUTES, buildRoute } from '@/constants/routes'
 import { Button } from '@/components/ui/Button'
@@ -148,12 +148,9 @@ const HERO_SLIDES = [
     subtext: "Our most-loved products at their best prices. Don't miss out while stock lasts.",
   },
 ]
-const FEATURED_TABS = ['All', 'Best Sellers', 'New Arrivals', 'Top Rated']
-
 export function HomePage() {
   const reducedMotion = usePrefersReducedMotion()
   const [activeSlide, setActiveSlide] = useState(0)
-  const [activeTab, setActiveTab] = useState(FEATURED_TABS[0])
 
   const { data: banners } = useBanners()
   // Slides come from the database; fall back to the static copy only if the
@@ -188,6 +185,7 @@ export function HomePage() {
   }, [reducedMotion, slides.length])
   const { data: featured, isLoading: featuredLoading, error: featuredError, refetch } = useFeaturedProducts()
   const { data: categoryTree, isLoading: categoriesLoading } = useCategoryTree()
+  const { data: brands, isLoading: brandsLoading } = useBrands()
 
   const currentSlide = slides[activeSlide] ?? slides[0]!
   const featuredProducts = featured?.results ?? []
@@ -330,6 +328,20 @@ export function HomePage() {
       {/* Categories */}
       <section id="categories" aria-labelledby="categories-heading" className="section-spacing !py-12">
         <PageContainer>
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <p className="text-caption font-semibold uppercase tracking-widest text-accent">Browse</p>
+              <h2 id="categories-heading" className="text-heading-lg font-semibold text-text-primary">
+                Shop by Category
+              </h2>
+            </div>
+            <Link
+              to={ROUTES.PRODUCTS}
+              className="flex items-center gap-1 text-body-sm font-medium text-accent hover:underline focus-visible:outline-none"
+            >
+              All categories <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
           {categoriesLoading ? (
             <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-8">
               {Array.from({ length: 8 }, (_, i) => (
@@ -349,8 +361,20 @@ export function HomePage() {
                     to={buildRoute.category(cat.slug)}
                     className="group flex flex-col items-center gap-2.5 rounded-lg p-2 text-center focus-visible:outline-none focus-visible:shadow-focus-ring"
                   >
-                    <span className="flex h-16 w-16 items-center justify-center rounded-full bg-bg-subtle text-text-secondary transition-colors group-hover:bg-accent-subtle group-hover:text-accent">
-                      <Icon className="h-6 w-6" />
+                    <span className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-bg-subtle text-text-secondary transition-all duration-200 group-hover:bg-accent-subtle group-hover:text-accent group-hover:shadow-md">
+                      {cat.image ? (
+                        <img
+                          src={cat.image}
+                          alt={cat.name}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+                          onError={(e) => {
+                            // If image fails, hide it to reveal fallback icon
+                            e.currentTarget.style.display = 'none'
+                          }}
+                        />
+                      ) : (
+                        <Icon className="h-6 w-6" />
+                      )}
                     </span>
                     <span className="text-caption font-medium text-text-primary line-clamp-1">
                       {cat.name}
@@ -363,29 +387,67 @@ export function HomePage() {
         </PageContainer>
       </section>
 
+      {/* Brands section */}
+      <section aria-labelledby="brands-heading" className="section-spacing !py-12 border-t border-border bg-surface">
+        <PageContainer>
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <p className="text-caption font-semibold uppercase tracking-widest text-accent">Top Partners</p>
+              <h2 id="brands-heading" className="text-heading-lg font-semibold text-text-primary">
+                Shop by Brand
+              </h2>
+            </div>
+            <Link
+              to={ROUTES.PRODUCTS}
+              className="flex items-center gap-1 text-body-sm font-medium text-accent hover:underline focus-visible:outline-none"
+            >
+              All brands <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          {brandsLoading ? (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-6">
+              {Array.from({ length: 6 }, (_, i) => (
+                <Skeleton key={i} className="h-20 rounded-xl" />
+              ))}
+            </div>
+          ) : (brands ?? []).length === 0 ? null : (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-6">
+              {(brands ?? []).map((brand) => (
+                <Link
+                  key={brand.id}
+                  to={`${ROUTES.PRODUCTS}?brands=${encodeURIComponent(brand.slug)}`}
+                  className="group flex flex-col items-center justify-center rounded-xl border border-border bg-bg-subtle p-4 text-center transition-all hover:border-accent hover:bg-surface hover:shadow-xs"
+                >
+                  {brand.logo ? (
+                    <img
+                      src={brand.logo}
+                      alt={brand.name}
+                      className="h-8 max-w-[100px] object-contain transition-transform duration-200 group-hover:scale-105"
+                    />
+                  ) : (
+                    <span className="text-body-md font-bold text-text-primary group-hover:text-accent">
+                      {brand.name}
+                    </span>
+                  )}
+                  {brand.description && (
+                    <span className="mt-1 text-[11px] text-text-tertiary line-clamp-1">{brand.description}</span>
+                  )}
+                </Link>
+              ))}
+            </div>
+          )}
+        </PageContainer>
+      </section>
+
       {/* Featured products */}
       <section aria-labelledby="featured-heading" className="section-spacing !pt-0 bg-bg-subtle">
         <PageContainer>
-          <div className="flex flex-col gap-4 border-t border-border pt-12 sm:flex-row sm:items-center sm:justify-between">
-            <h2 id="featured-heading" className="text-heading-xl font-semibold text-text-primary">
-              Featured products
-            </h2>
-            <div className="flex items-center gap-1 rounded-full bg-bg p-1">
-              {FEATURED_TABS.map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(tab)}
-                  className={cn(
-                    'rounded-full px-3.5 py-1.5 text-body-sm font-medium transition-colors',
-                    activeTab === tab
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-text-secondary hover:text-text-primary'
-                  )}
-                >
-                  {tab}
-                </button>
-              ))}
+          <div className="flex items-center justify-between border-t border-border pt-12">
+            <div>
+              <p className="text-caption font-semibold uppercase tracking-widest text-accent">Curated Selection</p>
+              <h2 id="featured-heading" className="text-heading-xl font-semibold text-text-primary">
+                Featured products
+              </h2>
             </div>
             <Link
               to={ROUTES.PRODUCTS}
