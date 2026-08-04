@@ -4,7 +4,8 @@ import type { Order } from '@/types/models'
 import type { PaginatedResponse, ListParams } from '@/types/api'
 
 export interface TrackOrderPayload {
-  order_number: string
+  /** Order number. Optional when the guest lookup token is supplied. */
+  order_number?: string
   /** Email used at checkout (registered orders; optional for guests). */
   email?: string
   /** Phone used at checkout — enough on its own for guest orders (audit H-4). */

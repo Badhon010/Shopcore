@@ -547,7 +547,9 @@ for paid money is the staff refund endpoint (below), which restocks inventory.
 
 **Auth:** Registered orders — required (owner only). Guest orders — none, but
 the request body must carry the lookup secret: `phone_number` (must match
-`guest_phone` or the shipping snapshot) **or** `email` + `lookup_token`.
+`guest_phone` or the shipping snapshot), `email` + `lookup_token`, or
+`lookup_token` alone (the token is a 32+ char cryptographic bearer
+credential).
 
 **Request (guest)**
 ```json
@@ -579,7 +581,7 @@ order so order numbers cannot be probed.
 { "order_number": "ORD-20260711-0001", "email": "alice@example.com", "phone_number": "+1-555-0100" }
 ```
 
-**Request (guest order — phone alone, OR email + lookup token)**
+**Request (guest order — phone alone, email + lookup token, or lookup token alone)**
 ```json
 { "order_number": "ORD-20260711-0001", "phone_number": "+8801711111111" }
 ```
@@ -588,12 +590,27 @@ order so order numbers cannot be probed.
 { "order_number": "ORD-20260711-0001", "email": "alice@example.com", "lookup_token": "<one-time-token-from-checkout>" }
 ```
 
+```json
+{ "order_number": "ORD-20260711-0001", "lookup_token": "<one-time-token-from-checkout>" }
+```
+
+```json
+{ "lookup_token": "<one-time-token-from-checkout>" }
+```
+
+The `order_number` is optional when the guest tracking code is supplied —
+the token alone identifies the guest order.
+
 Rules:
 - Registered orders: `email` must match the account email (the lookup token
   is never used for registered orders); `phone_number` when given must match
   the account phone or shipping snapshot.
 - Guest orders: `phone_number` matching `guest_phone`/snapshot is sufficient;
-  otherwise `email` + `lookup_token` must both match.
+  otherwise `email` + `lookup_token` must both match, or `lookup_token` alone
+  is accepted — it is a 32+ char cryptographic secret (stored only as a
+  SHA-256 hash) and therefore a valid bearer credential on its own, with or
+  without the order number. When an email is supplied it must still match
+  the order.
 
 The response is the `PublicOrderSerializer` (no email/phone/token exposed).
 

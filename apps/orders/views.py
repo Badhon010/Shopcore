@@ -28,6 +28,8 @@ from apps.orders.serializers import (
     TrackOrderSerializer,
 )
 from apps.orders.services import (
+    get_guest_order_by_token,
+    guest_email_matches,
     place_order,
     transition_order_status,
     verify_guest_lookup_token,
@@ -227,7 +229,8 @@ class OrderCancelView(APIView):
     def _get_guest_order_authorized(self, request, order_number: str):
         """Resolve a guest order and verify the lookup secret.
 
-        Accepts: phone (matches guest_phone or snapshot) OR email + lookup_token.
+        Accepts: phone (matches guest_phone or snapshot), email + lookup_token,
+        or lookup_token alone (a 32+ char cryptographic bearer credential).
         Returns the Order or None (caller raises ORDER_NOT_FOUND — same envelope
         as a missing order to prevent probing, audit S-5).
         """
@@ -254,24 +257,24 @@ class OrderCancelView(APIView):
                 return order
             return None
 
-        email = data.get("email", "")
         token = data.get("lookup_token", "")
-        if (
-            email
-            and order.guest_email
-            and email.lower() == order.guest_email.lower()
-            and verify_guest_lookup_token(order, token)
-        ):
-            return order
-        return None
+        if not verify_guest_lookup_token(order, token):
+            return None
+
+        # A supplied email must still match the order — a valid token does not
+        # excuse a mismatching email (fail-closed).
+        if not guest_email_matches(order, data.get("email", "")):
+            return None
+        return order
 
 
 @extend_schema(
     summary="Track an order (guest)",
     description=(
-        "Look up an order by its number plus the email (and optional phone) "
-        "used at checkout. The email/phone pair is the bearer secret; a "
-        "mismatch returns the same 404 as a missing order."
+        "Look up an order by its number plus the bearer secret used at "
+        "checkout: the phone, the email + guest lookup token, or the guest "
+        "lookup token alone. A mismatch returns the same 404 as a missing "
+        "order."
     ),
     request=TrackOrderSerializer,
     responses={200: PublicOrderSerializer},
@@ -293,9 +296,26 @@ class TrackOrderView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        order_number = data.get("order_number", "").strip()
+        if not order_number:
+            # No order number: the guest tracking code alone identifies the
+            # order (guest orders only). The token is stored only as a SHA-256
+            # hash, so a wrong code matches no row → same 404 as a missing
+            # order (no probing, audit S-5).
+            order = get_guest_order_by_token(data.get("lookup_token", ""))
+            if order is None:
+                raise OrderNotFoundError()
+            # A supplied email must still match the order — a valid token does
+            # not excuse a mismatching email (fail-closed).
+            if not guest_email_matches(order, data.get("email", "")):
+                raise OrderNotFoundError()
+            return Response(
+                PublicOrderSerializer(order, context={"request": request}).data
+            )
+
         try:
             order = Order.objects.select_related("user").get(
-                order_number=data["order_number"]
+                order_number=order_number
             )
         except Order.DoesNotExist:
             raise OrderNotFoundError()
@@ -317,8 +337,10 @@ class TrackOrderView(APIView):
             )
 
         # Guest orders (audit H-4): lookup requires Order Number + Phone  OR
-        # Order Number + Email + Lookup Token. A mismatch returns the same 404
-        # envelope as a missing order (no probing, audit S-5).
+        # Order Number + Email + Lookup Token  OR  Order Number + Lookup Token
+        # alone (the token is a 32+ char cryptographic secret, so it is a valid
+        # bearer credential by itself). A mismatch returns the same 404 envelope
+        # as a missing order (no probing, audit S-5).
         phone = data.get("phone_number", "")
         if phone:
             snapshot_phone = (order.shipping_address_snapshot or {}).get(
@@ -331,15 +353,17 @@ class TrackOrderView(APIView):
             raise OrderNotFoundError()
 
         token = data.get("lookup_token", "")
-        if (
-            order.guest_email
-            and data["email"].strip().lower() == order.guest_email.lower()
-            and verify_guest_lookup_token(order, token)
-        ):
-            return Response(
-                PublicOrderSerializer(order, context={"request": request}).data
-            )
-        raise OrderNotFoundError()
+        if not verify_guest_lookup_token(order, token):
+            raise OrderNotFoundError()
+
+        # A supplied email must still match the order — a valid token does not
+        # excuse a mismatching email (fail-closed).
+        if not guest_email_matches(order, data.get("email", "")):
+            raise OrderNotFoundError()
+
+        return Response(
+            PublicOrderSerializer(order, context={"request": request}).data
+        )
 
 
 @extend_schema(

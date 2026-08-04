@@ -66,7 +66,7 @@ export function TrackOrderPage() {
   const onSubmit = async (data: FormData) => {
     try {
       const result = await track.mutateAsync({
-        order_number: data.order_number || '',
+        ...(data.order_number?.trim() ? { order_number: data.order_number.trim() } : {}),
         ...(data.email ? { email: data.email } : {}),
         ...(data.phone_number ? { phone_number: data.phone_number } : {}),
         ...(data.lookup_token ? { lookup_token: data.lookup_token } : {}),
@@ -113,7 +113,7 @@ export function TrackOrderPage() {
             </div>
           </div>
           <p className="mt-3 text-body-md text-text-secondary max-w-lg">
-            Enter your order number, guest tracking code, or email used at checkout to see the latest status.
+            Enter your order number, guest tracking code (shown once at checkout), or email used at checkout to see the latest status. The tracking code alone is enough.
           </p>
         </PageContainer>
       </div>
@@ -220,9 +220,9 @@ function TrackTokenField({
         </p>
       )}
       <FormField
-        label="Lookup token (guest orders)"
+        label="Guest tracking code"
         error={formState.errors.lookup_token?.message}
-        helperText={savedToken ? undefined : 'Required for guests who tracked with email instead of phone.'}
+        helperText={savedToken ? undefined : 'Optional — on its own it also finds your order.'}
       >
         {(id) => (
           <Input

@@ -79,25 +79,45 @@ class TrackOrderSerializer(serializers.Serializer):
 
     Registered orders: email (and phone when provided) must match the owner.
     Guest orders (audit H-4): lookup requires Order Number + Phone  OR  Order
-    Number + Email + Lookup Token. The secret pair prevents a guessable order
-    number alone from reading another customer's order (audit S-5).
+    Number + Email + Lookup Token  OR  Order Number + Lookup Token alone. The
+    lookup token is a 32+ char cryptographic secret (stored only as a SHA-256
+    hash), so by itself it is a strong bearer credential. The order number is
+    optional when the guest tracking code is supplied — the token alone
+    identifies the guest order (audit S-5).
     """
 
-    order_number = serializers.CharField(max_length=50)
+    order_number = serializers.CharField(
+        required=False, allow_blank=True, default="", max_length=50
+    )
     email = serializers.EmailField(required=False, allow_blank=True, default="")
     phone_number = serializers.CharField(required=False, allow_blank=True, default="")
     lookup_token = serializers.CharField(required=False, allow_blank=True, default="")
 
     def validate(self, attrs: dict) -> dict:
-        if not attrs.get("email") and not attrs.get("phone_number"):
+        if not (
+            attrs.get("email")
+            or attrs.get("phone_number")
+            or attrs.get("lookup_token")
+        ):
             raise serializers.ValidationError(
-                {"email": "An email address (or phone number) is required."}
+                {
+                    "email": (
+                        "An email address, phone number, or guest tracking "
+                        "code is required."
+                    )
+                }
+            )
+        if not attrs.get("order_number") and not attrs.get("lookup_token"):
+            raise serializers.ValidationError(
+                {"order_number": "An order number (or guest tracking code) is required."}
             )
         return attrs
 
 
 class GuestCancelSerializer(serializers.Serializer):
-    """Guest cancellation secret — phone alone, or email + lookup token."""
+    """Guest cancellation secret — phone, email + lookup token, or lookup token
+    alone (the token is a 32+ char cryptographic bearer credential, consistent
+    with TrackOrderSerializer)."""
 
     phone_number = serializers.CharField(required=False, allow_blank=True, default="")
     email = serializers.EmailField(required=False, allow_blank=True, default="")
@@ -107,9 +127,9 @@ class GuestCancelSerializer(serializers.Serializer):
         phone = attrs.get("phone_number", "")
         email = attrs.get("email", "")
         token = attrs.get("lookup_token", "")
-        if not phone and not (email and token):
+        if not phone and not email and not token:
             raise serializers.ValidationError(
-                "Provide a phone number, or an email + lookup token."
+                "Provide a phone number, an email + lookup token, or a lookup token."
             )
         return attrs
 

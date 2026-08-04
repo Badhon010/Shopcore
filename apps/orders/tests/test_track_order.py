@@ -112,3 +112,16 @@ class TestTrackOrderView:
             format="json",
         )
         assert response.status_code == 200
+
+    def test_registered_order_ignores_lookup_token(self):
+        """The lookup token is a guest-only credential: a registered order
+        still requires the account email even when a token is supplied."""
+        user = UserFactory()
+        order = OrderFactory(user=user)
+
+        response = APIClient().post(
+            _url(),
+            {"order_number": order.order_number, "lookup_token": "some-token"},
+            format="json",
+        )
+        assert response.status_code == 404

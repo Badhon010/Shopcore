@@ -3,7 +3,9 @@
 - Guest cart via X-Cart-Token header (Cart.session_key).
 - Guest checkout: POST /orders/checkout/ without auth → order with user=None
   + guest fields + inline address snapshot + one-time lookup token.
-- Guest lookup: Order Number + Phone  OR  Order Number + Email + Lookup Token.
+- Guest lookup: Order Number + Phone  OR  Order Number + Email + Lookup
+  Token  OR  the Lookup Token alone — with or without the order number (the
+  token is a bearer secret that identifies the order by its hash).
 - Guest cancel with the lookup secret.
 - Claim: verified user claims previous guest orders on login/verification.
 - Guest cart merges into the user's cart on login.
@@ -249,6 +251,146 @@ class TestGuestLookup:
         )
         assert response.status_code == 404
 
+    def test_lookup_by_token_alone(self):
+        """Order Number + Lookup Token is a valid bearer pair (no email/phone)."""
+        order = self._guest_order()
+        client = APIClient()
+        response = client.post(
+            reverse("orders:order-track"),
+            {
+                "order_number": order.order_number,
+                "lookup_token": order._guest_lookup_token_plain,
+            },
+            format="json",
+        )
+        assert response.status_code == 200
+        assert response.data["order_number"] == order.order_number
+
+    def test_lookup_wrong_token_alone_404(self):
+        order = self._guest_order()
+        client = APIClient()
+        response = client.post(
+            reverse("orders:order-track"),
+            {"order_number": order.order_number, "lookup_token": "wrong-token"},
+            format="json",
+        )
+        assert response.status_code == 404
+
+    def test_lookup_token_with_mismatched_email_404(self):
+        """A valid token does not override a supplied-but-mismatching email."""
+        order = self._guest_order()
+        client = APIClient()
+        response = client.post(
+            reverse("orders:order-track"),
+            {
+                "order_number": order.order_number,
+                "email": "other@example.com",
+                "lookup_token": order._guest_lookup_token_plain,
+            },
+            format="json",
+        )
+        assert response.status_code == 404
+
+    def test_lookup_requires_some_credential(self):
+        """Order number alone is never enough — a 400, not a 404, keeps probing opaque."""
+        response = APIClient().post(
+            reverse("orders:order-track"),
+            {"order_number": "ORD-123456"},
+            format="json",
+        )
+        assert response.status_code == 400
+
+    def test_lookup_by_token_only_without_order_number(self):
+        """The guest tracking code alone (no order number) identifies the order."""
+        order = self._guest_order()
+        client = APIClient()
+        response = client.post(
+            reverse("orders:order-track"),
+            {"lookup_token": order._guest_lookup_token_plain},
+            format="json",
+        )
+        assert response.status_code == 200
+        assert response.data["order_number"] == order.order_number
+
+    def test_lookup_wrong_token_only_without_order_number_404(self):
+        order = self._guest_order()
+        client = APIClient()
+        response = client.post(
+            reverse("orders:order-track"),
+            {"lookup_token": "wrong-token"},
+            format="json",
+        )
+        assert response.status_code == 404
+
+    def test_lookup_token_only_mismatched_email_404(self):
+        """A valid token does not override a supplied-but-mismatching email."""
+        order = self._guest_order()
+        client = APIClient()
+        response = client.post(
+            reverse("orders:order-track"),
+            {
+                "email": "other@example.com",
+                "lookup_token": order._guest_lookup_token_plain,
+            },
+            format="json",
+        )
+        assert response.status_code == 404
+
+    def test_lookup_phone_alone_requires_order_number(self):
+        """A phone without an order number (or tracking code) is a 400, not a probe."""
+        response = APIClient().post(
+            reverse("orders:order-track"),
+            {"phone_number": "+8801711111111"},
+            format="json",
+        )
+        assert response.status_code == 400
+
+    def test_registered_order_not_found_by_token(self):
+        """Token lookup is guest-only — even a hash match on a registered
+        order must not resolve it (registered orders never carry the token)."""
+        from apps.accounts.tests.factories import UserFactory
+        from apps.orders.tests.factories import OrderFactory
+
+        user = UserFactory()
+        order = OrderFactory(user=user)
+        order.guest_lookup_token = hashlib.sha256(b"stray-token").hexdigest()
+        order.save(update_fields=["guest_lookup_token"])
+
+        response = APIClient().post(
+            reverse("orders:order-track"),
+            {"lookup_token": "stray-token"},
+            format="json",
+        )
+        assert response.status_code == 404
+
+    def test_lookup_blank_order_number_with_token(self):
+        """The exact reported payload — blank order_number + tracking code —
+        must resolve the order (regression for the 400 'may not be blank')."""
+        order = self._guest_order()
+        client = APIClient()
+        response = client.post(
+            reverse("orders:order-track"),
+            {"order_number": "", "lookup_token": order._guest_lookup_token_plain},
+            format="json",
+        )
+        assert response.status_code == 200
+        assert response.data["order_number"] == order.order_number
+
+    def test_lookup_token_only_with_matching_email(self):
+        """Token + matching email (no order number) succeeds."""
+        order = self._guest_order()
+        client = APIClient()
+        response = client.post(
+            reverse("orders:order-track"),
+            {
+                "email": "guest@example.com",
+                "lookup_token": order._guest_lookup_token_plain,
+            },
+            format="json",
+        )
+        assert response.status_code == 200
+        assert response.data["order_number"] == order.order_number
+
     def test_guest_lookup_does_not_expose_internals(self):
         order = self._guest_order()
         client = APIClient()
@@ -288,6 +430,46 @@ class TestGuestCancel:
         assert response.status_code == 200
         order.refresh_from_db()
         assert order.status == OrderStatus.CANCELLED
+
+    def test_guest_cancel_with_token_alone(self):
+        order = self._guest_order()
+        client = APIClient()
+        response = client.post(
+            reverse("orders:order-cancel", args=[order.order_number]),
+            {"lookup_token": order._guest_lookup_token_plain},
+            format="json",
+        )
+        assert response.status_code == 200
+        order.refresh_from_db()
+        assert order.status == OrderStatus.CANCELLED
+
+    def test_guest_cancel_wrong_token_alone_404(self):
+        order = self._guest_order()
+        client = APIClient()
+        response = client.post(
+            reverse("orders:order-cancel", args=[order.order_number]),
+            {"lookup_token": "wrong-token"},
+            format="json",
+        )
+        assert response.status_code == 404
+        order.refresh_from_db()
+        assert order.status == OrderStatus.PENDING_PAYMENT
+
+    def test_guest_cancel_token_with_mismatched_email_404(self):
+        """A valid token does not override a supplied-but-mismatching email."""
+        order = self._guest_order()
+        client = APIClient()
+        response = client.post(
+            reverse("orders:order-cancel", args=[order.order_number]),
+            {
+                "email": "other@example.com",
+                "lookup_token": order._guest_lookup_token_plain,
+            },
+            format="json",
+        )
+        assert response.status_code == 404
+        order.refresh_from_db()
+        assert order.status == OrderStatus.PENDING_PAYMENT
 
     def test_guest_cancel_without_secret_404(self):
         order = self._guest_order()

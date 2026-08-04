@@ -483,6 +483,37 @@ def verify_guest_lookup_token(order: Order, token: str) -> bool:
     return hmac_compare(_hash_guest_token(token), order.guest_lookup_token)
 
 
+def guest_email_matches(order: Order, email: str) -> bool:
+    """Fail-closed email check for guest lookup/cancel secrets.
+
+    An empty email is fine (the phone or lookup token is the credential); a
+    supplied email must match the order's guest email — a mismatching email
+    always fails, even alongside a valid lookup token.
+    """
+    email = (email or "").strip().lower()
+    if not email:
+        return True
+    return bool(order.guest_email) and email == order.guest_email.lower()
+
+
+def get_guest_order_by_token(token: str):
+    """Resolve a guest order from its plain lookup token (no order number).
+
+    The token is a 32+ char cryptographic secret stored only as its SHA-256
+    hash (audit H-4 / S-5), so a hash lookup returns no row for a wrong or
+    forged token — the caller raises the same 404 envelope as a missing
+    order. Guest orders only: registered orders never carry a lookup token.
+    """
+    if not token:
+        return None
+    return (
+        Order.objects.filter(guest_lookup_token=_hash_guest_token(token), user_id=None)
+        .select_related("user")
+        .order_by("-created_at")
+        .first()
+    )
+
+
 def hmac_compare(a: str, b: str) -> bool:
     """Constant-time string comparison (avoid timing attacks on token checks)."""
     import hmac
